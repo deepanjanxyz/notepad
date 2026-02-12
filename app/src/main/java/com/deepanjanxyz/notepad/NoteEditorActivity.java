@@ -34,16 +34,17 @@ public class NoteEditorActivity extends AppCompatActivity {
             etContent.setText(getIntent().getStringExtra("content"));
         }
 
-        // বাটন টিপলে জাস্ট একটা কনফার্মেশন দেখাবে
+        // ফিক্স: বাটন টিপলে সেভ হবে এবং মেইন মেনুতে নিয়ে যাবে
         fabSave.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 saveNoteLocally();
-                Toast.makeText(NoteEditorActivity.this, "Note Saved", Toast.LENGTH_SHORT).show();
+                Toast.makeText(NoteEditorActivity.this, "Saved", Toast.LENGTH_SHORT).show();
+                finish(); // এই কমান্ডটা তোকে হোম স্ক্রিনে ফিরিয়ে নিয়ে যাবে
             }
         });
 
-        // অটো-সেভ লজিক
+        // অটো-সেভ আগের মতোই থাকছে
         TextWatcher watcher = new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
@@ -63,8 +64,7 @@ public class NoteEditorActivity extends AppCompatActivity {
 
         if (!title.isEmpty() || !content.isEmpty()) {
             if (noteId == -1) {
-                dbHelper.insertNote(title, content, date);
-                // আইডি আপডেট করার জন্য ডাটাবেস থেকে লাস্ট আইডি নিতে হবে, আপাতত সিম্পল রাখছি
+                noteId = dbHelper.insertNoteWithId(title, content, date);
             } else {
                 dbHelper.updateNote(noteId, title, content, date);
             }

@@ -1,14 +1,20 @@
 package com.deepanjanxyz.notepad;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
+import androidx.preference.PreferenceManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -23,12 +29,16 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // ১. থিম চেক করে এপ্লাই করা
+        applyUserTheme();
         super.onCreate(savedInstanceState);
-        setTheme(R.style.Theme_EliteMemoPro);
         setContentView(R.layout.activity_main);
 
+        // ২. পিন লক চেক করা
+        checkPinLock();
+
         dbHelper = new DatabaseHelper(this);
-        noteList = new ArrayList<>(); // এই লিস্টটাই অ্যাডাপ্টার ব্যবহার করবে
+        noteList = new ArrayList<>();
         
         androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -38,20 +48,54 @@ public class MainActivity extends AppCompatActivity {
         FloatingActionButton fabAdd = findViewById(R.id.fabAdd);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        // সঠিক লিস্ট দিয়ে অ্যাডাপ্টার তৈরি
         adapter = new NoteAdapter(this, noteList);
         recyclerView.setAdapter(adapter);
 
         fabAdd.setOnClickListener(v -> startActivity(new Intent(this, NoteEditorActivity.class)));
-        
         loadNotes();
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        loadNotes(); // এডিটর থেকে ফিরে এলে লিস্ট আপডেট হবে
+    private void applyUserTheme() {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        String theme = prefs.getString("pref_theme", "system");
+        if (theme.equals("dark")) AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
+        else if (theme.equals("light")) AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+        else AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
     }
+
+    private void checkPinLock() {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        boolean isLockEnabled = prefs.getBoolean("pref_lock", false);
+        String savedPin = prefs.getString("pref_pin", "");
+
+        if (isLockEnabled && !savedPin.isEmpty()) {
+            showPinDialog(savedPin);
+        }
+    }
+
+    private void showPinDialog(String correctPin) {
+        final EditText input = new EditText(this);
+        input.setHint("Enter 4-digit PIN");
+        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+
+        new AlertDialog.Builder(this)
+            .setTitle("App Locked")
+            .setMessage("Please enter your PIN to continue")
+            .setView(input)
+            .setCancelable(false)
+            .setPositiveButton("Unlock", (dialog, which) -> {
+                if (input.getText().toString().equals(correctPin)) {
+                    dialog.dismiss();
+                } else {
+                    Toast.makeText(this, "Wrong PIN!", Toast.LENGTH_SHORT).show();
+                    finish(); // ভুল পিন দিলে অ্যাপ বন্ধ হয়ে যাবে
+                }
+            })
+            .setNegativeButton("Exit", (dialog, which) -> finish())
+            .show();
+    }
+
+    @Override protected void onResume() { super.onResume(); loadNotes(); }
 
     private void loadNotes() {
         noteList.clear();
@@ -59,44 +103,25 @@ public class MainActivity extends AppCompatActivity {
         if (cursor != null && cursor.moveToFirst()) {
             do {
                 int idIndex = cursor.getColumnIndex(DatabaseHelper.COLUMN_ID);
-                int titleIndex = cursor.getColumnIndex(DatabaseHelper.COLUMN_TITLE);
-                int contentIndex = cursor.getColumnIndex(DatabaseHelper.COLUMN_CONTENT);
-                int dateIndex = cursor.getColumnIndex(DatabaseHelper.COLUMN_DATE);
-
                 if (idIndex != -1) {
                     noteList.add(new Note(
                         cursor.getLong(idIndex),
-                        cursor.getString(titleIndex),
-                        cursor.getString(contentIndex),
-                        cursor.getString(dateIndex)
+                        cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_TITLE)),
+                        cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_CONTENT)),
+                        cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_DATE))
                     ));
                 }
             } while (cursor.moveToNext());
             cursor.close();
         }
-        
-        if (noteList.isEmpty()) {
-            recyclerView.setVisibility(View.GONE);
-            emptyView.setVisibility(View.VISIBLE);
-        } else {
-            recyclerView.setVisibility(View.VISIBLE);
-            emptyView.setVisibility(View.GONE);
-        }
-        adapter.notifyDataSetChanged(); // এবার লিস্ট আপডেট হবেই!
+        if (noteList.isEmpty()) { recyclerView.setVisibility(View.GONE); emptyView.setVisibility(View.VISIBLE); }
+        else { recyclerView.setVisibility(View.VISIBLE); emptyView.setVisibility(View.GONE); }
+        adapter.notifyDataSetChanged();
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.main_menu, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        if (item.getItemId() == R.id.action_settings) {
-            startActivity(new Intent(this, SettingsActivity.class));
-            return true;
-        }
+    @Override public boolean onCreateOptionsMenu(Menu menu) { getMenuInflater().inflate(R.menu.main_menu, menu); return true; }
+    @Override public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if (item.getItemId() == R.id.action_settings) { startActivity(new Intent(this, SettingsActivity.class)); return true; }
         return super.onOptionsItemSelected(item);
     }
 }

@@ -13,7 +13,26 @@
         <SwitchPreferenceCompat
             app:key="pref_lock"
             app:title="Use Device Lock"
-            app:summary="Unlock using Fingerprint, Face ID, or PIN"
+            app:summary="Unlock using Fingerprint or PIN"
             app:defaultValue="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="About Developer">
+        <Preference
+            app:key="pref_github"
+            app:title="GitHub"
+            app:summary="View Source Code" />
+        <Preference
+            app:key="pref_youtube"
+            app:title="YouTube"
+            app:summary="Subscribe to my channel" />
+        <Preference
+            app:key="pref_facebook"
+            app:title="Facebook"
+            app:summary="Follow me on Facebook" />
+        <Preference
+            app:key="pref_instagram"
+            app:title="Instagram"
+            app:summary="Follow me on Instagram" />
     </PreferenceCategory>
 </PreferenceScreen>

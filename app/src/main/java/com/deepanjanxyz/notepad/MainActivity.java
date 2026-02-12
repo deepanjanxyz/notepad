@@ -125,6 +125,10 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if (item.getItemId() == R.id.action_settings) {
+            startActivity(new Intent(this, SettingsActivity.class));
+            return true;
+        }
         if (item.getItemId() == R.id.action_delete_all) {
             dbHelper.deleteAllNotes();
             loadNotes();

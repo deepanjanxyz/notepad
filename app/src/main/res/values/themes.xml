@@ -1,11 +1,8 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
+<resources>
     <style name="Theme.EliteMemoPro" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="android:forceDarkAllowed" tools:targetApi="q">true</item>
-        <item name="colorPrimary">#1976D2</item>
+        <item name="colorPrimary">#004BA0</item>
+        <item name="colorPrimaryVariant">#002171</item>
         <item name="colorOnPrimary">#FFFFFF</item>
-        <item name="colorPrimaryContainer">#BBDEFB</item>
-        <item name="colorOnPrimaryContainer">#001D36</item>
-        <item name="colorSecondary">#689F38</item>
-        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="android:statusBarColor">#002171</item>
     </style>
 </resources>

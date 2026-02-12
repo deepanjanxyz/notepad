@@ -7,6 +7,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.widget.Toast;
+import android.view.MenuItem;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -30,6 +31,7 @@ public class SettingsActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // থিম সেট করা হচ্ছে
         setTheme(R.style.Theme_EliteMemoPro_Settings);
         setContentView(R.layout.activity_settings);
 
@@ -51,11 +53,19 @@ public class SettingsActivity extends AppCompatActivity {
         onBackPressed();
         return true;
     }
+    
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            onBackPressed();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
 
     public static class SettingsFragment extends PreferenceFragmentCompat {
         private static final String PREF_THEME = "pref_theme";
         private static final String PREF_LOCK = "pref_lock";
-        private static final String PREF_FONT_SIZE = "pref_font_size";
         private static final String PREF_PIN = "pref_pin";
         private static final String PREF_BACKUP = "pref_backup";
         private static final String PREF_RESTORE = "pref_restore";
@@ -103,7 +113,7 @@ public class SettingsActivity extends AppCompatActivity {
             Preference aboutPref = findPreference(PREF_ABOUT);
             if (aboutPref != null) {
                 String version = getAppVersion();
-                aboutPref.setSummary("Version " + version + "\nDeveloped by Deepanjan\nTap to visit GitHub");
+                aboutPref.setSummary("Version " + version + "\nDeveloped by Deepanjan");
                 aboutPref.setOnPreferenceClickListener(p -> {
                     openGitHub();
                     return true;
@@ -165,11 +175,3 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 }
-
-# ২. সেটিংস কন্টেইনার ডিজাইন (activity_settings.xml) তৈরি করা
-cat <<EOF > app/src/main/res/layout/activity_settings.xml
-<?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/settings_container"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent" />

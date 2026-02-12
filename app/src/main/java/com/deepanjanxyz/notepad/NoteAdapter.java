@@ -32,12 +32,12 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.NoteViewHolder
         holder.title.setText(note.getTitle());
         holder.content.setText(note.getDate());
         
-        // লিস্টের নোটে ক্লিক করলে সেটা এডিট করার জন্য খুলবে
+        // এই অংশটাই আসল! ক্লিক করলে নোট এডিটর খুলবে
         holder.itemView.setOnClickListener(v -> {
             Intent intent = new Intent(context, NoteEditorActivity.class);
-            intent.putExtra("note_id", note.getId());
-            intent.putExtra("title", note.getTitle());
-            intent.putExtra("content", note.getContent());
+            intent.putExtra("note_id", note.getId()); // নোটের আইডি পাঠানো হচ্ছে
+            intent.putExtra("title", note.getTitle()); // টাইটেল পাঠানো হচ্ছে
+            intent.putExtra("content", note.getContent()); // আসল লেখা পাঠানো হচ্ছে
             context.startActivity(intent);
         });
     }

@@ -38,7 +38,6 @@ public class MainActivity extends AppCompatActivity {
         adapter = new NoteAdapter(this, noteList);
         recyclerView.setAdapter(adapter);
 
-        // প্লাস বাটনে ক্লিক করলে ক্র্যাশ ফিক্স করা হয়েছে
         fabAdd.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, NoteEditorActivity.class)));
         
         loadNotes();
@@ -82,7 +81,6 @@ public class MainActivity extends AppCompatActivity {
         adapter.notifyDataSetChanged();
     }
 
-    // এই অংশটা সেটিংস মেনু দেখানোর জন্য জরুরি
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.main_menu, menu);

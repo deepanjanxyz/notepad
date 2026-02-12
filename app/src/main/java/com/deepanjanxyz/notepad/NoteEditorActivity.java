@@ -1,6 +1,5 @@
 package com.deepanjanxyz.notepad;
 
-import android.content.ContentValues;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.pdf.PdfDocument;
@@ -20,6 +19,8 @@ import java.util.Date;
 import java.util.Locale;
 
 public class NoteEditorActivity extends AppCompatActivity {
+    
+    // ভেরিয়েবলগুলো এখানে ডিক্লেয়ার করা হলো যাতে সব জায়গা থেকে পাওয়া যায়
     private EditText etTitle, etContent;
     private DatabaseHelper dbHelper;
     private long noteId = -1;
@@ -62,16 +63,21 @@ public class NoteEditorActivity extends AppCompatActivity {
     private void saveNote() {
         String title = etTitle.getText().toString().trim();
         String content = etContent.getText().toString().trim();
-        String date = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(new Date());
+        
+        // তারিখ ফরম্যাট ঠিক করা হলো
+        String date = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
 
         if (title.isEmpty()) {
             Toast.makeText(this, "Title cannot be empty", Toast.LENGTH_SHORT).show();
             return;
         }
 
+        // ডাটাবেস মেথড কল ঠিক করা হলো
         if (noteId == -1) {
+            // নতুন নোট সেভ (Title, Content, Date)
             dbHelper.insertNote(title, content, date);
         } else {
+            // পুরনো নোট আপডেট (ID, Title, Content, Date)
             dbHelper.updateNote(noteId, title, content, date);
         }
         finish();
@@ -84,9 +90,17 @@ public class NoteEditorActivity extends AppCompatActivity {
 
         Canvas canvas = page.getCanvas();
         Paint paint = new Paint();
+        paint.setTextSize(14);
         
         canvas.drawText("Title: " + etTitle.getText().toString(), 40, 50, paint);
-        canvas.drawText(etContent.getText().toString(), 40, 100, paint);
+        
+        // মাল্টি-লাইন টেক্সটের জন্য সাধারণ ব্যবস্থা
+        String[] lines = etContent.getText().toString().split("\n");
+        int y = 100;
+        for (String line : lines) {
+            canvas.drawText(line, 40, y, paint);
+            y += 20;
+        }
 
         document.finishPage(page);
 
@@ -96,7 +110,7 @@ public class NoteEditorActivity extends AppCompatActivity {
 
         try {
             document.writeTo(new FileOutputStream(file));
-            Toast.makeText(this, "PDF Saved to Downloads", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "PDF Saved: " + fileName, Toast.LENGTH_LONG).show();
         } catch (IOException e) {
             Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }

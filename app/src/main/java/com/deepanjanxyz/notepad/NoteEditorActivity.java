@@ -1,4 +1,4 @@
-package com.example.elitememopro;
+package com.deepanjanxyz.notepad;
 
 import android.os.Bundle;
 import android.view.MenuItem;

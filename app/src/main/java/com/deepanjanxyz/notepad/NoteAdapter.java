@@ -1,4 +1,4 @@
-package com.example.elitememopro;
+package com.deepanjanxyz.notepad;
 
 import android.content.Context;
 import android.view.LayoutInflater;

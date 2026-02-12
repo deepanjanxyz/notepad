@@ -1,4 +1,4 @@
-package com.example.elitememopro;
+package com.deepanjanxyz.notepad;
 
 public class Note {
     private int id;

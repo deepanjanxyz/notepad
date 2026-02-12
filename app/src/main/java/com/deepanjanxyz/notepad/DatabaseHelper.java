@@ -1,4 +1,4 @@
-package com.example.elitememopro;
+package com.deepanjanxyz.notepad;
 
 import android.content.ContentValues;
 import android.content.Context;

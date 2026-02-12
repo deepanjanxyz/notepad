@@ -37,18 +37,12 @@ public class MainActivity extends AppCompatActivity {
         emptyView = findViewById(R.id.empty_view);
         FloatingActionButton fabAdd = findViewById(R.id.fabAdd);
 
-        // RecyclerView সেটআপ
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        // সিম্পল কনস্ট্রাক্টর ব্যবহার করছি
         adapter = new NoteAdapter(this, noteList);
         recyclerView.setAdapter(adapter);
 
-        // নোট অ্যাড করার বাটন ক্লিক
-        fabAdd.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                startActivity(new Intent(MainActivity.this, NoteEditorActivity.class));
-            }
-        });
+        fabAdd.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, NoteEditorActivity.class)));
 
         loadNotes();
     }
@@ -56,7 +50,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        loadNotes(); // অ্যাপে ফিরে এলে নোট রিফ্রেশ হবে
+        loadNotes();
     }
 
     private void loadNotes() {
@@ -64,7 +58,6 @@ public class MainActivity extends AppCompatActivity {
         Cursor cursor = dbHelper.getAllNotes();
         if (cursor != null && cursor.moveToFirst()) {
             do {
-                // সেফটি চেক: কলাম ইনডেক্স ঠিক আছে কি না
                 int idIndex = cursor.getColumnIndex(DatabaseHelper.COLUMN_ID);
                 int titleIndex = cursor.getColumnIndex(DatabaseHelper.COLUMN_TITLE);
                 int contentIndex = cursor.getColumnIndex(DatabaseHelper.COLUMN_CONTENT);
@@ -75,13 +68,14 @@ public class MainActivity extends AppCompatActivity {
                     String title = cursor.getString(titleIndex);
                     String content = cursor.getString(contentIndex);
                     String date = cursor.getString(dateIndex);
-                    noteList.add(new Note(id, title, content, date));
+                    
+                    // এখানে int কাস্টিং সমস্যা এড়াতে সরাসরি long নিচ্ছি
+                    noteList.add(new Note((int)id, title, content, date));
                 }
             } while (cursor.moveToNext());
             cursor.close();
         }
 
-        // লিস্ট খালি থাকলে মেসেজ দেখাবে
         if (noteList.isEmpty()) {
             recyclerView.setVisibility(View.GONE);
             emptyView.setVisibility(View.VISIBLE);
@@ -105,7 +99,6 @@ public class MainActivity extends AppCompatActivity {
             startActivity(new Intent(this, SettingsActivity.class));
             return true;
         }
-        // সার্চ বা ডিলিট লজিক পরে অ্যাড করা যাবে
         return super.onOptionsItemSelected(item);
     }
 }

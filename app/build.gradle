@@ -33,6 +33,9 @@ android {
 }
 
 dependencies {
+    implementation platform("com.google.firebase:firebase-bom:32.2.0")
+    implementation "com.google.firebase:firebase-database"
+    implementation "com.google.firebase:firebase-auth"
     implementation "io.noties.markwon:core:4.6.2"
     implementation "com.itextpdf:itext7-core:7.1.15"
     implementation "androidx.biometric:biometric:1.1.0"

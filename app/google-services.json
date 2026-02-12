@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "350559696570",
+    "project_id": "elite-memo-pro-7965e",
+    "storage_bucket": "elite-memo-pro-7965e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:350559696570:android:5d55113825aa76120f3483",
+        "android_client_info": {
+          "package_name": "com.deepanjanxyz.notepad"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDI0dC_4onaOqMl88hNdXN50lscSjYrGZ8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

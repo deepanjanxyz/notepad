@@ -1,5 +1,6 @@
 plugins {
     id 'com.android.application'
+    id 'com.google.gms.google-services' // প্লাগইন আইডি ফিক্স
 }
 
 android {
@@ -12,6 +13,7 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0"
+
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -22,30 +24,32 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
-    
-    lint {
-        abortOnError false
-        checkReleaseBuilds false
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 }
 
 dependencies {
-    implementation platform("com.google.firebase:firebase-bom:32.2.0")
-    implementation "com.google.firebase:firebase-database"
-    implementation "com.google.firebase:firebase-auth"
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.10.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.preference:preference:1.2.1'
+    implementation 'androidx.biometric:biometric:1.1.0'
+    
+    // Firebase Dependencies (BOM দিয়ে ম্যানেজ করা)
+    implementation platform('com.google.firebase:firebase-bom:32.7.0')
+    implementation 'com.google.firebase:firebase-analytics'
+    implementation 'com.google.firebase:firebase-auth'
+    implementation 'com.google.firebase:firebase-database'
+    
+    // Google Sign In
+    implementation 'com.google.android.gms:play-services-auth:20.7.0'
+
+    // PDF & Markdown
     implementation "io.noties.markwon:core:4.6.2"
     implementation "com.itextpdf:itext7-core:7.1.15"
-    implementation "androidx.biometric:biometric:1.1.0"
-    // তোর দেওয়া নতুন লাইব্রেরি (সেটিংস ও বায়োমেট্রিক)
-    implementation "androidx.preference:preference:1.2.1"
-    implementation "androidx.biometric:biometric:1.1.0"
 
-    // বেসিক লাইব্রেরি (আপডেট করা ভার্সন সহ)
-    implementation "com.google.android.material:material:1.12.0"
-    implementation "androidx.appcompat:appcompat:1.7.0"
-    implementation "androidx.core:core-ktx:1.13.1"
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }

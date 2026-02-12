@@ -1,6 +1,5 @@
 plugins {
     id 'com.android.application'
-    id 'com.google.gms.google-services'
 }
 
 android {
@@ -35,16 +34,7 @@ dependencies {
     implementation 'androidx.preference:preference:1.2.0'
     implementation 'androidx.biometric:biometric:1.1.0'
     
-    // Firebase (Stable BOM)
-    implementation platform('com.google.firebase:firebase-bom:32.3.1')
-    implementation 'com.google.firebase:firebase-analytics'
-    implementation 'com.google.firebase:firebase-auth'
-    implementation 'com.google.firebase:firebase-database'
-    
-    // Google Sign In
-    implementation 'com.google.android.gms:play-services-auth:20.7.0'
-
-    // PDF & Markdown
+    // PDF & Markdown (এগুলো থাকবে)
     implementation "io.noties.markwon:core:4.6.2"
     implementation "com.itextpdf:itext7-core:7.1.15"
 }

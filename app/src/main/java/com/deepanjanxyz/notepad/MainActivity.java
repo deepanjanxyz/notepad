@@ -1,7 +1,4 @@
 package com.deepanjanxyz.notepad;
-import androidx.biometric.BiometricManager;
-import androidx.biometric.BiometricPrompt;
-import androidx.core.content.ContextCompat;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -24,7 +21,6 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import androidx.biometric.BiometricManager;
 import androidx.biometric.BiometricPrompt;
 import androidx.core.content.ContextCompat;
-import com.google.firebase.database.FirebaseDatabase;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -44,9 +40,6 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         applyUserTheme();
         super.onCreate(savedInstanceState);
         
-        // ফায়ারবেস কানেকশন টেস্ট (অফলাইনেও ডেটা সেভ রাখবে)
-        FirebaseDatabase.getInstance().setPersistenceEnabled(true);
-
         if (isLockEnabled() && !isAuthenticated) {
             setContentView(new View(this)); 
             showBiometricPrompt();
@@ -59,32 +52,41 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         setContentView(R.layout.activity_main);
         dbHelper = new DatabaseHelper(this);
         noteList = new ArrayList<>();
+        
         setSupportActionBar(findViewById(R.id.toolbar));
         recyclerView = findViewById(R.id.recyclerView);
         emptyView = findViewById(R.id.empty_view);
         FloatingActionButton fabAdd = findViewById(R.id.fabAdd);
+
         recyclerView.setLayoutManager(new StaggeredGridLayoutManager(2, StaggeredGridLayoutManager.VERTICAL));
         adapter = new NoteAdapter(this, noteList, this);
         recyclerView.setAdapter(adapter);
+
         fabAdd.setOnClickListener(v -> startActivity(new Intent(this, NoteEditorActivity.class)));
         loadNotes("");
     }
 
     private boolean isLockEnabled() {
-        return PreferenceManager.getDefaultSharedPreferences(this).getBoolean("pref_lock", false);
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        return prefs.getBoolean("pref_lock", false);
     }
 
     private void showBiometricPrompt() {
         Executor executor = ContextCompat.getMainExecutor(this);
         BiometricPrompt biometricPrompt = new BiometricPrompt(MainActivity.this, executor, new BiometricPrompt.AuthenticationCallback() {
             @Override
-            public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) { finish(); }
+            public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
+                super.onAuthenticationError(errorCode, errString);
+                finish();
+            }
             @Override
             public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
+                super.onAuthenticationSucceeded(result);
                 isAuthenticated = true;
                 initUI();
             }
         });
+
         BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
                 .setTitle("Elite Memo Security")
                 .setSubtitle("Unlock to access your notes")
@@ -126,6 +128,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         this.mainMenu = menu;
         MenuItem searchItem = menu.findItem(R.id.action_search);
         SearchView searchView = (SearchView) searchItem.getActionView();
+        searchView.setQueryHint("Search notes...");
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override public boolean onQueryTextSubmit(String query) { loadNotes(query); return false; }
             @Override public boolean onQueryTextChange(String newText) { loadNotes(newText); return false; }
@@ -135,29 +138,38 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
 
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        if (item.getItemId() == R.id.action_settings) { startActivity(new Intent(this, SettingsActivity.class)); return true; } 
-        else if (item.getItemId() == R.id.action_delete_selected) { showDeleteConfirmation(); return true; }
+        int id = item.getItemId();
+        if (id == R.id.action_settings) { startActivity(new Intent(this, SettingsActivity.class)); return true; } 
+        else if (id == R.id.action_delete_selected) { showDeleteConfirmation(); return true; }
         return super.onOptionsItemSelected(item);
     }
 
     private void showDeleteConfirmation() {
         List<Note> selected = adapter.getSelectedNotes();
-        new AlertDialog.Builder(this).setTitle("Delete Notes?").setMessage("Delete " + selected.size() + " notes?")
+        new AlertDialog.Builder(this)
+            .setTitle("Delete Notes?")
+            .setMessage("Delete " + selected.size() + " notes?")
             .setPositiveButton("Delete", (dialog, which) -> {
                 for (Note note : selected) dbHelper.deleteNote(note.getId());
                 adapter.clearSelection();
                 loadNotes("");
-            }).setNegativeButton("Cancel", null).show();
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
     }
 
     private void applyUserTheme() {
-        String theme = PreferenceManager.getDefaultSharedPreferences(this).getString("pref_theme", "system");
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        String theme = prefs.getString("pref_theme", "system");
         if (theme.equals("dark")) AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
         else if (theme.equals("light")) AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
         else AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
     }
 
-    @Override protected void onResume() { super.onResume(); if (isAuthenticated || !isLockEnabled()) loadNotes(""); }
+    @Override protected void onResume() { 
+        super.onResume(); 
+        if (isAuthenticated || !isLockEnabled()) loadNotes(""); 
+    }
 
     private void loadNotes(String query) {
         if (noteList == null) return;
@@ -165,15 +177,17 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         Cursor cursor = (query.isEmpty()) ? dbHelper.getAllNotes() : dbHelper.searchNotes(query);
         if (cursor != null && cursor.moveToFirst()) {
             do {
-                noteList.add(new Note(cursor.getLong(cursor.getColumnIndex(DatabaseHelper.COLUMN_ID)),
+                noteList.add(new Note(
+                    cursor.getLong(cursor.getColumnIndex(DatabaseHelper.COLUMN_ID)),
                     cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_TITLE)),
                     cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_CONTENT)),
-                    cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_DATE))));
+                    cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_DATE))
+                ));
             } while (cursor.moveToNext());
             cursor.close();
         }
-        recyclerView.setVisibility(noteList.isEmpty() ? View.GONE : View.VISIBLE);
-        emptyView.setVisibility(noteList.isEmpty() ? View.VISIBLE : View.GONE);
+        if (noteList.isEmpty()) { recyclerView.setVisibility(View.GONE); emptyView.setVisibility(View.VISIBLE); }
+        else { recyclerView.setVisibility(View.VISIBLE); emptyView.setVisibility(View.GONE); }
         adapter.notifyDataSetChanged();
     }
 }

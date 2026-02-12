@@ -15,7 +15,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.preference.PreferenceManager;
-import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import java.util.ArrayList;
@@ -29,12 +29,9 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // ১. থিম চেক করে এপ্লাই করা
         applyUserTheme();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        // ২. পিন লক চেক করা
         checkPinLock();
 
         dbHelper = new DatabaseHelper(this);
@@ -47,7 +44,10 @@ public class MainActivity extends AppCompatActivity {
         emptyView = findViewById(R.id.empty_view);
         FloatingActionButton fabAdd = findViewById(R.id.fabAdd);
 
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        // এই সেই 'চৌকো চৌকো' ডিজাইন (Grid Layout)
+        // ২ কলামের Staggered Grid ব্যবহার করা হয়েছে
+        recyclerView.setLayoutManager(new StaggeredGridLayoutManager(2, StaggeredGridLayoutManager.VERTICAL));
+        
         adapter = new NoteAdapter(this, noteList);
         recyclerView.setAdapter(adapter);
 
@@ -67,29 +67,19 @@ public class MainActivity extends AppCompatActivity {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         boolean isLockEnabled = prefs.getBoolean("pref_lock", false);
         String savedPin = prefs.getString("pref_pin", "");
-
-        if (isLockEnabled && !savedPin.isEmpty()) {
-            showPinDialog(savedPin);
-        }
+        if (isLockEnabled && !savedPin.isEmpty()) showPinDialog(savedPin);
     }
 
     private void showPinDialog(String correctPin) {
         final EditText input = new EditText(this);
-        input.setHint("Enter 4-digit PIN");
+        input.setHint("Enter PIN");
         input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD);
-
         new AlertDialog.Builder(this)
-            .setTitle("App Locked")
-            .setMessage("Please enter your PIN to continue")
+            .setTitle("Locked")
             .setView(input)
             .setCancelable(false)
             .setPositiveButton("Unlock", (dialog, which) -> {
-                if (input.getText().toString().equals(correctPin)) {
-                    dialog.dismiss();
-                } else {
-                    Toast.makeText(this, "Wrong PIN!", Toast.LENGTH_SHORT).show();
-                    finish(); // ভুল পিন দিলে অ্যাপ বন্ধ হয়ে যাবে
-                }
+                if (!input.getText().toString().equals(correctPin)) { finish(); }
             })
             .setNegativeButton("Exit", (dialog, which) -> finish())
             .show();

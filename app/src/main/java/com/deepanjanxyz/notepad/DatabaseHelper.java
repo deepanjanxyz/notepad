@@ -10,10 +10,8 @@ import java.util.Date;
 import java.util.Locale;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
-
     private static final String DATABASE_NAME = "EliteMemoPro.db";
     private static final int DATABASE_VERSION = 1;
-
     public static final String TABLE_NAME = "notes";
     public static final String COLUMN_ID = "_id";
     public static final String COLUMN_TITLE = "title";
@@ -26,12 +24,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     @Override
     public void onCreate(SQLiteDatabase db) {
-        String createTable = "CREATE TABLE " + TABLE_NAME + " (" +
+        db.execSQL("CREATE TABLE " + TABLE_NAME + " (" +
                 COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 COLUMN_TITLE + " TEXT, " +
                 COLUMN_CONTENT + " TEXT, " +
-                COLUMN_DATE + " TEXT)";
-        db.execSQL(createTable);
+                COLUMN_DATE + " TEXT)");
     }
 
     @Override
@@ -40,26 +37,28 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         onCreate(db);
     }
 
-    // নাম পাল্টে insertNote করা হলো (NoteEditorActivity-র সাথে মিল রাখতে)
     public long insertNote(String title, String content) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put(COLUMN_TITLE, title);
         values.put(COLUMN_CONTENT, content);
-        // অটোমেটিক আজকের তারিখ ও সময় যোগ হবে
         values.put(COLUMN_DATE, getBitmapDate());
         return db.insert(TABLE_NAME, null, values);
     }
 
-    // updateNote মেথড যোগ করা হলো (যেটা মিসিং ছিল)
     public void updateNote(long id, String title, String content) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put(COLUMN_TITLE, title);
         values.put(COLUMN_CONTENT, content);
-        values.put(COLUMN_DATE, getBitmapDate()); // এডিট করলে ডেট আপডেট হবে
-        
+        values.put(COLUMN_DATE, getBitmapDate());
         db.update(TABLE_NAME, values, COLUMN_ID + " = ?", new String[]{String.valueOf(id)});
+    }
+
+    // এই সেই নতুন ডিলিট মেথড
+    public void deleteNote(long id) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.delete(TABLE_NAME, COLUMN_ID + " = ?", new String[]{String.valueOf(id)});
     }
 
     public Cursor getAllNotes() {
@@ -67,8 +66,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return db.query(TABLE_NAME, null, null, null, null, null, COLUMN_ID + " DESC");
     }
 
-    // তারিখ ফরম্যাট করার জন্য ছোট হেল্পার মেথড
     private String getBitmapDate() {
-        return new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(new Date());
+        return new SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(new Date());
     }
 }

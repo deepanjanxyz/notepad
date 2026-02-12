@@ -22,7 +22,8 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.NoteViewHolder
     @NonNull
     @Override
     public NoteViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(context).inflate(android.R.layout.simple_list_item_2, parent, false);
+        // আমাদের নতুন কার্ড ডিজাইন লোড হচ্ছে
+        View view = LayoutInflater.from(context).inflate(R.layout.item_note, parent, false);
         return new NoteViewHolder(view);
     }
 
@@ -30,14 +31,14 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.NoteViewHolder
     public void onBindViewHolder(@NonNull NoteViewHolder holder, int position) {
         Note note = noteList.get(position);
         holder.title.setText(note.getTitle());
-        holder.content.setText(note.getDate());
-        
-        // এই অংশটাই আসল! ক্লিক করলে নোট এডিটর খুলবে
+        holder.date.setText(note.getDate());
+        holder.content.setText(note.getContent());
+
         holder.itemView.setOnClickListener(v -> {
             Intent intent = new Intent(context, NoteEditorActivity.class);
-            intent.putExtra("note_id", note.getId()); // নোটের আইডি পাঠানো হচ্ছে
-            intent.putExtra("title", note.getTitle()); // টাইটেল পাঠানো হচ্ছে
-            intent.putExtra("content", note.getContent()); // আসল লেখা পাঠানো হচ্ছে
+            intent.putExtra("note_id", note.getId());
+            intent.putExtra("title", note.getTitle());
+            intent.putExtra("content", note.getContent());
             context.startActivity(intent);
         });
     }
@@ -46,11 +47,12 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.NoteViewHolder
     public int getItemCount() { return noteList.size(); }
 
     public static class NoteViewHolder extends RecyclerView.ViewHolder {
-        TextView title, content;
+        TextView title, date, content;
         public NoteViewHolder(@NonNull View itemView) {
             super(itemView);
-            title = itemView.findViewById(android.R.id.text1);
-            content = itemView.findViewById(android.R.id.text2);
+            title = itemView.findViewById(R.id.textTitle);
+            date = itemView.findViewById(R.id.textDate);
+            content = itemView.findViewById(R.id.textContent);
         }
     }
 }

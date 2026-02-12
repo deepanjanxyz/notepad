@@ -7,17 +7,14 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.TextView;
-
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
-
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
-
     private RecyclerView recyclerView;
     private NoteAdapter adapter;
     private DatabaseHelper dbHelper;
@@ -32,18 +29,18 @@ public class MainActivity extends AppCompatActivity {
 
         dbHelper = new DatabaseHelper(this);
         noteList = new ArrayList<>();
-
+        
         recyclerView = findViewById(R.id.recyclerView);
         emptyView = findViewById(R.id.empty_view);
         FloatingActionButton fabAdd = findViewById(R.id.fabAdd);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        // সিম্পল কনস্ট্রাক্টর ব্যবহার করছি
         adapter = new NoteAdapter(this, noteList);
         recyclerView.setAdapter(adapter);
 
+        // প্লাস বাটনে ক্লিক করলে ক্র্যাশ ফিক্স করা হয়েছে
         fabAdd.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, NoteEditorActivity.class)));
-
+        
         loadNotes();
     }
 
@@ -63,19 +60,18 @@ public class MainActivity extends AppCompatActivity {
                 int contentIndex = cursor.getColumnIndex(DatabaseHelper.COLUMN_CONTENT);
                 int dateIndex = cursor.getColumnIndex(DatabaseHelper.COLUMN_DATE);
 
-                if (idIndex != -1 && titleIndex != -1 && contentIndex != -1 && dateIndex != -1) {
-                    long id = cursor.getLong(idIndex);
-                    String title = cursor.getString(titleIndex);
-                    String content = cursor.getString(contentIndex);
-                    String date = cursor.getString(dateIndex);
-                    
-                    // এখানে int কাস্টিং সমস্যা এড়াতে সরাসরি long নিচ্ছি
-                    noteList.add(new Note((int)id, title, content, date));
+                if (idIndex != -1) {
+                    noteList.add(new Note(
+                        cursor.getLong(idIndex),
+                        cursor.getString(titleIndex),
+                        cursor.getString(contentIndex),
+                        cursor.getString(dateIndex)
+                    ));
                 }
             } while (cursor.moveToNext());
             cursor.close();
         }
-
+        
         if (noteList.isEmpty()) {
             recyclerView.setVisibility(View.GONE);
             emptyView.setVisibility(View.VISIBLE);
@@ -86,6 +82,7 @@ public class MainActivity extends AppCompatActivity {
         adapter.notifyDataSetChanged();
     }
 
+    // এই অংশটা সেটিংস মেনু দেখানোর জন্য জরুরি
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.main_menu, menu);
@@ -94,8 +91,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        int id = item.getItemId();
-        if (id == R.id.action_settings) {
+        if (item.getItemId() == R.id.action_settings) {
             startActivity(new Intent(this, SettingsActivity.class));
             return true;
         }

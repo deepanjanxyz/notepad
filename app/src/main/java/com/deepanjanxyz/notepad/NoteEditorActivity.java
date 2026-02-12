@@ -1,88 +1,56 @@
 package com.deepanjanxyz.notepad;
 
 import android.os.Bundle;
-import android.view.MenuItem;
+import android.widget.EditText;
 import android.widget.Toast;
-
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-
-import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.google.android.material.textfield.TextInputEditText;
 
 public class NoteEditorActivity extends AppCompatActivity {
 
-    public static final String EXTRA_NOTE_ID = "extra_note_id";
-    public static final String EXTRA_NOTE_TITLE = "extra_note_title";
-    public static final String EXTRA_NOTE_CONTENT = "extra_note_content";
-
-    private TextInputEditText etTitle;
-    private TextInputEditText etContent;
+    private EditText editTitle, editContent;
     private DatabaseHelper dbHelper;
-    private int noteId = -1;
+    private long noteId = -1; // -1 মানে নতুন নোট
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // থিম নিশ্চিত করা হচ্ছে
+        setTheme(R.style.Theme_EliteMemoPro);
         setContentView(R.layout.activity_note_editor);
 
-        MaterialToolbar toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        }
-
-        etTitle = findViewById(R.id.etTitle);
-        etContent = findViewById(R.id.etContent);
+        dbHelper = new DatabaseHelper(this);
+        editTitle = findViewById(R.id.editTitle);
+        editContent = findViewById(R.id.editContent);
         FloatingActionButton fabSave = findViewById(R.id.fabSave);
 
-        dbHelper = new DatabaseHelper(this);
-
-        if (getIntent().hasExtra(EXTRA_NOTE_ID)) {
-            noteId = getIntent().getIntExtra(EXTRA_NOTE_ID, -1);
-            String title = getIntent().getStringExtra(EXTRA_NOTE_TITLE);
-            String content = getIntent().getStringExtra(EXTRA_NOTE_CONTENT);
-
-            if (title != null) etTitle.setText(title);
-            if (content != null) etContent.setText(content);
-
-            toolbar.setTitle("Edit Note");
-        } else {
-            toolbar.setTitle("New Note");
+        // যদি পুরনো নোট এডিট করতে আসি
+        if (getIntent().hasExtra("note_id")) {
+            noteId = getIntent().getLongExtra("note_id", -1);
+            editTitle.setText(getIntent().getStringExtra("title"));
+            editContent.setText(getIntent().getStringExtra("content"));
         }
 
         fabSave.setOnClickListener(v -> saveNote());
     }
 
     private void saveNote() {
-        String title = etTitle.getText() != null ? etTitle.getText().toString().trim() : "";
-        String content = etContent.getText() != null ? etContent.getText().toString().trim() : "";
+        String title = editTitle.getText().toString().trim();
+        String content = editContent.getText().toString().trim();
 
         if (title.isEmpty() && content.isEmpty()) {
-            Toast.makeText(this, "Note is empty", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Empty note discarded", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
 
-        if (title.isEmpty()) title = "Untitled";
-
         if (noteId == -1) {
+            // নতুন নোট
             dbHelper.insertNote(title, content);
-            Toast.makeText(this, "Note saved", Toast.LENGTH_SHORT).show();
         } else {
+            // পুরনো নোট আপডেট
             dbHelper.updateNote(noteId, title, content);
-            Toast.makeText(this, "Note updated", Toast.LENGTH_SHORT).show();
         }
-        finish();
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        if (item.getItemId() == android.R.id.home) {
-            finish();
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
+        finish(); // সেভ করে বেরিয়ে আসবে
     }
 }

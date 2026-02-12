@@ -19,7 +19,10 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".NoteEditorActivity" android:exported="false" />
+        <activity 
+            android:name=".NoteEditorActivity" 
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         
         <activity
             android:name=".SettingsActivity"

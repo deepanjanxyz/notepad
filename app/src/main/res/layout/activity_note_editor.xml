@@ -3,45 +3,50 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="?android:colorBackground">
+    android:layout_height="match_parent">
 
-    <LinearLayout
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
         android:padding="16dp">
 
-        <EditText
-            android:id="@+id/editTitle"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Title"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:background="@android:color/transparent"
-            android:textColor="?android:textColorPrimary"
-            android:paddingBottom="12dp"/>
+            android:orientation="vertical">
 
-        <EditText
-            android:id="@+id/editContent"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:hint="Type your note here..."
-            android:gravity="top"
-            android:background="@android:color/transparent"
-            android:textColor="?android:textColorPrimary"
-            android:textSize="18sp"/>
-    </LinearLayout>
+            <EditText
+                android:id="@+id/editTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Title"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:background="@null"
+                android:textColor="?android:textColorPrimary" />
+
+            <EditText
+                android:id="@+id/editContent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Start typing..."
+                android:textSize="18sp"
+                android:background="@null"
+                android:layout_marginTop="10dp"
+                android:textColor="?android:textColorPrimary"
+                android:minHeight="300dp"
+                android:gravity="top" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabSave"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
-        android:layout_margin="24dp"
+        android:layout_margin="20dp"
         android:src="@android:drawable/ic_menu_save"
         app:backgroundTint="?attr/colorPrimary"
-        app:tint="?attr/colorOnPrimary"/>
+        app:tint="?attr/colorOnPrimary" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

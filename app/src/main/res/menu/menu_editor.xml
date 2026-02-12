@@ -2,6 +2,10 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
+        android:id="@+id/action_export_pdf"
+        android:title="Export to PDF"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_delete"
         android:icon="@android:drawable/ic_menu_delete"
         android:title="Delete"

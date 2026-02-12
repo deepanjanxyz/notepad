@@ -11,6 +11,13 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import android.graphics.pdf.PdfDocument;
+import android.graphics.Paint;
+import android.graphics.Canvas;
+import android.os.Environment;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 public class NoteEditorActivity extends AppCompatActivity {
     private EditText editTitle, editContent;
@@ -53,17 +60,16 @@ public class NoteEditorActivity extends AppCompatActivity {
         else dbHelper.updateNote(noteId, t, c);
     }
 
-    // ডিলিট মেনু তৈরি
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_editor, menu);
         return true;
     }
 
-    // ডিলিট বাটনে ক্লিক করলে কী হবে
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        if (item.getItemId() == R.id.action_delete) {
+        int id = item.getItemId();
+        if (id == R.id.action_delete) {
             if (noteId != -1) {
                 new AlertDialog.Builder(this)
                     .setTitle("Delete Note?")
@@ -73,13 +79,45 @@ public class NoteEditorActivity extends AppCompatActivity {
                         Toast.makeText(this, "Deleted!", Toast.LENGTH_SHORT).show();
                         finish();
                     })
-                    .setNegativeButton("Cancel", null)
-                    .show();
-            } else {
-                Toast.makeText(this, "Note not saved yet!", Toast.LENGTH_SHORT).show();
-            }
+                    .setNegativeButton("Cancel", null).show();
+            } else Toast.makeText(this, "Note not saved yet!", Toast.LENGTH_SHORT).show();
+            return true;
+        } else if (id == R.id.action_export_pdf) {
+            exportToPdf();
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void exportToPdf() {
+        // সিম্পল PDF এক্সপোর্ট লজিক
+        PdfDocument document = new PdfDocument();
+        PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(595, 842, 1).create();
+        PdfDocument.Page page = document.startPage(pageInfo);
+        Canvas canvas = page.getCanvas();
+        Paint paint = new Paint();
+        
+        paint.setTextSize(24);
+        canvas.drawText(editTitle.getText().toString(), 10, 50, paint);
+        
+        paint.setTextSize(14);
+        int y = 80;
+        for (String line : editContent.getText().toString().split("\n")) {
+            canvas.drawText(line, 10, y, paint);
+            y += 20;
+        }
+        
+        document.finishPage(page);
+
+        String fileName = "Note_" + System.currentTimeMillis() + ".pdf";
+        File file = new File(getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), fileName);
+        
+        try {
+            document.writeTo(new FileOutputStream(file));
+            Toast.makeText(this, "PDF Saved: " + file.getAbsolutePath(), Toast.LENGTH_LONG).show();
+        } catch (IOException e) {
+            Toast.makeText(this, "Error exporting PDF: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+        document.close();
     }
 }

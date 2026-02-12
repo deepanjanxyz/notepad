@@ -18,17 +18,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String COLUMN_CONTENT = "content";
     public static final String COLUMN_DATE = "date";
 
-    public DatabaseHelper(Context context) {
-        super(context, DATABASE_NAME, null, DATABASE_VERSION);
-    }
+    public DatabaseHelper(Context context) { super(context, DATABASE_NAME, null, DATABASE_VERSION); }
 
     @Override
     public void onCreate(SQLiteDatabase db) {
-        db.execSQL("CREATE TABLE " + TABLE_NAME + " (" +
-                COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                COLUMN_TITLE + " TEXT, " +
-                COLUMN_CONTENT + " TEXT, " +
-                COLUMN_DATE + " TEXT)");
+        db.execSQL("CREATE TABLE " + TABLE_NAME + " (" + COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " + COLUMN_TITLE + " TEXT, " + COLUMN_CONTENT + " TEXT, " + COLUMN_DATE + " TEXT)");
     }
 
     @Override
@@ -55,7 +49,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.update(TABLE_NAME, values, COLUMN_ID + " = ?", new String[]{String.valueOf(id)});
     }
 
-    // এই সেই নতুন ডিলিট মেথড
     public void deleteNote(long id) {
         SQLiteDatabase db = this.getWritableDatabase();
         db.delete(TABLE_NAME, COLUMN_ID + " = ?", new String[]{String.valueOf(id)});
@@ -64,6 +57,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public Cursor getAllNotes() {
         SQLiteDatabase db = this.getReadableDatabase();
         return db.query(TABLE_NAME, null, null, null, null, null, COLUMN_ID + " DESC");
+    }
+    
+    // নতুন সার্চ মেথড
+    public Cursor searchNotes(String query) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.query(TABLE_NAME, null, COLUMN_TITLE + " LIKE ? OR " + COLUMN_CONTENT + " LIKE ?", new String[]{"%" + query + "%", "%" + query + "%"}, null, null, COLUMN_ID + " DESC");
     }
 
     private String getBitmapDate() {

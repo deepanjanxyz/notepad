@@ -16,6 +16,7 @@ import androidx.appcompat.app.AppCompatDelegate;
 import androidx.preference.PreferenceManager;
 import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.appcompat.widget.SearchView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import androidx.biometric.BiometricManager;
 import androidx.biometric.BiometricPrompt;
@@ -32,16 +33,14 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
     private TextView emptyView;
     private Menu mainMenu;
     private boolean isSelectionMode = false;
-    private boolean isAuthenticated = false; // লক স্ট্যাটাস ট্র্যাক করার জন্য
+    private boolean isAuthenticated = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         applyUserTheme();
         super.onCreate(savedInstanceState);
         
-        // লক চেক করা হচ্ছে অ্যাপ লোড হওয়ার আগেই
         if (isLockEnabled() && !isAuthenticated) {
-            // স্ক্রিন খালি রাখার জন্য কন্টেন্ট ভিউ পরে সেট করা হবে বা হাইড রাখা হবে
             setContentView(new View(this)); 
             showBiometricPrompt();
         } else {
@@ -49,16 +48,12 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         }
     }
 
-    // আসল UI লোড করার মেথড
     private void initUI() {
         setContentView(R.layout.activity_main);
-        
         dbHelper = new DatabaseHelper(this);
         noteList = new ArrayList<>();
         
-        androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-
+        setSupportActionBar(findViewById(R.id.toolbar));
         recyclerView = findViewById(R.id.recyclerView);
         emptyView = findViewById(R.id.empty_view);
         FloatingActionButton fabAdd = findViewById(R.id.fabAdd);
@@ -68,7 +63,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         recyclerView.setAdapter(adapter);
 
         fabAdd.setOnClickListener(v -> startActivity(new Intent(this, NoteEditorActivity.class)));
-        loadNotes();
+        loadNotes("");
     }
 
     private boolean isLockEnabled() {
@@ -82,32 +77,21 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
             @Override
             public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
                 super.onAuthenticationError(errorCode, errString);
-                Toast.makeText(getApplicationContext(), "Authentication required!", Toast.LENGTH_SHORT).show();
-                finish(); // অথেন্টিকেশন না দিলে অ্যাপ বন্ধ
+                finish();
             }
-
             @Override
             public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
                 super.onAuthenticationSucceeded(result);
                 isAuthenticated = true;
-                initUI(); // পাসওয়ার্ড মিললে অ্যাপ খুলবে
-                Toast.makeText(getApplicationContext(), "Unlocked", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onAuthenticationFailed() {
-                super.onAuthenticationFailed();
-                Toast.makeText(getApplicationContext(), "Authentication failed", Toast.LENGTH_SHORT).show();
+                initUI();
             }
         });
 
         BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
                 .setTitle("Elite Memo Security")
                 .setSubtitle("Unlock to access your notes")
-                // এই লাইনটা ম্যাজিক! এটা ফিঙ্গারপ্রিন্ট না থাকলে পিন বা প্যাটার্ন চাইবে
                 .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.DEVICE_CREDENTIAL)
                 .build();
-
         biometricPrompt.authenticate(promptInfo);
     }
 
@@ -125,6 +109,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         this.isSelectionMode = selectionMode;
         if (mainMenu != null) {
             mainMenu.findItem(R.id.action_delete_selected).setVisible(selectionMode);
+            mainMenu.findItem(R.id.action_search).setVisible(!selectionMode);
             mainMenu.findItem(R.id.action_settings).setVisible(!selectionMode);
             if (selectionMode) getSupportActionBar().setTitle(count + " Selected");
             else getSupportActionBar().setTitle("Elite Memo Pro");
@@ -141,6 +126,17 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.main_menu, menu);
         this.mainMenu = menu;
+        
+        MenuItem searchItem = menu.findItem(R.id.action_search);
+        SearchView searchView = (SearchView) searchItem.getActionView();
+        searchView.setQueryHint("Search notes...");
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) { loadNotes(query); return false; }
+            @Override
+            public boolean onQueryTextChange(String newText) { loadNotes(newText); return false; }
+        });
+        
         return true;
     }
 
@@ -160,7 +156,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
             .setPositiveButton("Delete", (dialog, which) -> {
                 for (Note note : selected) dbHelper.deleteNote(note.getId());
                 adapter.clearSelection();
-                loadNotes();
+                loadNotes("");
             })
             .setNegativeButton("Cancel", null)
             .show();
@@ -176,13 +172,17 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
 
     @Override protected void onResume() { 
         super.onResume(); 
-        if (isAuthenticated || !isLockEnabled()) loadNotes(); 
+        if (isAuthenticated || !isLockEnabled()) loadNotes(""); 
     }
 
-    private void loadNotes() {
+    // সার্চ কুয়েরি সাপোর্ট করে এমন লোড ফাংশন
+    private void loadNotes(String query) {
         if (noteList == null) return;
         noteList.clear();
-        Cursor cursor = dbHelper.getAllNotes();
+        Cursor cursor;
+        if (query.isEmpty()) cursor = dbHelper.getAllNotes();
+        else cursor = dbHelper.searchNotes(query);
+        
         if (cursor != null && cursor.moveToFirst()) {
             do {
                 int idIndex = cursor.getColumnIndex(DatabaseHelper.COLUMN_ID);

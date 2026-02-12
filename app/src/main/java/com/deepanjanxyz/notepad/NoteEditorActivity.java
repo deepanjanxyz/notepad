@@ -14,14 +14,12 @@ import androidx.appcompat.app.AppCompatActivity;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
 
 public class NoteEditorActivity extends AppCompatActivity {
     
-    // ভেরিয়েবলগুলো এখানে ডিক্লেয়ার করা হলো যাতে সব জায়গা থেকে পাওয়া যায়
-    private EditText etTitle, etContent;
+    // এই যে দেখ, ভেরিয়েবলগুলো ক্লাসের শুরুতেই ডিক্লেয়ার করা হলো
+    private EditText etTitle;
+    private EditText etContent;
     private DatabaseHelper dbHelper;
     private long noteId = -1;
 
@@ -63,22 +61,18 @@ public class NoteEditorActivity extends AppCompatActivity {
     private void saveNote() {
         String title = etTitle.getText().toString().trim();
         String content = etContent.getText().toString().trim();
-        
-        // তারিখ ফরম্যাট ঠিক করা হলো
-        String date = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
 
         if (title.isEmpty()) {
             Toast.makeText(this, "Title cannot be empty", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // ডাটাবেস মেথড কল ঠিক করা হলো
         if (noteId == -1) {
-            // নতুন নোট সেভ (Title, Content, Date)
-            dbHelper.insertNote(title, content, date);
+            // ফিক্স: এখানে আমরা শুধু Title আর Content পাঠাচ্ছি (Date বাদ দিয়েছি)
+            dbHelper.insertNote(title, content);
         } else {
-            // পুরনো নোট আপডেট (ID, Title, Content, Date)
-            dbHelper.updateNote(noteId, title, content, date);
+            // ফিক্স: আপডেটের সময়ও Date বাদ
+            dbHelper.updateNote(noteId, title, content);
         }
         finish();
     }
@@ -94,7 +88,6 @@ public class NoteEditorActivity extends AppCompatActivity {
         
         canvas.drawText("Title: " + etTitle.getText().toString(), 40, 50, paint);
         
-        // মাল্টি-লাইন টেক্সটের জন্য সাধারণ ব্যবস্থা
         String[] lines = etContent.getText().toString().split("\n");
         int y = 100;
         for (String line : lines) {

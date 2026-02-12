@@ -1,20 +1,32 @@
 package com.deepanjanxyz.notepad;
 
 public class Note {
-    private int id;
+    private long id;
     private String title;
     private String content;
-    private String timestamp;
+    private String date;
 
-    public Note(int id, String title, String content, String timestamp) {
+    // কনস্ট্রাক্টর (ডেট সহ)
+    public Note(long id, String title, String content, String date) {
         this.id = id;
         this.title = title;
         this.content = content;
-        this.timestamp = timestamp;
+        this.date = date;
     }
 
-    public int getId() { return id; }
-    public String getTitle() { return title; }
-    public String getContent() { return content; }
-    public String getTimestamp() { return timestamp; }
+    public long getId() {
+        return id;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public String getContent() {
+        return content;
+    }
+
+    public String getDate() {
+        return date;
+    }
 }

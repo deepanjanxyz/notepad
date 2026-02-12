@@ -1,28 +1,26 @@
 package com.deepanjanxyz.notepad;
 
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.widget.EditText;
-import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 public class NoteEditorActivity extends AppCompatActivity {
 
     private EditText editTitle, editContent;
     private DatabaseHelper dbHelper;
-    private long noteId = -1; // -1 মানে নতুন নোট
+    private long noteId = -1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // থিম নিশ্চিত করা হচ্ছে
         setTheme(R.style.Theme_EliteMemoPro);
         setContentView(R.layout.activity_note_editor);
 
         dbHelper = new DatabaseHelper(this);
         editTitle = findViewById(R.id.editTitle);
         editContent = findViewById(R.id.editContent);
-        FloatingActionButton fabSave = findViewById(R.id.fabSave);
 
         // যদি পুরনো নোট এডিট করতে আসি
         if (getIntent().hasExtra("note_id")) {
@@ -31,26 +29,32 @@ public class NoteEditorActivity extends AppCompatActivity {
             editContent.setText(getIntent().getStringExtra("content"));
         }
 
-        fabSave.setOnClickListener(v -> saveNote());
+        // অটো-সেভ লজিক: টাইপ করলেই সেভ হবে
+        TextWatcher autoSaveWatcher = new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                saveNoteAuto();
+            }
+            @Override public void afterTextChanged(Editable s) {}
+        };
+
+        editTitle.addTextChangedListener(autoSaveWatcher);
+        editContent.addTextChangedListener(autoSaveWatcher);
     }
 
-    private void saveNote() {
+    private void saveNoteAuto() {
         String title = editTitle.getText().toString().trim();
         String content = editContent.getText().toString().trim();
 
-        if (title.isEmpty() && content.isEmpty()) {
-            Toast.makeText(this, "Empty note discarded", Toast.LENGTH_SHORT).show();
-            finish();
-            return;
-        }
+        // যদি দুটোই খালি থাকে তবে সেভ করার দরকার নেই
+        if (title.isEmpty() && content.isEmpty()) return;
 
         if (noteId == -1) {
-            // নতুন নোট
-            dbHelper.insertNote(title, content);
+            // প্রথমবার টাইপ করার সাথে সাথে নতুন নোট তৈরি হবে
+            noteId = dbHelper.insertNote(title, content);
         } else {
-            // পুরনো নোট আপডেট
+            // এরপর প্রতিটা ক্যারেক্টার টাইপ করার সাথে সাথে আপডেট হবে
             dbHelper.updateNote(noteId, title, content);
         }
-        finish(); // সেভ করে বেরিয়ে আসবে
     }
 }

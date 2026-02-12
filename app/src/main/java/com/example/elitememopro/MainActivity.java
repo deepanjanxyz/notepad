@@ -40,10 +40,14 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         dbHelper = new DatabaseHelper(this);
-        loadNotes();
 
+        // নোট ক্লিক করলে এডিটর খুলবে (Data pass করে)
         noteAdapter = new NoteAdapter(this, filteredList, note -> {
-            Toast.makeText(this, "Open note: " + note.getTitle(), Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent(MainActivity.this, NoteEditorActivity.class);
+            intent.putExtra(NoteEditorActivity.EXTRA_NOTE_ID, note.getId());
+            intent.putExtra(NoteEditorActivity.EXTRA_NOTE_TITLE, note.getTitle());
+            intent.putExtra(NoteEditorActivity.EXTRA_NOTE_CONTENT, note.getContent());
+            startActivity(intent);
         }, note -> {
             dbHelper.deleteNote(note.getId());
             loadNotes();
@@ -52,16 +56,18 @@ public class MainActivity extends AppCompatActivity {
 
         recyclerView.setAdapter(noteAdapter);
 
+        // নতুন নোট অ্যাড করার জন্য এডিটর খোলা
         FloatingActionButton fab = findViewById(R.id.fabAdd);
         fab.setOnClickListener(v -> {
-            Toast.makeText(this, "Add new note", Toast.LENGTH_SHORT).show();
+            startActivity(new Intent(MainActivity.this, NoteEditorActivity.class));
         });
+
+        loadNotes();
     }
 
     private void loadNotes() {
         noteList.clear();
         filteredList.clear();
-
         Cursor cursor = dbHelper.getAllNotes();
         if (cursor.moveToFirst()) {
             do {
@@ -69,27 +75,20 @@ public class MainActivity extends AppCompatActivity {
                 String title = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_TITLE));
                 String content = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_CONTENT));
                 String timestamp = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_TIMESTAMP));
-
                 noteList.add(new Note(id, title, content, timestamp));
             } while (cursor.moveToNext());
         }
         cursor.close();
-
         filteredList.addAll(noteList);
-        if (noteAdapter != null) {
-            noteAdapter.notifyDataSetChanged();
-        }
+        if (noteAdapter != null) noteAdapter.notifyDataSetChanged();
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.main_menu, menu);
-
         MenuItem searchItem = menu.findItem(R.id.action_search);
         SearchView searchView = (SearchView) searchItem.getActionView();
         searchView.setImeOptions(EditorInfo.IME_ACTION_DONE);
-        searchView.setQueryHint("Search notes...");
-
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) { return false; }

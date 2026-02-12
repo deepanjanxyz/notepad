@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory android:title="Appearance">
+        <ListPreference
+            android:key="pref_theme"
+            android:title="Theme"
+            android:summary="Select app theme"
+            android:entries="@array/theme_entries"
+            android:entryValues="@array/theme_values"
+            android:defaultValue="system" />
+        <ListPreference
+            android:key="pref_font_size"
+            android:title="Editor Font Size"
+            android:summary="Text size in note editor"
+            android:entries="@array/font_size_entries"
+            android:entryValues="@array/font_size_values"
+            android:defaultValue="medium" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Security">
+        <SwitchPreferenceCompat
+            android:key="pref_lock"
+            android:title="App Lock"
+            android:summary="Require authentication to open app"
+            android:defaultValue="false" />
+        <EditTextPreference
+            android:key="pref_pin"
+            android:title="4-Digit PIN"
+            android:summary="Set your PIN"
+            android:inputType="numberPassword"
+            android:maxLength="4"
+            android:digits="0123456789"
+            android:dependency="pref_lock"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Data">
+        <Preference
+            android:key="pref_backup"
+            android:title="Backup Notes"
+            android:summary="Export database to storage" />
+        <Preference
+            android:key="pref_restore"
+            android:title="Restore Notes"
+            android:summary="Import latest backup (replaces current data)" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="About">
+        <Preference
+            android:key="pref_about"
+            android:title="Elite Memo Pro"
+            android:summary="Version • Developer • GitHub" />
+    </PreferenceCategory>
+</PreferenceScreen>

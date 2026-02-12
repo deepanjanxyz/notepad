@@ -8,7 +8,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 public class NoteEditorActivity extends AppCompatActivity {
-
     private EditText editTitle, editContent;
     private DatabaseHelper dbHelper;
     private long noteId = -1;
@@ -24,41 +23,28 @@ public class NoteEditorActivity extends AppCompatActivity {
         editContent = findViewById(R.id.editContent);
         FloatingActionButton fabSave = findViewById(R.id.fabSave);
 
-        // যদি পুরনো নোট এডিট করতে আসি, তবে তার ডেটাগুলো রিসিভ করে বসানো হচ্ছে
         if (getIntent().hasExtra("note_id")) {
             noteId = getIntent().getLongExtra("note_id", -1);
             editTitle.setText(getIntent().getStringExtra("title"));
             editContent.setText(getIntent().getStringExtra("content"));
         }
 
-        // অটো-সেভ লজিক (টাইপ করলেই সেভ হবে)
-        TextWatcher autoSaveWatcher = new TextWatcher() {
+        TextWatcher autoSave = new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
-                saveNoteAuto();
-            }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { saveNote(); }
             @Override public void afterTextChanged(Editable s) {}
         };
-        editTitle.addTextChangedListener(autoSaveWatcher);
-        editContent.addTextChangedListener(autoSaveWatcher);
+        editTitle.addTextChangedListener(autoSave);
+        editContent.addTextChangedListener(autoSave);
 
-        // সেভ বাটনে ক্লিক করলেও সেভ হবে এবং বেরিয়ে আসবে
-        fabSave.setOnClickListener(v -> {
-            saveNoteAuto();
-            finish();
-        });
+        fabSave.setOnClickListener(v -> { saveNote(); finish(); });
     }
 
-    private void saveNoteAuto() {
-        String title = editTitle.getText().toString().trim();
-        String content = editContent.getText().toString().trim();
-
-        if (title.isEmpty() && content.isEmpty()) return;
-
-        if (noteId == -1) {
-            noteId = dbHelper.insertNote(title, content);
-        } else {
-            dbHelper.updateNote(noteId, title, content);
-        }
+    private void saveNote() {
+        String t = editTitle.getText().toString().trim();
+        String c = editContent.getText().toString().trim();
+        if (t.isEmpty() && c.isEmpty()) return;
+        if (noteId == -1) noteId = dbHelper.insertNote(t, c);
+        else dbHelper.updateNote(noteId, t, c);
     }
 }

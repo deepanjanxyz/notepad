@@ -29,6 +29,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         onCreate(db);
     }
 
+    // এই সেই সাধারণ মেথড (পুরনো কোড যাতে না ভাঙে)
     public void insertNote(String title, String content, String date) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues contentValues = new ContentValues();
@@ -36,6 +37,16 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         contentValues.put(COLUMN_CONTENT, content);
         contentValues.put(COLUMN_DATE, date);
         db.insert(TABLE_NAME, null, contentValues);
+    }
+
+    // ফিক্স: এই নতুন মেথডটা যোগ করা হলো যা ID রিটার্ন করে (অটো-সেভের জন্য)
+    public long insertNoteWithId(String title, String content, String date) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues contentValues = new ContentValues();
+        contentValues.put(COLUMN_TITLE, title);
+        contentValues.put(COLUMN_CONTENT, content);
+        contentValues.put(COLUMN_DATE, date);
+        return db.insert(TABLE_NAME, null, contentValues);
     }
 
     public void updateNote(long id, String title, String content, String date) {

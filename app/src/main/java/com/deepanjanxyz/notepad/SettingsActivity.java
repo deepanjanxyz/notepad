@@ -20,6 +20,7 @@ public class SettingsActivity extends AppCompatActivity {
         public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
             setPreferencesFromResource(R.xml.preferences, rootKey);
 
+            // থিম পরিবর্তন লজিক
             findPreference("pref_theme").setOnPreferenceChangeListener((preference, newValue) -> {
                 String theme = (String) newValue;
                 if (theme.equals("dark")) AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);

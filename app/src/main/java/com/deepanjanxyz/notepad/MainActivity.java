@@ -7,7 +7,6 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -18,8 +17,12 @@ import androidx.preference.PreferenceManager;
 import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import androidx.biometric.BiometricManager;
+import androidx.biometric.BiometricPrompt;
+import androidx.core.content.ContextCompat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNoteListener {
     private RecyclerView recyclerView;
@@ -29,14 +32,27 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
     private TextView emptyView;
     private Menu mainMenu;
     private boolean isSelectionMode = false;
+    private boolean isAuthenticated = false; // লক স্ট্যাটাস ট্র্যাক করার জন্য
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         applyUserTheme();
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        checkPinLock();
+        
+        // লক চেক করা হচ্ছে অ্যাপ লোড হওয়ার আগেই
+        if (isLockEnabled() && !isAuthenticated) {
+            // স্ক্রিন খালি রাখার জন্য কন্টেন্ট ভিউ পরে সেট করা হবে বা হাইড রাখা হবে
+            setContentView(new View(this)); 
+            showBiometricPrompt();
+        } else {
+            initUI();
+        }
+    }
 
+    // আসল UI লোড করার মেথড
+    private void initUI() {
+        setContentView(R.layout.activity_main);
+        
         dbHelper = new DatabaseHelper(this);
         noteList = new ArrayList<>();
         
@@ -48,8 +64,6 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         FloatingActionButton fabAdd = findViewById(R.id.fabAdd);
 
         recyclerView.setLayoutManager(new StaggeredGridLayoutManager(2, StaggeredGridLayoutManager.VERTICAL));
-        
-        // অ্যাডাপ্টারে লিসেনার পাঠানো হচ্ছে
         adapter = new NoteAdapter(this, noteList, this);
         recyclerView.setAdapter(adapter);
 
@@ -57,7 +71,46 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         loadNotes();
     }
 
-    // অ্যাডাপ্টার থেকে কল আসবে যখন নোটে ক্লিক হবে
+    private boolean isLockEnabled() {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        return prefs.getBoolean("pref_lock", false);
+    }
+
+    private void showBiometricPrompt() {
+        Executor executor = ContextCompat.getMainExecutor(this);
+        BiometricPrompt biometricPrompt = new BiometricPrompt(MainActivity.this, executor, new BiometricPrompt.AuthenticationCallback() {
+            @Override
+            public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
+                super.onAuthenticationError(errorCode, errString);
+                Toast.makeText(getApplicationContext(), "Authentication required!", Toast.LENGTH_SHORT).show();
+                finish(); // অথেন্টিকেশন না দিলে অ্যাপ বন্ধ
+            }
+
+            @Override
+            public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
+                super.onAuthenticationSucceeded(result);
+                isAuthenticated = true;
+                initUI(); // পাসওয়ার্ড মিললে অ্যাপ খুলবে
+                Toast.makeText(getApplicationContext(), "Unlocked", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onAuthenticationFailed() {
+                super.onAuthenticationFailed();
+                Toast.makeText(getApplicationContext(), "Authentication failed", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
+                .setTitle("Elite Memo Security")
+                .setSubtitle("Unlock to access your notes")
+                // এই লাইনটা ম্যাজিক! এটা ফিঙ্গারপ্রিন্ট না থাকলে পিন বা প্যাটার্ন চাইবে
+                .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+                .build();
+
+        biometricPrompt.authenticate(promptInfo);
+    }
+
     @Override
     public void onNoteClick(Note note) {
         Intent intent = new Intent(this, NoteEditorActivity.class);
@@ -67,33 +120,21 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         startActivity(intent);
     }
 
-    // অ্যাডাপ্টার থেকে কল আসবে যখন সিলেকশন মোড অন/অফ হবে
     @Override
     public void onSelectionModeChange(boolean selectionMode, int count) {
         this.isSelectionMode = selectionMode;
         if (mainMenu != null) {
-            MenuItem deleteItem = mainMenu.findItem(R.id.action_delete_selected);
-            MenuItem settingsItem = mainMenu.findItem(R.id.action_settings);
-            
-            deleteItem.setVisible(selectionMode); // সিলেকশন মোডে ডিলিট বাটন দেখাবে
-            settingsItem.setVisible(!selectionMode); // সেটিংস লুকিয়ে যাবে
-            
-            if (selectionMode) {
-                getSupportActionBar().setTitle(count + " Selected");
-            } else {
-                getSupportActionBar().setTitle("Elite Memo Pro");
-            }
+            mainMenu.findItem(R.id.action_delete_selected).setVisible(selectionMode);
+            mainMenu.findItem(R.id.action_settings).setVisible(!selectionMode);
+            if (selectionMode) getSupportActionBar().setTitle(count + " Selected");
+            else getSupportActionBar().setTitle("Elite Memo Pro");
         }
     }
 
-    // ব্যাক বাটন চাপলে সিলেকশন ক্লিয়ার হবে
     @Override
     public void onBackPressed() {
-        if (isSelectionMode) {
-            adapter.clearSelection();
-        } else {
-            super.onBackPressed();
-        }
+        if (isSelectionMode) adapter.clearSelection();
+        else super.onBackPressed();
     }
 
     @Override
@@ -106,16 +147,8 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
-        
-        if (id == R.id.action_settings) {
-            startActivity(new Intent(this, SettingsActivity.class));
-            return true;
-        } 
-        // ডিলিট বাটনে ক্লিক করলে
-        else if (id == R.id.action_delete_selected) {
-            showDeleteConfirmation();
-            return true;
-        }
+        if (id == R.id.action_settings) { startActivity(new Intent(this, SettingsActivity.class)); return true; } 
+        else if (id == R.id.action_delete_selected) { showDeleteConfirmation(); return true; }
         return super.onOptionsItemSelected(item);
     }
 
@@ -123,14 +156,11 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         List<Note> selected = adapter.getSelectedNotes();
         new AlertDialog.Builder(this)
             .setTitle("Delete Notes?")
-            .setMessage("Are you sure you want to delete " + selected.size() + " notes?")
+            .setMessage("Delete " + selected.size() + " notes?")
             .setPositiveButton("Delete", (dialog, which) -> {
-                for (Note note : selected) {
-                    dbHelper.deleteNote(note.getId());
-                }
+                for (Note note : selected) dbHelper.deleteNote(note.getId());
                 adapter.clearSelection();
-                loadNotes(); // লিস্ট রিফ্রেশ
-                Toast.makeText(this, "Notes Deleted!", Toast.LENGTH_SHORT).show();
+                loadNotes();
             })
             .setNegativeButton("Cancel", null)
             .show();
@@ -144,31 +174,13 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         else AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
     }
 
-    private void checkPinLock() {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        boolean isLockEnabled = prefs.getBoolean("pref_lock", false);
-        String savedPin = prefs.getString("pref_pin", "");
-        if (isLockEnabled && !savedPin.isEmpty()) showPinDialog(savedPin);
+    @Override protected void onResume() { 
+        super.onResume(); 
+        if (isAuthenticated || !isLockEnabled()) loadNotes(); 
     }
-
-    private void showPinDialog(String correctPin) {
-        final EditText input = new EditText(this);
-        input.setHint("Enter PIN");
-        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD);
-        new AlertDialog.Builder(this)
-            .setTitle("Locked")
-            .setView(input)
-            .setCancelable(false)
-            .setPositiveButton("Unlock", (dialog, which) -> {
-                if (!input.getText().toString().equals(correctPin)) { finish(); }
-            })
-            .setNegativeButton("Exit", (dialog, which) -> finish())
-            .show();
-    }
-
-    @Override protected void onResume() { super.onResume(); loadNotes(); }
 
     private void loadNotes() {
+        if (noteList == null) return;
         noteList.clear();
         Cursor cursor = dbHelper.getAllNotes();
         if (cursor != null && cursor.moveToFirst()) {

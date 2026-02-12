@@ -15,14 +15,14 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:padding="20dp">
 
             <EditText
                 android:id="@+id/editTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="Title"
-                android:textSize="24sp"
+                android:textSize="26sp"
                 android:textStyle="bold"
                 android:background="@null"
                 android:textColor="?android:textColorPrimary"/>
@@ -30,15 +30,27 @@
             <EditText
                 android:id="@+id/editContent"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:hint="Start typing..."
+                android:layout_height="wrap_content"
+                android:hint="Share your thoughts..."
                 android:textSize="18sp"
                 android:background="@null"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="20dp"
                 android:textColor="?android:textColorPrimary"
-                android:lineSpacingExtra="4dp"
+                android:lineSpacingExtra="6dp"
+                android:minHeight="400dp"
                 android:gravity="top" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabSave"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="24dp"
+        android:src="@android:drawable/ic_menu_save"
+        app:backgroundTint="?attr/colorPrimary"
+        app:tint="?attr/colorOnPrimary"
+        app:elevation="8dp"/>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

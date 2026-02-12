@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="theme_entries">
         <item>Light</item>
@@ -15,8 +16,8 @@
         <item>Large</item>
     </string-array>
     <string-array name="font_size_values">
-        <item>14sp</item>
-        <item>18sp</item>
-        <item>22sp</item>
+        <item>small</item>
+        <item>medium</item>
+        <item>large</item>
     </string-array>
 </resources>

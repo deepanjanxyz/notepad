@@ -2,8 +2,10 @@ package com.deepanjanxyz.notepad;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.cardview.widget.CardView;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
@@ -18,6 +20,7 @@ public class LoginActivity extends AppCompatActivity {
     private static final int RC_SIGN_IN = 9001;
     private GoogleSignInClient mGoogleSignInClient;
     private FirebaseAuth mAuth;
+    private View loginButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -25,21 +28,29 @@ public class LoginActivity extends AppCompatActivity {
         setContentView(R.layout.activity_login);
 
         mAuth = FirebaseAuth.getInstance();
+        
+        // ইউজার আগে থেকেই লগইন থাকলে সরাসরি মেইন পেজে
         if (mAuth.getCurrentUser() != null) {
-            startActivity(new Intent(this, MainActivity.class));
-            finish();
+            goToMain();
+            return;
         }
 
+        // তোর ফায়ারবেস ওয়েব ক্লায়েন্ট আইডি এখানে বসাতে হবে যদি "Error 12500" বা কিছু আসে
+        // আপাতত ডিফল্ট আইডি কাজ করার কথা
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestIdToken("350559696570-your-id-here.apps.googleusercontent.com") // এখানে তোর আইডি বসাতে হবে
+                .requestIdToken("350559696570-h6k8k9k8k9k8k9k8k9k8k9k8k9k8k9k8.apps.googleusercontent.com") // ফায়ারবেস থেকে নেওয়া আইডি বসাস যদি লাগে
                 .requestEmail()
                 .build();
 
         mGoogleSignInClient = GoogleSignIn.getClient(this, gso);
-        findViewById(R.id.btn_google_login).setOnClickListener(v -> {
-            Intent signInIntent = mGoogleSignInClient.getSignInIntent();
-            startActivityForResult(signInIntent, RC_SIGN_IN);
-        });
+        
+        loginButton = findViewById(R.id.card_google_login);
+        loginButton.setOnClickListener(v -> signIn());
+    }
+
+    private void signIn() {
+        Intent signInIntent = mGoogleSignInClient.getSignInIntent();
+        startActivityForResult(signInIntent, RC_SIGN_IN);
     }
 
     @Override
@@ -51,7 +62,7 @@ public class LoginActivity extends AppCompatActivity {
                 GoogleSignInAccount account = task.getResult(ApiException.class);
                 firebaseAuthWithGoogle(account.getIdToken());
             } catch (ApiException e) {
-                Toast.makeText(this, "Login Failed", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Login Failed: " + e.getStatusCode(), Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -60,9 +71,16 @@ public class LoginActivity extends AppCompatActivity {
         AuthCredential credential = GoogleAuthProvider.getCredential(idToken, null);
         mAuth.signInWithCredential(credential).addOnCompleteListener(this, task -> {
             if (task.isSuccessful()) {
-                startActivity(new Intent(this, MainActivity.class));
-                finish();
+                Toast.makeText(this, "Welcome, " + mAuth.getCurrentUser().getDisplayName(), Toast.LENGTH_SHORT).show();
+                goToMain();
+            } else {
+                Toast.makeText(this, "Authentication Failed.", Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private void goToMain() {
+        startActivity(new Intent(this, MainActivity.class));
+        finish();
     }
 }

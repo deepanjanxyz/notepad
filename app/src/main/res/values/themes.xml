@@ -1,28 +1,9 @@
 <resources>
     <style name="Theme.EliteMemoPro" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">#004BA0</item>
-        <item name="colorPrimaryVariant">#002171</item>
-        <item name="colorOnPrimary">#FFFFFF</item>
-        <item name="android:statusBarColor">#002171</item>
-    </style>
-
-    <style name="Theme.EliteMemoPro.Settings" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">#0D47A1</item>
-        <item name="colorPrimaryVariant">#002171</item>
         <item name="colorOnPrimary">#FFFFFF</item>
-        <item name="colorSecondary">#0288D1</item>
-        <item name="colorSecondaryVariant">#005B9F</item>
-        <item name="colorOnSecondary">#FFFFFF</item>
-        <item name="colorSurface">#121212</item>
-        <item name="colorOnSurface">#E0E0E0</item>
-        <item name="preferenceTheme">@style/PreferenceThemeOverlay.EliteMemoPro</item>
     </style>
-
-    <style name="PreferenceThemeOverlay.EliteMemoPro" parent="PreferenceThemeOverlay">
-        <item name="switchPreferenceCompatStyle">@style/Preference.SwitchPreferenceCompat.Elite</item>
-    </style>
-
-    <style name="Preference.SwitchPreferenceCompat.Elite" parent="Preference.SwitchPreferenceCompat.Material">
-        <item name="android:widgetLayout">@layout/preference_widget_material_switch</item>
+    <style name="Theme.EliteMemoPro.Settings" parent="Theme.AppCompat.DayNight.DarkActionBar">
+        <item name="colorPrimary">#0D47A1</item>
     </style>
 </resources>

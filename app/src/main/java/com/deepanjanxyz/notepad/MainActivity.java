@@ -1,86 +1,55 @@
 package com.deepanjanxyz.notepad;
 
 import android.content.Intent;
-import android.database.Cursor;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
-import android.widget.TextView;
+import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
+import androidx.preference.PreferenceManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
-    private RecyclerView recyclerView;
-    private NoteAdapter adapter;
-    private DatabaseHelper dbHelper;
-    private ArrayList<Note> noteList;
-    private TextView emptyView;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // থিম চেক করা
+        applyUserTheme();
         super.onCreate(savedInstanceState);
-        setTheme(R.style.Theme_EliteMemoPro);
         setContentView(R.layout.activity_main);
+
+        // যদি লক অন থাকে তবে পিন চাইবে (সিম্পল ডেমো লজিক)
+        checkSecurityLock();
+
         androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        dbHelper = new DatabaseHelper(this);
-        noteList = new ArrayList<>();
-        
-        recyclerView = findViewById(R.id.recyclerView);
-        emptyView = findViewById(R.id.empty_view);
-        FloatingActionButton fabAdd = findViewById(R.id.fabAdd);
+        RecyclerView rv = findViewById(R.id.recyclerView);
+        rv.setLayoutManager(new LinearLayoutManager(this));
+        NoteAdapter adapter = new NoteAdapter(this, new ArrayList<>()); // খালি লিস্ট শুরুতে
+        rv.setAdapter(adapter);
 
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new NoteAdapter(this, noteList);
-        recyclerView.setAdapter(adapter);
-
-        fabAdd.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, NoteEditorActivity.class)));
-        
-        loadNotes();
+        findViewById(R.id.fabAdd).setOnClickListener(v -> startActivity(new Intent(this, NoteEditorActivity.class)));
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        loadNotes();
+    private void applyUserTheme() {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        String theme = prefs.getString("pref_theme", "system");
+        if (theme.equals("dark")) AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
+        else if (theme.equals("light")) AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
     }
 
-    private void loadNotes() {
-        noteList.clear();
-        Cursor cursor = dbHelper.getAllNotes();
-        if (cursor != null && cursor.moveToFirst()) {
-            do {
-                int idIndex = cursor.getColumnIndex(DatabaseHelper.COLUMN_ID);
-                int titleIndex = cursor.getColumnIndex(DatabaseHelper.COLUMN_TITLE);
-                int contentIndex = cursor.getColumnIndex(DatabaseHelper.COLUMN_CONTENT);
-                int dateIndex = cursor.getColumnIndex(DatabaseHelper.COLUMN_DATE);
-
-                if (idIndex != -1) {
-                    noteList.add(new Note(
-                        cursor.getLong(idIndex),
-                        cursor.getString(titleIndex),
-                        cursor.getString(contentIndex),
-                        cursor.getString(dateIndex)
-                    ));
-                }
-            } while (cursor.moveToNext());
-            cursor.close();
+    private void checkSecurityLock() {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        if (prefs.getBoolean("pref_lock", false)) {
+            // আসল অ্যাপে এখানে BiometricPrompt বসবে, এখন আমরা জাস্ট অ্যালার্ট দিচ্ছি
+            Toast.makeText(this, "Security Lock is ON. Confirm identity.", Toast.LENGTH_SHORT).show();
         }
-        
-        if (noteList.isEmpty()) {
-            recyclerView.setVisibility(View.GONE);
-            emptyView.setVisibility(View.VISIBLE);
-        } else {
-            recyclerView.setVisibility(View.VISIBLE);
-            emptyView.setVisibility(View.GONE);
-        }
-        adapter.notifyDataSetChanged();
     }
 
     @Override

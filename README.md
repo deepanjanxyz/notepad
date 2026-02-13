@@ -1,37 +1,27 @@
 # 📝 Elite Memo Pro
 
-**Elite Memo Pro** is a high-performance, secure, and fully offline Android notepad application. Designed with a sleek dark aesthetic, it offers a seamless writing experience without the need for an internet connection.
+**Elite Memo Pro** is a high-performance, secure, and fully offline Android notepad application. It features a premium dark UI and advanced biometric security to keep your thoughts safe.
 
----
+## ✨ Key Features
+* 🔐 **Biometric Lock:** Secure your notes with Fingerprint or PIN.
+* ⚡ **Auto-Save:** Never lose a word; every character is saved instantly.
+* 🕒 **Timestamps:** Track when each note was created or modified.
+* 🔍 **Smart Search:** Find any note quickly with the built-in search bar.
+* 🌐 **Offline First:** No internet required, your data stays on your device.
 
-## 🚀 Pro Features
+## 📸 Screenshots
+Here are the real-time screenshots from the app:
 
-### ⚡ Real-time Auto-Save
-Focus only on your thoughts. Every single character you type is instantly saved to the local database. No more losing data if the app closes unexpectedly.
+| Dashboard View | App Settings | Security Lock |
+|:---:|:---:|:---:|
+| <img src="https://github.com/deepanjanxyz/notepad/raw/main/screenshots/home.jpg" width="220"> | <img src="https://github.com/deepanjanxyz/notepad/raw/main/screenshots/settings.jpg" width="220"> | <img src="https://github.com/deepanjanxyz/notepad/raw/main/screenshots/lock.jpg" width="220"> |
 
-### ⌨️ Intelligent UI Handling
-* **Floating Save Action**: The save button intelligently stays above the keyboard for quick reach.
-* **One-Tap Exit**: Click the save button to finalize your note and jump straight back to the main menu.
+## 🚀 Technical Details
+* **Language:** Java / Android SDK
+* **Database:** SQLite
+* **Architecture:** Robust & Lightweight
 
-### 🔐 Advanced Security & Customization
-* **Biometric Lock**: Secure your notes using your device's Fingerprint or PIN.
-* **Social Integration**: Quick links to the developer's GitHub, YouTube, and Social Media right from the settings.
+## 📄 License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-### 📂 Smart Organization
-* **Automatic Timestamps**: Every note displays the exact date and time it was last modified (e.g., Feb 12, 21:02).
-* **Global Search**: Find any note instantly with the built-in search bar.
-
----
-
-## 🛠 Tech Stack
-* **Language:** Java
-* **Database:** SQLite (Encrypted Local Storage)
-* **Build System:** Gradle with GitHub Actions CI/CD
-
-## 📥 Installation
-1. Navigate to the **Actions** tab.
-2. Download the latest **Artifacts** from a successful build.
-3. Install the APK and enjoy a private note-taking experience.
-
----
-**Developed with 💙 by deepanjanxyz**
+Developed with ❤️ by Deepanjan.

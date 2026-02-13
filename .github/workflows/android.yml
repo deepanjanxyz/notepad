@@ -1,7 +1,7 @@
 name: Android CI
 
 on:
-  workflow_dispatch: # শুধুমাত্র ম্যানুয়াল বাটন টিপলে কাজ করবে
+  workflow_dispatch:
 
 jobs:
   build:

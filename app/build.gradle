@@ -3,27 +3,27 @@ plugins {
 }
 
 android {
-    namespace 'com.deepanjanxyz.notepad'
-    compileSdk 34
+    namespace = 'com.deepanjanxyz.notepad'
+    compileSdk = 34
 
     defaultConfig {
-        applicationId "com.deepanjanxyz.notepad"
-        minSdk 24
-        targetSdk 34
-        versionCode 1
-        versionName "1.0"
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        applicationId = "com.deepanjanxyz.notepad"
+        minSdk = 24
+        targetSdk = 34
+        versionCode = 1
+        versionName = "1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled = false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
 }
 
@@ -34,7 +34,7 @@ dependencies {
     implementation 'androidx.preference:preference:1.2.0'
     implementation 'androidx.biometric:biometric:1.1.0'
     
-    // PDF & Markdown (এগুলো থাকবে)
-    implementation "io.noties.markwon:core:4.6.2"
-    implementation "com.itextpdf:itext7-core:7.1.15"
+    // PDF & Markdown
+    implementation 'io.noties.markwon:core:4.6.2'
+    implementation 'com.itextpdf:itext7-core:7.1.15'
 }

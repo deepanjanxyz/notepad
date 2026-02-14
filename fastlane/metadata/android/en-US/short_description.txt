@@ -1,1 +1,1 @@
-Simple, secure, and private markdown notepad.
+Private, biometric-protected Markdown notepad.

@@ -1,36 +1,29 @@
-<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
-    <PreferenceCategory app:title="Appearance">
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory android:title="Appearance">
         <ListPreference
+            app:entries="@array/theme_entries"
+            app:entryValues="@array/theme_values"
             app:key="pref_theme"
             app:title="Theme"
-            app:summary="Change app appearance"
-            app:defaultValue="system"
-            app:entries="@array/theme_entries"
-            app:entryValues="@array/theme_values" />
+            app:summary="Change app appearance" />
     </PreferenceCategory>
 
-    <PreferenceCategory app:title="Security">
+    <PreferenceCategory android:title="Security">
         <SwitchPreferenceCompat
-            app:key="pref_lock"
+            app:key="pref_biometric"
             app:title="Use Device Lock"
-            app:summary="Unlock using Fingerprint or PIN"
-            app:defaultValue="false" />
+            app:summary="Unlock using Fingerprint or PIN" />
     </PreferenceCategory>
 
-    <PreferenceCategory app:title="About Developer">
+    <PreferenceCategory android:title="About Developer">
         <Preference
             app:key="pref_github"
             app:title="GitHub"
             app:summary="View Source Code"
             app:icon="@drawable/ic_github" />
-        <Preference
-            app:title="YouTube"
-            app:summary="Subscribe to my channel"
-        <Preference
-            app:title="Facebook"
-            app:summary="Follow me on Facebook"
-        <Preference
-            app:title="Instagram"
-            app:summary="Follow me on Instagram"
     </PreferenceCategory>
+
 </PreferenceScreen>

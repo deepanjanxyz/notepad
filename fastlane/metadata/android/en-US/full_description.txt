@@ -1,0 +1,7 @@
+Elite Memo Pro is a lightweight, privacy-focused notepad for Android. 
+Features:
+- Markdown support
+- Biometric lock for security
+- Export to PDF
+- Zero trackers, 100% private
+- Clean and minimal UI

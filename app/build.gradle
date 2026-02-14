@@ -1,5 +1,5 @@
 plugins {
-    id("com.android.application")
+    id 'com.android.application'
 }
 
 android {
@@ -12,15 +12,14 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            minifyEnabled false
-            isShrinkResources = false
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            minifyEnabled = false
+            shrinkResources = false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 
@@ -41,4 +40,3 @@ dependencies {
     implementation("io.noties.markwon:core:4.6.2")
     implementation("com.itextpdf:itext7-core:7.1.15")
 }
-

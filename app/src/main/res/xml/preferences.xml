@@ -29,7 +29,6 @@
             app:summary="Subscribe to my channel"
             app:icon="@drawable/ic_youtube" />
         <Preference
-            app:key="pref_facebook"
             app:title="Facebook"
             app:summary="Follow me on Facebook"
             app:icon="@drawable/ic_facebook" />

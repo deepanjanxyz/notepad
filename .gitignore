@@ -4,5 +4,4 @@ app/build/
 local.properties
 .idea/
 *.iml
-app/google-services.json
 .DS_Store

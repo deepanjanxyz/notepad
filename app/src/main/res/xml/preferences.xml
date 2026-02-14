@@ -24,18 +24,13 @@
             app:summary="View Source Code"
             app:icon="@drawable/ic_github" />
         <Preference
-            app:key="pref_youtube"
             app:title="YouTube"
             app:summary="Subscribe to my channel"
-            app:icon="@drawable/ic_youtube" />
         <Preference
             app:title="Facebook"
             app:summary="Follow me on Facebook"
-            app:icon="@drawable/ic_facebook" />
         <Preference
-            app:key="pref_instagram"
             app:title="Instagram"
             app:summary="Follow me on Instagram"
-            app:icon="@drawable/ic_instagram" />
     </PreferenceCategory>
 </PreferenceScreen>

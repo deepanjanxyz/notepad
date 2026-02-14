@@ -34,8 +34,6 @@ public class SettingsActivity extends AppCompatActivity {
 
             // সোশ্যাল মিডিয়া লিঙ্ক লজিক
             setupLink("pref_github", "https://github.com/deepanjanxyz/notepad");
-            setupLink("pref_youtube", "https://youtube.com/@shadows-i5o");
-            setupLink("pref_instagram", "https://www.instagram.com/deepanjan918");
         }
 
         private void setupLink(String key, String url) {

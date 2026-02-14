@@ -21,7 +21,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Unlock with Biometrics"
-        app:icon="@drawable/ic_fingerprint"
         android:layout_marginBottom="16dp" />
 
 </LinearLayout>

@@ -15,8 +15,8 @@
 
 ## 📸 Screenshots
 | Dashboard View | App Settings | Security Lock |
-|:---:|:---:|:---:|
-| <img src="https://github.com/deepanjanxyz/notepad/raw/main/screenshots/home.jpg" width="220"> | <img src="https://github.com/deepanjanxyz/notepad/raw/main/screenshots/settings.jpg" width="220"> | <img src="https://github.com/deepanjanxyz/notepad/raw/main/screenshots/lock.jpg" width="220"> |
+| :---: | :---: | :---: |
+| <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" width="200"> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" width="200"> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" width="200"> |
 
 ---
 

@@ -6,5 +6,4 @@
     <string name="add_note">Add Note</string>
     <string name="note_title_hint">Title</string>
     <string name="note_content_hint">Type something...</string>
-    <string name="floating_action_button_behavior">com.google.android.material.behavior.HideBottomViewOnScrollBehavior</string>
 </resources>

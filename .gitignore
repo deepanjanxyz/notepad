@@ -1,8 +1,35 @@
-.gradle/
+# Android Studio / Gradle / Build output
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+bin/
 build/
+.gradle/
 app/build/
+
+# Local configuration files
 local.properties
+.gradle/config.properties
+gradle.properties.user
+
+# Keys, Keystores & Signing
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+
+# IDE / Editor files
 .idea/
 *.iml
 .DS_Store
-*.jks
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Cache & Logs
+*.log
+.apt_generated/
+

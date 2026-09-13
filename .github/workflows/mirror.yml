@@ -1,0 +1,90 @@
+name: Multi-Platform Smart Auto Mirroring
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - '**'
+
+jobs:
+  smart-mirror:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository with Full History
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git Identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Materialize All Branches Locally
+        run: |
+          git fetch origin --tags --force
+
+          git for-each-ref \
+            --format='%(refname:strip=3)' \
+            refs/remotes/origin/ |
+          grep -v '^HEAD$' |
+          while IFS= read -r branch; do
+            [ -z "$branch" ] && continue
+
+            if ! git show-ref --verify --quiet "refs/heads/$branch"; then
+              git branch --track "$branch" "origin/$branch"
+            fi
+          done
+
+      - name: Sync to GitLab
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+        run: |
+          GITLAB_URL="https://oauth2:${GITLAB_TOKEN}@gitlab.com/deepanjanxyz/notepad.git"
+
+          echo "Attempting normal GitLab push..."
+
+          if git push --prune "$GITLAB_URL" \
+            'refs/heads/*:refs/heads/*' \
+            'refs/tags/*:refs/tags/*'; then
+
+            echo "GitLab normal push succeeded."
+
+          else
+            echo "GitLab normal push failed."
+            echo "Attempting force synchronization..."
+
+            git push --force --prune "$GITLAB_URL" \
+              'refs/heads/*:refs/heads/*' \
+              'refs/tags/*:refs/tags/*'
+
+            echo "GitLab force synchronization succeeded."
+          fi
+
+      - name: Sync to Codeberg
+        if: always()
+        env:
+          CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
+        run: |
+          CODEBERG_URL="https://deepanjanxyz:${CODEBERG_TOKEN}@codeberg.org/deepanjanxyz/notepad.git"
+
+          echo "Attempting normal Codeberg push..."
+
+          if git push --prune "$CODEBERG_URL" \
+            'refs/heads/*:refs/heads/*' \
+            'refs/tags/*:refs/tags/*'; then
+
+            echo "Codeberg normal push succeeded."
+
+          else
+            echo "Codeberg normal push failed."
+            echo "Attempting force synchronization..."
+
+            git push --force --prune "$CODEBERG_URL" \
+              'refs/heads/*:refs/heads/*' \
+              'refs/tags/*:refs/tags/*'
+
+            echo "Codeberg force synchronization succeeded."
+          fi

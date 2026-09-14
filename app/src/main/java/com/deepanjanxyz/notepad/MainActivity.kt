@@ -70,8 +70,8 @@ import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import com.deepanjanxyz.notepad.ui.theme.EliteMemoTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -90,6 +90,16 @@ class MainActivity : FragmentActivity() {
     /** True while the note list must stay hidden behind the biometric gate. */
     private var requireUnlock by mutableStateOf(false)
 
+    /** Holds the ProcessLifecycleOwner observer so it can be removed in onDestroy(). */
+    private var processLifecycleObserver: LifecycleEventObserver? = null
+
+    /**
+     * Set by the process-level ON_STOP callback; consumed by [onStart] so that
+     * the biometric prompt is only launched when the activity is actually
+     * coming to the foreground, not while it is still backgrounded.
+     */
+    private var pendingLock: Boolean = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Only lock when the user enabled it AND some authenticator is actually available.
@@ -97,16 +107,36 @@ class MainActivity : FragmentActivity() {
         // Re-arm the lock only when the whole application goes to the
         // background, so internal navigation (editor, settings) never
         // triggers an unlock prompt on return.
-        ProcessLifecycleOwner.get().lifecycle.addObserver(
-            LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_STOP && settings.lockOnLaunch) {
-                    requireUnlock = true
-                }
-            },
-        )
+        processLifecycleObserver = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP && settings.lockOnLaunch) {
+                pendingLock = true
+            }
+        }
+        processLifecycleObserver?.let { ProcessLifecycleOwner.get().lifecycle.addObserver(it) }
         setContent {
             EliteMemoRoot()
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Consume the pending-lock flag now that the activity is about to
+        // be visible, so BiometricPrompt.authenticate() runs in a valid
+        // activity state.
+        if (pendingLock) {
+            pendingLock = false
+            requireUnlock = true
+        }
+    }
+
+    override fun onDestroy() {
+        // Remove the process-lifecycle observer to avoid leaking this
+        // Activity via the captured settings/requireUnlock references.
+        processLifecycleObserver?.let {
+            ProcessLifecycleOwner.get().lifecycle.removeObserver(it)
+        }
+        processLifecycleObserver = null
+        super.onDestroy()
     }
 
     @Composable

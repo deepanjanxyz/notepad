@@ -9,8 +9,8 @@ import android.database.sqlite.SQLiteOpenHelper
 /**
  * Local-first storage layer for notes.
  *
- * The schema, database name and database version are identical to the original
- * Java implementation, so existing installs keep every note untouched.
+ * Schema v2 adds a PINNED column for note pinning. The upgrade path uses
+ * ALTER TABLE so existing notes are preserved untouched.
  */
 class DatabaseHelper(context: Context) :
     SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
@@ -21,20 +21,22 @@ class DatabaseHelper(context: Context) :
                 "$COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "$COLUMN_TITLE TEXT, " +
                 "$COLUMN_CONTENT TEXT, " +
-                "$COLUMN_DATE TEXT)"
+                "$COLUMN_DATE TEXT, " +
+                "$COLUMN_PINNED INTEGER DEFAULT 0)"
         )
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_NAME")
-        onCreate(db)
+        if (oldVersion < 2) {
+            db.execSQL("ALTER TABLE $TABLE_NAME ADD COLUMN $COLUMN_PINNED INTEGER DEFAULT 0")
+        }
     }
 
     /**
      * Inserts a note and returns the new row id, or -1 if the insert failed.
      */
     fun insertNote(title: String, content: String, date: String): Long =
-        writableDatabase.insert(TABLE_NAME, null, contentValues(title, content, date))
+        writableDatabase.insert(TABLE_NAME, null, contentValues(title, content, date, false))
 
     /**
      * Updates a note and returns the number of rows affected (0 if nothing
@@ -43,10 +45,23 @@ class DatabaseHelper(context: Context) :
     fun updateNote(id: Long, title: String, content: String, date: String): Int =
         writableDatabase.update(
             TABLE_NAME,
-            contentValues(title, content, date),
+            contentValuesWithoutPinned(title, content, date),
             "$COLUMN_ID = ?",
             arrayOf(id.toString()),
         )
+
+    /**
+     * Toggles the pinned state of a note and returns the new state.
+     */
+    fun togglePin(id: Long): Boolean {
+        val current = getNoteById(id)?.pinned ?: false
+        val newValue = !current
+        writableDatabase.execSQL(
+            "UPDATE $TABLE_NAME SET $COLUMN_PINNED = ? WHERE $COLUMN_ID = ?",
+            arrayOf(if (newValue) 1 else 0, id.toString()),
+        )
+        return newValue
+    }
 
     fun deleteNote(id: Long) {
         writableDatabase.delete(TABLE_NAME, "$COLUMN_ID = ?", arrayOf(id.toString()))
@@ -91,7 +106,19 @@ class DatabaseHelper(context: Context) :
             .use { cursor -> cursor.toListOfNotes() }
     }
 
-    private fun contentValues(title: String, content: String, date: String): ContentValues =
+    private fun contentValues(title: String, content: String, date: String, pinned: Boolean): ContentValues =
+        ContentValues().apply {
+            put(COLUMN_TITLE, title)
+            put(COLUMN_CONTENT, content)
+            put(COLUMN_DATE, date)
+            put(COLUMN_PINNED, if (pinned) 1 else 0)
+        }
+
+    /**
+     * ContentValues WITHOUT the PINNED column, used by updateNote so the
+     * pin state survives text edits (SQLite UPDATE only touches listed columns).
+     */
+    private fun contentValuesWithoutPinned(title: String, content: String, date: String): ContentValues =
         ContentValues().apply {
             put(COLUMN_TITLE, title)
             put(COLUMN_CONTENT, content)
@@ -108,15 +135,17 @@ class DatabaseHelper(context: Context) :
             title = getString(getColumnIndexOrThrow(COLUMN_TITLE)).orEmpty(),
             content = getString(getColumnIndexOrThrow(COLUMN_CONTENT)).orEmpty(),
             date = getString(getColumnIndexOrThrow(COLUMN_DATE)).orEmpty(),
+            pinned = getInt(getColumnIndexOrThrow(COLUMN_PINNED)) == 1,
         )
 
     companion object {
         const val DATABASE_NAME = "notes.db"
-        const val DATABASE_VERSION = 1
+        const val DATABASE_VERSION = 2
         const val TABLE_NAME = "notes_table"
         const val COLUMN_ID = "ID"
         const val COLUMN_TITLE = "TITLE"
         const val COLUMN_CONTENT = "CONTENT"
         const val COLUMN_DATE = "DATE"
+        const val COLUMN_PINNED = "PINNED"
     }
 }

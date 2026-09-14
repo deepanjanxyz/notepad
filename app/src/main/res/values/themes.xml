@@ -1,9 +1,9 @@
 <resources>
-    <style name="Theme.EliteMemoPro" parent="Theme.Material3.DayNight.NoActionBar">
+    <!-- Base window theme. All in-app theming is handled by Jetpack Compose
+         (see ui/theme/Theme.kt); this only styles the window, the system
+         splash screen and framework dialogs such as the biometric prompt. -->
+    <style name="Theme.EliteMemoPro" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="colorPrimary">#0D47A1</item>
         <item name="colorOnPrimary">#FFFFFF</item>
-    </style>
-    <style name="Theme.EliteMemoPro.Settings" parent="Theme.AppCompat.DayNight.DarkActionBar">
-        <item name="colorPrimary">#0D47A1</item>
     </style>
 </resources>

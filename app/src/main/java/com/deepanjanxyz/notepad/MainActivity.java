@@ -3,7 +3,10 @@ package com.deepanjanxyz.notepad;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
+import android.os.Build;
 import android.os.Bundle;
+import android.security.keystore.KeyGenParameterSpec;
+import android.security.keystore.KeyProperties;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -21,11 +24,19 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import androidx.biometric.BiometricManager;
 import androidx.biometric.BiometricPrompt;
 import androidx.core.content.ContextCompat;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
 
 public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNoteListener {
+    private static final String BIOMETRIC_KEY_ALIAS = "notepad_biometric_key";
+
     private RecyclerView recyclerView;
     private NoteAdapter adapter;
     private DatabaseHelper dbHelper;
@@ -76,12 +87,21 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         return prefs.getBoolean("pref_lock", false);
     }
 
-        /**
-         * Displays the biometric prompt used to unlock the application's notes.
-         */
-        private void showBiometricPrompt() {
-            Executor executor = ContextCompat.getMainExecutor(this);
-            BiometricPrompt biometricPrompt = new BiometricPrompt(MainActivity.this, executor, new BiometricPrompt.AuthenticationCallback() {
+    /**
+     * Displays the biometric prompt used to unlock the application's notes.
+     */
+    private void showBiometricPrompt() {
+        final Cipher cipher;
+        try {
+            cipher = createBiometricCipher();
+        } catch (GeneralSecurityException | IOException e) {
+            Toast.makeText(this, "Unable to initialize biometric security", Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
+
+        Executor executor = ContextCompat.getMainExecutor(this);
+        BiometricPrompt biometricPrompt = new BiometricPrompt(MainActivity.this, executor, new BiometricPrompt.AuthenticationCallback() {
                 /**
                  * Closes the activity when biometric authentication cannot complete.
                  *
@@ -104,16 +124,53 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
                     isAuthenticated = true;
                     initUI();
                 }
-            });
+        });
 
-            BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
-                    .setTitle("Elite Memo Security")
-                    .setSubtitle("Unlock to access your notes")
-                    .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.DEVICE_CREDENTIAL)
-                    .build();
-    -        biometricPrompt.authenticate(promptInfo);
-    +        biometricPrompt.authenticate(promptInfo, new BiometricPrompt.CryptoObject(cipher));
+        int allowedAuthenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            allowedAuthenticators |= BiometricManager.Authenticators.DEVICE_CREDENTIAL;
         }
+
+        BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
+                .setTitle("Elite Memo Security")
+                .setSubtitle("Unlock to access your notes")
+                .setAllowedAuthenticators(allowedAuthenticators)
+                .build();
+        biometricPrompt.authenticate(promptInfo, new BiometricPrompt.CryptoObject(cipher));
+    }
+
+    private Cipher createBiometricCipher() throws GeneralSecurityException, IOException {
+        KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
+        keyStore.load(null);
+
+        if (!keyStore.containsAlias(BIOMETRIC_KEY_ALIAS)) {
+            KeyGenParameterSpec.Builder keySpecBuilder = new KeyGenParameterSpec.Builder(
+                    BIOMETRIC_KEY_ALIAS,
+                    KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
+                    .setBlockModes(KeyProperties.BLOCK_MODE_CBC)
+                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_PKCS7)
+                    .setUserAuthenticationRequired(true);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                keySpecBuilder.setUserAuthenticationParameters(
+                        0,
+                        KeyProperties.AUTH_BIOMETRIC_STRONG | KeyProperties.AUTH_DEVICE_CREDENTIAL);
+            } else {
+                keySpecBuilder.setUserAuthenticationValidityDurationSeconds(-1);
+            }
+
+            KeyGenerator keyGenerator = KeyGenerator.getInstance(
+                    KeyProperties.KEY_ALGORITHM_AES,
+                    "AndroidKeyStore");
+            keyGenerator.init(keySpecBuilder.build());
+            keyGenerator.generateKey();
+        }
+
+        SecretKey secretKey = (SecretKey) keyStore.getKey(BIOMETRIC_KEY_ALIAS, null);
+        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS7Padding");
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+        return cipher;
+    }
 
     /**
      * Opens the editor for the selected note.

@@ -71,29 +71,30 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         return prefs.getBoolean("pref_lock", false);
     }
 
-    private void showBiometricPrompt() {
-        Executor executor = ContextCompat.getMainExecutor(this);
-        BiometricPrompt biometricPrompt = new BiometricPrompt(MainActivity.this, executor, new BiometricPrompt.AuthenticationCallback() {
-            @Override
-            public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
-                super.onAuthenticationError(errorCode, errString);
-                finish();
-            }
-            @Override
-            public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
-                super.onAuthenticationSucceeded(result);
-                isAuthenticated = true;
-                initUI();
-            }
-        });
+        private void showBiometricPrompt() {
+            Executor executor = ContextCompat.getMainExecutor(this);
+            BiometricPrompt biometricPrompt = new BiometricPrompt(MainActivity.this, executor, new BiometricPrompt.AuthenticationCallback() {
+                @Override
+                public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
+                    super.onAuthenticationError(errorCode, errString);
+                    finish();
+                }
+                @Override
+                public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
+                    super.onAuthenticationSucceeded(result);
+                    isAuthenticated = true;
+                    initUI();
+                }
+            });
 
-        BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Elite Memo Security")
-                .setSubtitle("Unlock to access your notes")
-                .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.DEVICE_CREDENTIAL)
-                .build();
-        biometricPrompt.authenticate(promptInfo);
-    }
+            BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
+                    .setTitle("Elite Memo Security")
+                    .setSubtitle("Unlock to access your notes")
+                    .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+                    .build();
+    -        biometricPrompt.authenticate(promptInfo);
+    +        biometricPrompt.authenticate(promptInfo, new BiometricPrompt.CryptoObject(cipher));
+        }
 
     @Override
     public void onNoteClick(Note note) {

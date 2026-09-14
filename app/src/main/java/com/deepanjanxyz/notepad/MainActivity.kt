@@ -5,6 +5,8 @@ import android.os.Bundle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
@@ -27,10 +30,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -38,7 +43,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -59,6 +63,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -70,6 +75,9 @@ import com.deepanjanxyz.notepad.ui.theme.EliteMemoTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+/** Fully rounded pill shape used by the filter / sort chips. */
+private val PillShape = RoundedCornerShape(50)
 
 class MainActivity : FragmentActivity() {
 
@@ -216,13 +224,9 @@ class MainActivity : FragmentActivity() {
                                     )
                                 }
                             } else {
-                                IconButton(onClick = { searchVisible = !searchVisible }) {
-                                    Icon(
-                                        Icons.Default.Search,
-                                        contentDescription = stringResource(R.string.action_search),
-                                    )
-                                }
-                                IconButton(onClick = { startActivity(Intent(this@MainActivity, SettingsActivity::class.java)) }) {
+                                IconButton(onClick = {
+                                    startActivity(Intent(this@MainActivity, SettingsActivity::class.java))
+                                }) {
                                     Icon(
                                         Icons.Default.Settings,
                                         contentDescription = stringResource(R.string.action_settings),
@@ -249,12 +253,41 @@ class MainActivity : FragmentActivity() {
                     )
                 }
             },
-            floatingActionButton = {
-                FloatingActionButton(onClick = { openEditor(null) }) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = stringResource(R.string.add_note),
-                    )
+            bottomBar = {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 3.dp,
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                            .clickable { openEditor(null) }
+                            .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = stringResource(R.string.add_note),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = stringResource(R.string.take_a_note),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(onClick = { searchVisible = !searchVisible }) {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = stringResource(R.string.action_search),
+                            )
+                        }
+                    }
                 }
             },
         ) { innerPadding ->
@@ -270,7 +303,7 @@ class MainActivity : FragmentActivity() {
                         start = 12.dp,
                         end = 12.dp,
                         top = 8.dp,
-                        bottom = 96.dp,
+                        bottom = 108.dp,
                     ),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalItemSpacing = 12.dp,
@@ -377,7 +410,7 @@ class MainActivity : FragmentActivity() {
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -386,6 +419,7 @@ class MainActivity : FragmentActivity() {
                     selected = searchScope == scope,
                     onClick = { onSearchScopeChange(scope) },
                     label = { Text(stringResource(scope.labelRes)) },
+                    shape = PillShape,
                 )
             }
             Text(
@@ -394,10 +428,17 @@ class MainActivity : FragmentActivity() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Box {
-                FilterChip(
-                    selected = true,
+                AssistChip(
                     onClick = { sortMenuExpanded = true },
                     label = { Text(stringResource(sortOrder.labelRes)) },
+                    shape = PillShape,
+                    trailingIcon = {
+                        Icon(
+                            Icons.Default.KeyboardArrowDown,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    },
                 )
                 DropdownMenu(
                     expanded = sortMenuExpanded,
@@ -430,15 +471,17 @@ class MainActivity : FragmentActivity() {
             modifier = Modifier
                 .fillMaxWidth()
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
                 containerColor = if (isSelected) {
                     MaterialTheme.colorScheme.primaryContainer
                 } else {
-                    MaterialTheme.colorScheme.surfaceVariant
+                    MaterialTheme.colorScheme.surface
                 },
             ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         ) {
-            Column(modifier = Modifier.padding(12.dp)) {
+            Column(modifier = Modifier.padding(14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (selectionMode) {
                         Checkbox(
@@ -453,20 +496,21 @@ class MainActivity : FragmentActivity() {
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+                if (note.content.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = note.content,
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 6,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = note.date,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                if (note.content.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = note.content,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 4,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
             }
         }
     }

@@ -58,7 +58,7 @@ class DatabaseHelper(context: Context) :
         val newValue = !current
         writableDatabase.execSQL(
             "UPDATE $TABLE_NAME SET $COLUMN_PINNED = ? WHERE $COLUMN_ID = ?",
-            arrayOf(if (newValue) 1 else 0, id.toString()),
+            arrayOf<Any>(if (newValue) 1 else 0, id.toString()),
         )
         return newValue
     }

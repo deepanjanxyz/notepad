@@ -4,6 +4,5 @@
          splash screen and framework dialogs such as the biometric prompt. -->
     <style name="Theme.EliteMemoPro" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="colorPrimary">#0D47A1</item>
-        <item name="colorOnPrimary">#FFFFFF</item>
     </style>
 </resources>

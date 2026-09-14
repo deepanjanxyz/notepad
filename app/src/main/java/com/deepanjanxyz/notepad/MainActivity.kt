@@ -70,8 +70,8 @@ import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.process.ProcessLifecycleOwner
 import com.deepanjanxyz.notepad.ui.theme.EliteMemoTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

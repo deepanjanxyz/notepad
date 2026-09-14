@@ -66,19 +66,38 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         loadNotes("");
     }
 
+    /**
+     * Checks whether biometric locking is enabled in the user's preferences.
+     *
+     * @return {@code true} when the application should require authentication
+     */
     private boolean isLockEnabled() {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         return prefs.getBoolean("pref_lock", false);
     }
 
+        /**
+         * Displays the biometric prompt used to unlock the application's notes.
+         */
         private void showBiometricPrompt() {
             Executor executor = ContextCompat.getMainExecutor(this);
             BiometricPrompt biometricPrompt = new BiometricPrompt(MainActivity.this, executor, new BiometricPrompt.AuthenticationCallback() {
+                /**
+                 * Closes the activity when biometric authentication cannot complete.
+                 *
+                 * @param errorCode the biometric error code
+                 * @param errString a user-readable description of the error
+                 */
                 @Override
                 public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
                     super.onAuthenticationError(errorCode, errString);
                     finish();
                 }
+                /**
+                 * Initializes the notes interface after successful authentication.
+                 *
+                 * @param result the successful biometric authentication result
+                 */
                 @Override
                 public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
                     super.onAuthenticationSucceeded(result);
@@ -96,6 +115,11 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
     +        biometricPrompt.authenticate(promptInfo, new BiometricPrompt.CryptoObject(cipher));
         }
 
+    /**
+     * Opens the editor for the selected note.
+     *
+     * @param note the note selected by the user
+     */
     @Override
     public void onNoteClick(Note note) {
         Intent intent = new Intent(this, NoteEditorActivity.class);

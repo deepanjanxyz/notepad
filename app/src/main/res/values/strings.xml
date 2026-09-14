@@ -55,7 +55,7 @@
     <string name="dynamic_colors_desc">Follow your wallpaper palette (Material You)</string>
     <string name="dynamic_colors_unsupported">Requires Android 12 or newer</string>
     <string name="lock_app">Lock app on launch</string>
-    <string name="lock_app_desc">Require your fingerprint or device PIN to open the app</string>
+    <string name="lock_app_desc">Require biometric authentication or your device screen lock to open the app</string>
     <string name="lock_app_none_enrolled">Set up a screen lock on your device to enable this feature</string>
     <string name="lock_app_unavailable">No biometric hardware available on this device</string>
     <string name="github_link_title">Source Code</string>

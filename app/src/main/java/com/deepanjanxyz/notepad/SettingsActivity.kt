@@ -167,9 +167,13 @@ class SettingsActivity : ComponentActivity() {
                             }
                             TextButton(
                                 onClick = {
-                                    context.startActivity(
-                                        Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_URL)),
-                                    )
+                                    // Silently ignore the tap on devices that have
+                                    // no app able to handle ACTION_VIEW (e.g. no browser).
+                                    runCatching {
+                                        context.startActivity(
+                                            Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_URL)),
+                                        )
+                                    }
                                 },
                             ) {
                                 Text(stringResource(R.string.github_link_open))

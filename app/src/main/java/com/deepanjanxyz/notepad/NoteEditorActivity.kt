@@ -58,11 +58,17 @@ class NoteEditorActivity : ComponentActivity() {
         var content by rememberSaveable { mutableStateOf(initialContent) }
         var noteId by rememberSaveable { mutableStateOf(initialNoteId) }
 
+        // Last values actually written to the database. persist() compares
+        // against these (not the launch-time values) so that reverting an
+        // auto-saved edit is still detected as a change and gets saved.
+        var lastPersistedTitle by rememberSaveable { mutableStateOf(initialTitle) }
+        var lastPersistedContent by rememberSaveable { mutableStateOf(initialContent) }
+
         /**
-         * Persists the note if anything actually changed.
+         * Persists the note if anything actually changed since the last save.
          */
         fun persist() {
-            if (title == initialTitle && content == initialContent) return
+            if (title == lastPersistedTitle && content == lastPersistedContent) return
             val trimmedTitle = title.trim()
             val trimmedContent = content.trim()
             // Never persist a fully empty note (parity with the original app).
@@ -73,6 +79,8 @@ class NoteEditorActivity : ComponentActivity() {
             } else {
                 dbHelper.updateNote(noteId, trimmedTitle, trimmedContent, date)
             }
+            lastPersistedTitle = title
+            lastPersistedContent = content
         }
 
         // Debounced auto-save on every change.

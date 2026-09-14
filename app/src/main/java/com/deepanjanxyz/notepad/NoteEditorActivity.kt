@@ -75,10 +75,14 @@ class NoteEditorActivity : ComponentActivity() {
             if (trimmedTitle.isEmpty() && trimmedContent.isEmpty()) return
             val date = SimpleDateFormat(DATE_FORMAT, Locale.getDefault()).format(Date())
             if (noteId == -1L) {
-                noteId = dbHelper.insertNote(trimmedTitle, trimmedContent, date)
+                val newId = dbHelper.insertNote(trimmedTitle, trimmedContent, date)
+                if (newId == -1L) return  // insert failed — leave markers unchanged for retry
+                noteId = newId
             } else {
-                dbHelper.updateNote(noteId, trimmedTitle, trimmedContent, date)
+                val rowsAffected = dbHelper.updateNote(noteId, trimmedTitle, trimmedContent, date)
+                if (rowsAffected == 0) return  // update failed — leave markers unchanged for retry
             }
+            // Only advance the persisted-state markers after a confirmed successful write.
             lastPersistedTitle = title
             lastPersistedContent = content
         }

@@ -30,18 +30,23 @@ class DatabaseHelper(context: Context) :
         onCreate(db)
     }
 
-    /** Inserts a note and returns the new row id (used by the editor's auto-save). */
+    /**
+     * Inserts a note and returns the new row id, or -1 if the insert failed.
+     */
     fun insertNote(title: String, content: String, date: String): Long =
         writableDatabase.insert(TABLE_NAME, null, contentValues(title, content, date))
 
-    fun updateNote(id: Long, title: String, content: String, date: String) {
+    /**
+     * Updates a note and returns the number of rows affected (0 if nothing
+     * was written, e.g. the row no longer exists).
+     */
+    fun updateNote(id: Long, title: String, content: String, date: String): Int =
         writableDatabase.update(
             TABLE_NAME,
             contentValues(title, content, date),
             "$COLUMN_ID = ?",
             arrayOf(id.toString()),
         )
-    }
 
     fun deleteNote(id: Long) {
         writableDatabase.delete(TABLE_NAME, "$COLUMN_ID = ?", arrayOf(id.toString()))

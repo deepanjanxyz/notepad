@@ -36,8 +36,6 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -102,16 +100,10 @@ class MainActivity : FragmentActivity() {
     /** Holds the ProcessLifecycleOwner observer so it can be removed in onDestroy(). */
     private var processLifecycleObserver: LifecycleEventObserver? = null
 
-    /**
-     * Set by the process-level ON_STOP callback; consumed by [onStart] so that
-     * the biometric prompt is only launched when the activity is actually
-     * coming to the foreground, not while it is still backgrounded.
-     */
     private var pendingLock: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Only lock when the user enabled it AND some authenticator is actually available.
         requireUnlock = settings.lockOnLaunch && lockManager.canLock()
         processLifecycleObserver = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP && settings.lockOnLaunch) {
@@ -142,7 +134,7 @@ class MainActivity : FragmentActivity() {
 
     @Composable
     private fun EliteMemoRoot() {
-        val snapshot by remember { mutableStateOf(settings.snapshot()) }
+        var snapshot by remember { mutableStateOf(settings.snapshot()) }
         DisposableEffect(Unit) {
             val unregister = settings.observe { snapshot = it }
             onDispose { unregister() }
@@ -201,7 +193,6 @@ class MainActivity : FragmentActivity() {
         var searchVisible by rememberSaveable { mutableStateOf(false) }
         var selectedIds by remember { mutableStateOf(setOf<Long>()) }
         var showDeleteDialog by remember { mutableStateOf(false) }
-
         var reloadJob by remember { mutableStateOf<Job?>(null) }
 
         fun reloadNotes() {
@@ -265,12 +256,12 @@ class MainActivity : FragmentActivity() {
                             onSearchScopeChange = { searchScope = it },
                             sortOrder = sortOrder,
                             onSortOrderChange = { sortOrder = it },
-                         )
+                        )
                     }
-                    }
+                }
             },
             floatingActionButton = {
-                 floatingActionButton(
+                FloatingActionButton(
                     onClick = { openEditor(null) },
                     containerColor = FabPurple,
                     contentColor = Color.White,
@@ -318,8 +309,8 @@ class MainActivity : FragmentActivity() {
                                 onLongClick = {
                                     selectedIds = selectedIds.toMutableSet().apply {
                                         if (!add(note.id)) remove(note.id)
-                                   }
-                                 },
+                                    }
+                                },
                                 onPinToggle = {
                                     coroutineScope.launch {
                                         withContext(Dispatchers.IO) { dbHelper.togglePin(note.id) }
@@ -350,8 +341,8 @@ class MainActivity : FragmentActivity() {
                                 onLongClick = {
                                     selectedIds = selectedIds.toMutableSet().apply {
                                         if (!add(note.id)) remove(note.id)
-                                   }
-                                 },
+                                    }
+                                },
                                 onPinToggle = {
                                     coroutineScope.launch {
                                         withContext(Dispatchers.IO) { dbHelper.togglePin(note.id) }
@@ -364,6 +355,47 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+
+        if (showDeleteDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeleteDialog = false },
+                title = { Text(stringResource(R.string.delete_notes_title)) },
+                text = { Text(stringResource(R.string.delete_notes_message, selectedIds.size)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val toDelete = selectedIds.toSet()
+                            coroutineScope.launch {
+                                withContext(Dispatchers.IO) {
+                                    toDelete.forEach { dbHelper.deleteNote(it) }
+                                }
+                                selectedIds = emptySet()
+                                showDeleteDialog = false
+                                reloadNotes()
+                            }
+                        },
+                    ) { Text(stringResource(R.string.action_delete)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteDialog = false }) {
+                        Text(stringResource(R.string.action_cancel))
+                    }
+                },
+            )
+        }
+    }
+
+    private fun openEditor(note: Note?) {
+        val intent = Intent(this, NoteEditorActivity::class.java)
+        if (note != null) {
+            intent.putExtra(NoteEditorActivity.EXTRA_NOTE_ID, note.id)
+            intent.putExtra(NoteEditorActivity.EXTRA_TITLE, note.title)
+            intent.putExtra(NoteEditorActivity.EXTRA_CONTENT, note.content)
+        }
+        startActivity(intent)
+    }
+
+    // ---------- Top bars ----------
 
     @Composable
     private fun HomeSearchBar(onSearchClick: () -> Unit) {
@@ -552,6 +584,7 @@ class MainActivity : FragmentActivity() {
                             },
                         )
                     }
+                }
             }
         }
     }
@@ -602,8 +635,17 @@ class MainActivity : FragmentActivity() {
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
+                    if (note.content.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = note.content,
+                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 6,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
-                // Pin icon in top-right corner
                 Icon(
                     imageVector = Icons.Default.PushPin,
                     contentDescription = stringResource(R.string.action_pin),
@@ -613,6 +655,7 @@ class MainActivity : FragmentActivity() {
                         .size(16.dp)
                         .clickable { onPinToggle() },
                     tint = if (note.pinned) AccentYellow else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

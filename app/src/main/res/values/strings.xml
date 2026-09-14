@@ -3,6 +3,7 @@
 
     <!-- Note list -->
     <string name="add_note">Add Note</string>
+    <string name="take_a_note">Take a note…</string>
     <string name="search_hint">Search notes…</string>
     <string name="action_search">Search</string>
     <string name="action_settings">Settings</string>
@@ -16,7 +17,7 @@
     <string name="delete_notes_title">Delete Notes?</string>
     <string name="delete_notes_message">Delete %1$d notes? This cannot be undone.</string>
     <string name="no_notes_title">No notes yet</string>
-    <string name="no_notes_subtitle">Tap + to create your first note</string>
+    <string name="no_notes_subtitle">Tap the “Take a note” bar to create your first note</string>
     <string name="no_search_results">No matching notes</string>
     <string name="no_search_results_subtitle">Try a different query or filter</string>
     <string name="untitled_note">(Untitled)</string>

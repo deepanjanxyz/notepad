@@ -71,8 +71,10 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.process.ProcessLifecycleOwner
 import com.deepanjanxyz.notepad.ui.theme.EliteMemoTheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -92,15 +94,19 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         // Only lock when the user enabled it AND some authenticator is actually available.
         requireUnlock = settings.lockOnLaunch && lockManager.canLock()
+        // Re-arm the lock only when the whole application goes to the
+        // background, so internal navigation (editor, settings) never
+        // triggers an unlock prompt on return.
+        ProcessLifecycleOwner.get().lifecycle.addObserver(
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_STOP && settings.lockOnLaunch) {
+                    requireUnlock = true
+                }
+            },
+        )
         setContent {
             EliteMemoRoot()
         }
-    }
-
-    override fun onStop() {
-        super.onStop()
-        // Re-arm the lock whenever the app goes to the background.
-        if (settings.lockOnLaunch) requireUnlock = true
     }
 
     @Composable
@@ -164,8 +170,13 @@ class MainActivity : FragmentActivity() {
         var selectedIds by remember { mutableStateOf(setOf<Long>()) }
         var showDeleteDialog by remember { mutableStateOf(false) }
 
+        // Active reload job; cancelled whenever a newer reload starts so
+        // obsolete query results can never overwrite the current list.
+        var reloadJob by remember { mutableStateOf<Job?>(null) }
+
         fun reloadNotes() {
-            coroutineScope.launch {
+            reloadJob?.cancel()
+            reloadJob = coroutineScope.launch {
                 notes = withContext(Dispatchers.IO) {
                     if (query.isBlank()) {
                         dbHelper.getAllNotes(sortOrder)

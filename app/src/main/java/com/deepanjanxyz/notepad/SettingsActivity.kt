@@ -31,12 +31,12 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androoidx.compose.material3.IconButton
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
-import androoidx.compose.material3.Surface
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -44,7 +44,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androoidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -74,7 +74,7 @@ class SettingsActivity : ComponentActivity() {
     @Composable
     private fun SettingsScreen() {
         val context = LocalContext.current
-        val themeMode by remember { mutableStateOf(settings.themeMode) }
+        var themeMode by remember { mutableStateOf(settings.themeMode) }
         var dynamicColors by remember { mutableStateOf(settings.dynamicColors) }
         var lockOnLaunch by remember { mutableStateOf(settings.lockOnLaunch) }
 
@@ -103,21 +103,20 @@ class SettingsActivity : ComponentActivity() {
                                 )
                             },
                             navigationIcon = {
-                                 IconButton(onClick = { finish() }) {
-                                   Icon(
+                                IconButton(onClick = { finish() }) {
+                                    Icon(
                                         Icons.Default.Menu,
                                         contentDescription = stringResource(R.string.action_back),
                                         tint = MaterialTheme.colorScheme.onBackground,
                                     )
                                 }
                             },
-                                 colors = TopAppBarDefaults.topAppBarColors(
-                                   containerColor = MaterialTheme.colorScheme.background,
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.background,
                             ),
-                       )
+                        )
                     },
-                ) {
-                    innerPadding ->
+                ) { innerPadding ->
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -154,33 +153,33 @@ class SettingsActivity : ComponentActivity() {
                                         themeMode = ThemeMode.DARK
                                         settings.themeMode = ThemeMode.DARK
                                     },
-                                 )
-                                 ThemeOption(
+                                )
+                                ThemeOption(
                                     icon = Icons.Default.Info,
-                                     label = stringResource(R.string.theme_system),
-                                     selected = themeMode == ThemeMode.SYSTEM,
+                                    label = stringResource(R.string.theme_system),
+                                    selected = themeMode == ThemeMode.SYSTEM,
                                     onSelect = {
                                         themeMode = ThemeMode.SYSTEM
                                         settings.themeMode = ThemeMode.SYSTEM
                                     },
-                                  )
-                                 Spacer(modifier = Modifier.height(4.dp))
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
                                 HorizontalDividerThin()
                                 SettingRow(
-                                     title = stringResource(R.string.dynamic_colors),
+                                    title = stringResource(R.string.dynamic_colors),
                                     subtitle = if (dynamicColorsSupported) {
                                         stringResource(R.string.dynamic_colors_desc)
-                                   } else {
+                                    } else {
                                         stringResource(R.string.dynamic_colors_unsupported)
                                     },
-                                     trailing = {
+                                    trailing = {
                                         Switch(
-                                           checked = dynamicColors && dynamicColorsSupported,
-                                             onCheckedChange = { enabled ->
-                                                 dynamicColors = enabled
+                                            checked = dynamicColors && dynamicColorsSupported,
+                                            onCheckedChange = { enabled ->
+                                                dynamicColors = enabled
                                                 settings.dynamicColors = enabled
-                                           },
-                                             enabled = dynamicColorsSupported,
+                                            },
+                                            enabled = dynamicColorsSupported,
                                         )
                                     },
                                 )
@@ -211,14 +210,14 @@ class SettingsActivity : ComponentActivity() {
                                     trailing = {
                                         Switch(
                                             checked = lockOnLaunch,
-                                             onCheckedChange = { enabled ->
-                                                  lockOnLaunch = enabled
+                                            onCheckedChange = { enabled ->
+                                                lockOnLaunch = enabled
                                                 settings.lockOnLaunch = enabled
                                             },
-                                             enabled = lockAvailability == BiometricLockManager.LockAvailability.READY,
+                                            enabled = lockAvailability == BiometricLockManager.LockAvailability.READY,
                                         )
-                                     },
-                                 )
+                                    },
+                                )
                             }
                         }
 
@@ -241,16 +240,16 @@ class SettingsActivity : ComponentActivity() {
 
                         // --- About ---
                         SectionLabel(stringResource(R.string.section_about))
-                       Card(
+                        Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.surface,
                             ),
                             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                       ) {
+                        ) {
                             Row(
-                               modifier = Modifier
+                                modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -258,17 +257,17 @@ class SettingsActivity : ComponentActivity() {
                                 Box(
                                     modifier = Modifier
                                         .size(40.dp)
-                                       .clip(CircleShape)
+                                        .clip(CircleShape)
                                         .background(AccentYellow.copy(alpha = 0.15f)),
-                                     contentAlignment = Alignment.Center,
+                                    contentAlignment = Alignment.Center,
                                 ) {
-                                   Icon(
+                                    Icon(
                                         Icons.Default.Info,
                                         contentDescription = null,
-                                       tint = AccentYellow,
-                                       modifier = Modifier.size(20.dp),
-                                   )
-                                 }
+                                        tint = AccentYellow,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                }
                                 Spacer(modifier = Modifier.size(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
@@ -279,26 +278,27 @@ class SettingsActivity : ComponentActivity() {
                                     Text(
                                         text = stringResource(R.string.app_version, versionName),
                                         style = MaterialTheme.typography.bodySmall,
-                                       color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                     )
-                                 }
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
                                 TextButton(onClick = {
-                                     runCatching {
+                                    runCatching {
                                         context.startActivity(
-                                           Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_URL)),
-                                       )
+                                            Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_URL)),
+                                        )
                                     }
                                 }) {
                                     Text(
                                         stringResource(R.string.github_link_open),
-                                       color = AccentYellow,
-                                     )
+                                        color = AccentYellow,
+                                    )
                                 }
                             }
+                        }
                         Spacer(modifier = Modifier.height(32.dp))
                     }
                 }
-                    }
+            }
         }
     }
 
@@ -322,7 +322,7 @@ class SettingsActivity : ComponentActivity() {
                 .fillMaxWidth()
                 .height(1.dp)
                 .background(MaterialTheme.colorScheme.outlineVariant),
-            )
+        )
     }
 
     @Composable
@@ -336,7 +336,7 @@ class SettingsActivity : ComponentActivity() {
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { onSelect() }
-                .padding(lorizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
@@ -350,14 +350,14 @@ class SettingsActivity : ComponentActivity() {
                 text = label,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface,
-                 modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f),
             )
             RadioButton(
                 selected = selected,
                 onClick = { onSelect() },
                 colors = RadioButtonDefaults.colors(
                     selectedColor = AccentYellow,
-                     unselectedColor = MaterialTheme.colorScheme.outline,
+                    unselectedColor = MaterialTheme.colorScheme.outline,
                 ),
             )
         }

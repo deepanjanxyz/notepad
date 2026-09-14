@@ -13,6 +13,38 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import com.deepanjanxyz.notepad.ThemeMode
 
+/** Purple FAB colour used across the app (matches the reference design). */
+val FabPurple = Color(0xFF42526E)
+
+/** Yellow/gold accent used for pin icons, selected states and radio buttons. */
+val AccentYellow = Color(0xFFF9AB00)
+
+/** Dark red used for trash sub-header. */
+val TrashRed = Color(0xFFB3261E)
+
+private val DarkColorScheme = darkColorScheme(
+    primary = Color(0xFFD3E3FD),
+    onPrimary = Color(0xFF062E6F),
+    primaryContainer = Color(0xFF0842A0),
+    onPrimaryContainer = Color(0xFFD3E3FD),
+    secondary = Color(0xFF9AA0A6),
+    onSecondary = Color(0xFF1F1F1F),
+    secondaryContainer = Color(0xFF2F3031),
+    onSecondaryContainer = Color(0xFFE3E3E3),
+    tertiary = Color(0xFFF9AB00),
+    onTertiary = Color(0xFF3C2E00),
+    background = Color(0xFF121212),
+    onBackground = Color(0xFFE3E3E3),
+    surface = Color(0xFF1E1F20),
+    onSurface = Color(0xFFE3E3E3),
+    surfaceVariant = Color(0xFF2F3031),
+    onSurfaceVariant = Color(0xFF9AA0A6),
+    outline = Color(0xFF3F4046),
+    outlineVariant = Color(0xFF2F3031),
+    error = Color(0xFFB3261E),
+    onError = Color(0xFFFFFFFF),
+)
+
 private val LightColorScheme = lightColorScheme(
     primary = Color(0xFF1A73E8),
     onPrimary = Color(0xFFFFFFFF),
@@ -30,25 +62,10 @@ private val LightColorScheme = lightColorScheme(
     onSurface = Color(0xFF1F1F1F),
     surfaceVariant = Color(0xFFE8EAED),
     onSurfaceVariant = Color(0xFF44474E),
-)
-
-private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF8AB4F8),
-    onPrimary = Color(0xFF062E6F),
-    primaryContainer = Color(0xFF0842A0),
-    onPrimaryContainer = Color(0xFFD3E3FD),
-    secondary = Color(0xFF9AA0A6),
-    onSecondary = Color(0xFF1F1F1F),
-    secondaryContainer = Color(0xFF2F3031),
-    onSecondaryContainer = Color(0xFFE3E3E3),
-    tertiary = Color(0xFFFDD663),
-    onTertiary = Color(0xFF3C2E00),
-    background = Color(0xFF131314),
-    onBackground = Color(0xFFE3E3E3),
-    surface = Color(0xFF1E1F20),
-    onSurface = Color(0xFFE3E3E3),
-    surfaceVariant = Color(0xFF2F3031),
-    onSurfaceVariant = Color(0xFF9AA0A6),
+    outline = Color(0xFF747775),
+    outlineVariant = Color(0xFFC4C6C9),
+    error = Color(0xFFB3261E),
+    onError = Color(0xFFFFFFFF),
 )
 
 /**

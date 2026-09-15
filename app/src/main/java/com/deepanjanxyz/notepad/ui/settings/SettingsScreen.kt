@@ -85,16 +85,16 @@ fun SettingsScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
-             ) {
+            ) {
                 Column(Modifier.weight(1f)) {
                     Text("Use Device Lock", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                          "Unlock using Fingerprint or PIN",
+                        "Unlock using Fingerprint or PIN",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Switch
+                Switch(
                     checked = settings.lockEnabled,
                     onCheckedChange = viewModel::setLockEnabled,
                 )
@@ -108,7 +108,7 @@ fun SettingsScreen(
                     .fillMaxWidth()
                     .clickable {
                         context.startActivity(
-                             Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_URL)),
+                            Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_URL)),
                         )
                     }
                     .padding(horizontal = 16.dp, vertical = 12.dp),

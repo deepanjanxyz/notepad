@@ -26,15 +26,30 @@ public class NoteEditorActivity extends AppCompatActivity {
     private boolean hasUnsavedChanges = false;
 
     private final Runnable saveRunnable = new Runnable() {
-        @Override public void run() { saveNoteLocally(); }
+        /** Writes pending editor changes after the debounce delay. */
+        @Override
+        public void run() { saveNoteLocally(); }
     };
 
     private final TextWatcher watcher = new TextWatcher() {
-        @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-        @Override public void onTextChanged(CharSequence s, int start, int before, int count) { scheduleSave(); }
-        @Override public void afterTextChanged(Editable s) {}
+        /** Receives the pre-change notification; no work is required. */
+        @Override
+        public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+        /** Schedules a save whenever title or body text changes. */
+        @Override
+        public void onTextChanged(CharSequence s, int start, int before, int count) { scheduleSave(); }
+
+        /** Receives the post-change notification; no work is required. */
+        @Override
+        public void afterTextChanged(Editable s) {}
     };
 
+    /**
+     * Initializes the editor and restores note values supplied by the list screen.
+     *
+     * @param savedInstanceState previously saved activity state, if available
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -54,6 +69,11 @@ public class NoteEditorActivity extends AppCompatActivity {
 
         // Save button: save immediately and return to the notes list
         fabSave.setOnClickListener(new View.OnClickListener() {
+            /**
+             * Saves immediately and closes the editor.
+             *
+             * @param v save button that was clicked
+             */
             @Override
             public void onClick(View v) {
                 saveNoteLocally();
@@ -67,12 +87,14 @@ public class NoteEditorActivity extends AppCompatActivity {
         etContent.addTextChangedListener(watcher);
     }
 
+    /** Restarts the debounce timer for pending editor changes. */
     private void scheduleSave() {
         hasUnsavedChanges = true;
         autosaveHandler.removeCallbacks(saveRunnable);
         autosaveHandler.postDelayed(saveRunnable, AUTOSAVE_DELAY_MS);
     }
 
+    /** Inserts, updates, or deletes the current note to match the editor contents. */
     private void saveNoteLocally() {
         String title = etTitle.getText().toString();
         String content = etContent.getText().toString();
@@ -94,6 +116,7 @@ public class NoteEditorActivity extends AppCompatActivity {
         }
     }
 
+    /** Flushes pending changes before the editor leaves the foreground. */
     @Override
     protected void onPause() {
         super.onPause();
@@ -102,6 +125,7 @@ public class NoteEditorActivity extends AppCompatActivity {
         if (hasUnsavedChanges) saveNoteLocally();
     }
 
+    /** Removes queued callbacks when the editor is destroyed. */
     @Override
     protected void onDestroy() {
         autosaveHandler.removeCallbacks(saveRunnable);

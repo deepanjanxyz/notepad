@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -28,15 +29,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.deepanjanxyz.notepad.data.SettingsRepository
 import com.deepanjanxyz.notepad.ui.EliteMemoApp
 import com.deepanjanxyz.notepad.ui.theme.EliteMemoTheme
 
 class MainActivity : FragmentActivity() {
+
+    // Biometric gate: the user authenticates once per foreground session and
+    // stays unlocked while using the app. It re-locks only when the app goes
+    // to the background — never while navigating between screens.
+    private var unlocked by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,6 +66,8 @@ class MainActivity : FragmentActivity() {
                 ) {
                     LockScreen(
                         lockEnabled = settings.lockEnabled,
+                        unlocked = unlocked,
+                        onUnlocked = { unlocked = true },
                     ) {
                         EliteMemoApp()
                     }
@@ -64,24 +75,51 @@ class MainActivity : FragmentActivity() {
             }
         }
     }
+
+    override fun onStop() {
+        super.onStop()
+        // The app went to the background — require authentication again on
+        // the next visit.
+        unlocked = false
+    }
 }
 
 /**
- * Shows [content] once the biometric lock is satisfied. When [lockEnabled]
- * the system prompt appears immediately (same behaviour as the legacy gate).
+ * Shows [content] once the biometric lock is satisfied. The prompt appears on
+ * first launch and after every return from the background; after one
+ * successful unlock the app stays open until it is backgrounded again.
  */
 @Composable
-private fun LockScreen(lockEnabled: Boolean, content: @Composable () -> Unit) {
-    if (!lockEnabled) {
+private fun LockScreen(
+    lockEnabled: Boolean,
+    unlocked: Boolean,
+    onUnlocked: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    if (!lockEnabled || unlocked) {
         content()
         return
     }
 
-    var unlocked by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var resumed by remember { mutableStateOf(false) }
+    var promptShown by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        showBiometricPrompt(context) { unlocked = true }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            resumed = event == Lifecycle.Event.ON_RESUME
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Trigger the prompt only while the app is actually resumed (never from
+    // the background) and only once per lock session.
+    LaunchedEffect(unlocked, resumed) {
+        if (unlocked || !resumed || promptShown) return@LaunchedEffect
+        promptShown = true
+        showBiometricPrompt(context, onUnlocked)
     }
 
     Column(

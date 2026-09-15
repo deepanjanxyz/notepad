@@ -33,6 +33,10 @@ import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 
+/**
+ * Main screen: shows the staggered-grid notes list with search, multi-select
+ * deletion, and an optional biometric / device-credential lock gate.
+ */
 public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNoteListener {
     private static final String KEY_AUTHENTICATED = "is_authenticated";
     private static final String KEYSTORE_KEY_NAME = "elite_memo_lock_key";
@@ -47,11 +51,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
     private boolean isSelectionMode = false;
     private boolean isAuthenticated = false;
 
-    /**
-     * Restores authentication state and initializes or locks the main screen.
-     *
-     * @param savedInstanceState previously saved activity state, if available
-     */
+    /** Sets up the activity, restoring the lock state across recreation and showing the biometric gate when enabled. */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         applyUserTheme();
@@ -70,18 +70,14 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         }
     }
 
-    /**
-     * Persists the current authentication state across configuration changes.
-     *
-     * @param outState state bundle populated for the next activity instance
-     */
+    /** Persists the authenticated state so a config change does not re-trigger the lock. */
     @Override
     protected void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putBoolean(KEY_AUTHENTICATED, isAuthenticated);
     }
 
-    /** Initializes the note list and main-screen controls. */
+    /** Inflates the main layout and wires up the toolbar, notes list, empty view and add-note button. */
     private void initUI() {
         setContentView(R.layout.activity_main);
         dbHelper = new DatabaseHelper(this);
@@ -100,37 +96,22 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         loadNotes("");
     }
 
-    /**
-     * Checks whether the user enabled the application lock.
-     *
-     * @return {@code true} when the lock preference is enabled
-     */
+    /** Returns whether the user has enabled the app lock in settings. */
     private boolean isLockEnabled() {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         return prefs.getBoolean("pref_lock", false);
     }
 
-    /** Starts the strongest available cryptographically backed unlock flow. */
+    /** Unlocks the app through a crypto-bound BiometricPrompt, falling back to the device credential gate. */
     private void showBiometricPrompt() {
         Executor executor = ContextCompat.getMainExecutor(this);
         BiometricPrompt biometricPrompt = new BiometricPrompt(MainActivity.this, executor, new BiometricPrompt.AuthenticationCallback() {
-            /**
-             * Closes the locked activity when authentication cannot continue.
-             *
-             * @param errorCode biometric error code
-             * @param errString user-facing description of the error
-             */
             @Override
             public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
                 super.onAuthenticationError(errorCode, errString);
                 Toast.makeText(MainActivity.this, errString, Toast.LENGTH_SHORT).show();
                 finish();
             }
-            /**
-             * Displays the main screen after successful authentication.
-             *
-             * @param result successful biometric authentication result
-             */
             @Override
             public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
                 super.onAuthenticationSucceeded(result);
@@ -167,12 +148,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         }
     }
 
-    /**
-     * Builds prompt text and the accepted authenticator configuration.
-     *
-     * @param authenticators allowed {@link BiometricManager.Authenticators} flags
-     * @return configured prompt information
-     */
+    /** Builds the prompt shown to the user for the given set of allowed authenticators. */
     private BiometricPrompt.PromptInfo buildPromptInfo(int authenticators) {
         return new BiometricPrompt.PromptInfo.Builder()
                 .setTitle("Elite Memo Security")
@@ -184,7 +160,8 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
     /**
      * Creates a {@link BiometricPrompt.CryptoObject} backed by an AES key in
      * the Android Keystore that requires user authentication to use, so the
-     * biometric unlock is cryptographically enforced.
+     * biometric unlock is cryptographically enforced. Returns null if the
+     * Keystore is unavailable on this device.
      */
     private BiometricPrompt.CryptoObject createCryptoObject() {
         try {
@@ -219,7 +196,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         }
     }
 
-    /** Opens the system device-credential confirmation screen as a fallback. */
+    /** Gates access with the system device credential (PIN/pattern/password) on devices without a crypto-capable biometric. */
     @SuppressWarnings("deprecation")
     private void confirmDeviceCredential() {
         KeyguardManager keyguardManager = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
@@ -234,13 +211,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         }
     }
 
-    /**
-     * Handles completion of the device-credential fallback flow.
-     *
-     * @param requestCode identifier supplied when credential confirmation started
-     * @param resultCode result returned by the credential screen
-     * @param data optional result data
-     */
+    /** Handles the result of the device credential confirmation flow. */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -254,11 +225,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         }
     }
 
-    /**
-     * Opens the editor for the selected note.
-     *
-     * @param note note selected by the user
-     */
+    /** Opens the tapped note in the editor. */
     @Override
     public void onNoteClick(Note note) {
         Intent intent = new Intent(this, NoteEditorActivity.class);
@@ -268,12 +235,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         startActivity(intent);
     }
 
-    /**
-     * Updates toolbar actions and text for the adapter's selection state.
-     *
-     * @param selectionMode whether selection mode is active
-     * @param count number of selected notes
-     */
+    /** Reacts to multi-select mode changes by swapping the visible menu items and title. */
     @Override
     public void onSelectionModeChange(boolean selectionMode, int count) {
         this.isSelectionMode = selectionMode;
@@ -286,19 +248,14 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         }
     }
 
-    /** Clears an active note selection before performing normal back navigation. */
+    /** Exits selection mode on back press instead of leaving the activity. */
     @Override
     public void onBackPressed() {
         if (isSelectionMode && adapter != null) adapter.clearSelection();
         else super.onBackPressed();
     }
 
-    /**
-     * Inflates toolbar actions and connects search filtering callbacks.
-     *
-     * @param menu menu to populate
-     * @return {@code true} after the menu is initialized
-     */
+    /** Inflates the main menu and wires up live search. */
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.main_menu, menu);
@@ -307,44 +264,18 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         SearchView searchView = (SearchView) searchItem.getActionView();
         searchView.setQueryHint("Search notes...");
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            /**
-             * Applies a submitted query to the note list.
-             *
-             * @param query submitted search text
-             * @return {@code false} to allow the SearchView's default handling
-             */
-            @Override
-            public boolean onQueryTextSubmit(String query) { loadNotes(query); return false; }
-
-            /**
-             * Filters notes as the search text changes.
-             *
-             * @param newText current search text
-             * @return {@code false} to allow the SearchView's default handling
-             */
-            @Override
-            public boolean onQueryTextChange(String newText) { loadNotes(newText); return false; }
+            @Override public boolean onQueryTextSubmit(String query) { loadNotes(query); return false; }
+            @Override public boolean onQueryTextChange(String newText) { loadNotes(newText); return false; }
         });
         // Reset the list when the search view is closed so the user is not
         // stuck looking at stale filtered results
         searchView.setOnCloseListener(new SearchView.OnCloseListener() {
-            /**
-             * Restores all notes when search closes.
-             *
-             * @return {@code false} to allow the SearchView's default close handling
-             */
-            @Override
-            public boolean onClose() { loadNotes(""); return false; }
+            @Override public boolean onClose() { loadNotes(""); return false; }
         });
         return true;
     }
 
-    /**
-     * Handles settings and bulk-delete toolbar actions.
-     *
-     * @param item selected menu item
-     * @return {@code true} when this activity handled the action
-     */
+    /** Handles settings navigation and multi-select deletion from the toolbar. */
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
@@ -353,7 +284,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         return super.onOptionsItemSelected(item);
     }
 
-    /** Shows a confirmation dialog before deleting all selected notes. */
+    /** Asks for confirmation, then deletes every currently selected note. */
     private void showDeleteConfirmation() {
         List<Note> selected = adapter.getSelectedNotes();
         new AlertDialog.Builder(this)
@@ -368,7 +299,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
             .show();
     }
 
-    /** Applies the user's light, dark, or system theme preference. */
+    /** Applies the theme chosen in settings (dark, light or follow system). */
     private void applyUserTheme() {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         String theme = prefs.getString("pref_theme", "system");
@@ -377,17 +308,13 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         else AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
     }
 
-    /** Refreshes notes whenever the unlocked activity returns to the foreground. */
+    /** Reloads the notes when the list becomes visible again. */
     @Override protected void onResume() {
         super.onResume();
         if (isAuthenticated || !isLockEnabled()) loadNotes("");
     }
 
-    /**
-     * Loads all notes or matching search results and updates the empty state.
-     *
-     * @param query search text, or empty to load every note
-     */
+    /** Loads all notes, or only those matching {@code query}, into the list and toggles the empty view. */
     private void loadNotes(String query) {
         if (noteList == null) return;
         noteList.clear();

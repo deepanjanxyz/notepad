@@ -1,4 +1,4 @@
-package com.deepanjanxyz.notepad;
+package com.deepanjanxyz.notepad.domain;
 
 public class Note {
     private long id;
@@ -6,7 +6,6 @@ public class Note {
     private String content;
     private String date;
 
-    // কনস্ট্রাক্টর (ডেট সহ)
     public Note(long id, String title, String content, String date) {
         this.id = id;
         this.title = title;

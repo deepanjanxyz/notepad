@@ -3,7 +3,4 @@
         <item name="colorPrimary">#0D47A1</item>
         <item name="colorOnPrimary">#FFFFFF</item>
     </style>
-    <style name="Theme.EliteMemoPro.Settings" parent="Theme.AppCompat.DayNight.DarkActionBar">
-        <item name="colorPrimary">#0D47A1</item>
-    </style>
 </resources>

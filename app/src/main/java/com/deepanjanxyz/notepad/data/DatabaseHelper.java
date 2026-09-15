@@ -1,7 +1,7 @@
-package com.deepanjanxyz.notepad;
+package com.deepanjanxyz.notepad.data;
 
 import android.content.ContentValues;
-import android.content.Context;
+import android.context.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
@@ -29,18 +29,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         onCreate(db);
     }
 
-    // এই সেই সাধারণ মেথড (পুরনো কোড যাতে না ভাঙে)
-    public void insertNote(String title, String content, String date) {
-        SQLiteDatabase db = this.getWritableDatabase();
-        ContentValues contentValues = new ContentValues();
-        contentValues.put(COLUMN_TITLE, title);
-        contentValues.put(COLUMN_CONTENT, content);
-        contentValues.put(COLUMN_DATE, date);
-        db.insert(TABLE_NAME, null, contentValues);
-    }
-
-    // ফিক্স: এই নতুন মেথডটা যোগ করা হলো যা ID রিটার্ন করে (অটো-সেভের জন্য)
-    public long insertNoteWithId(String title, String content, String date) {
+    public long insertNote(String title, String content, String date) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues contentValues = new ContentValues();
         contentValues.put(COLUMN_TITLE, title);
@@ -64,12 +53,19 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     }
 
     public Cursor getAllNotes() {
-        SQLiteDatabase db = this.getWritableDatabase();
+        SQLiteDatabase db = this.getReadableDatabase();
         return db.rawQuery("select * from " + TABLE_NAME + " order by ID desc", null);
     }
 
+    public Cursor getNoteById(long id) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.rawQuery("select * from " + TABLE_NAME + " where " + COLUMN_ID + " = ?",
+                new String[]{String.valueOf(id)});
+    }
+
     public Cursor searchNotes(String query) {
-        SQLiteDatabase db = this.getWritableDatabase();
-        return db.rawQuery("select * from " + TABLE_NAME + " WHERE TITLE LIKE ? OR CONTENT LIKE ?", new String[]{"%" + query + "%", "%" + query + "%"});
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.rawQuery("select * from " + TABLE_NAME + " WHERE TITLE LIKE ? OR CONTENT LIKE ?",
+                new String[]{"%" + query + "%", "%" + query + "%"});
     }
 }

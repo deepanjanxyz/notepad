@@ -29,7 +29,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         onCreate(db);
     }
 
-    // এই সেই সাধারণ মেথড (পুরনো কোড যাতে না ভাঙে)
+    // Simple insert kept for backwards compatibility (no id returned)
     public void insertNote(String title, String content, String date) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues contentValues = new ContentValues();
@@ -39,7 +39,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.insert(TABLE_NAME, null, contentValues);
     }
 
-    // ফিক্স: এই নতুন মেথডটা যোগ করা হলো যা ID রিটার্ন করে (অটো-সেভের জন্য)
+    // Insert that returns the row id (used by auto-save)
     public long insertNoteWithId(String title, String content, String date) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues contentValues = new ContentValues();
@@ -64,12 +64,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     }
 
     public Cursor getAllNotes() {
-        SQLiteDatabase db = this.getWritableDatabase();
+        SQLiteDatabase db = this.getReadableDatabase();
         return db.rawQuery("select * from " + TABLE_NAME + " order by ID desc", null);
     }
 
     public Cursor searchNotes(String query) {
-        SQLiteDatabase db = this.getWritableDatabase();
-        return db.rawQuery("select * from " + TABLE_NAME + " WHERE TITLE LIKE ? OR CONTENT LIKE ?", new String[]{"%" + query + "%", "%" + query + "%"});
+        SQLiteDatabase db = this.getReadableDatabase();
+        // Keep search results in the same order as the main list
+        return db.rawQuery("select * from " + TABLE_NAME + " WHERE TITLE LIKE ? OR CONTENT LIKE ? order by ID desc",
+                new String[]{"%" + query + "%", "%" + query + "%"});
     }
 }

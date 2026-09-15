@@ -1,9 +1,13 @@
 package com.deepanjanxyz.notepad;
 
+import android.app.KeyguardManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
+import android.os.Build;
 import android.os.Bundle;
+import android.security.keystore.KeyGenParameterSpec;
+import android.security.keystore.KeyProperties;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -13,19 +17,27 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
-import androidx.preference.PreferenceManager;
-import androidx.recyclerview.widget.StaggeredGridLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 import androidx.appcompat.widget.SearchView;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import androidx.biometric.BiometricManager;
 import androidx.biometric.BiometricPrompt;
 import androidx.core.content.ContextCompat;
+import androidx.preference.PreferenceManager;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.StaggeredGridLayoutManager;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
 
 public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNoteListener {
+    private static final String KEY_AUTHENTICATED = "is_authenticated";
+    private static final String KEYSTORE_KEY_NAME = "elite_memo_lock_key";
+    private static final int REQUEST_CONFIRM_CREDENTIAL = 1001;
+
     private RecyclerView recyclerView;
     private NoteAdapter adapter;
     private DatabaseHelper dbHelper;
@@ -39,20 +51,31 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
     protected void onCreate(Bundle savedInstanceState) {
         applyUserTheme();
         super.onCreate(savedInstanceState);
-        
+
+        // Survive rotation / config changes without re-prompting for the lock
+        if (savedInstanceState != null) {
+            isAuthenticated = savedInstanceState.getBoolean(KEY_AUTHENTICATED, false);
+        }
+
         if (isLockEnabled() && !isAuthenticated) {
-            setContentView(new View(this)); 
+            setContentView(new View(this));
             showBiometricPrompt();
         } else {
             initUI();
         }
     }
 
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putBoolean(KEY_AUTHENTICATED, isAuthenticated);
+    }
+
     private void initUI() {
         setContentView(R.layout.activity_main);
         dbHelper = new DatabaseHelper(this);
         noteList = new ArrayList<>();
-        
+
         setSupportActionBar(findViewById(R.id.toolbar));
         recyclerView = findViewById(R.id.recyclerView);
         emptyView = findViewById(R.id.empty_view);
@@ -77,22 +100,116 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
             @Override
             public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
                 super.onAuthenticationError(errorCode, errString);
+                Toast.makeText(MainActivity.this, errString, Toast.LENGTH_SHORT).show();
                 finish();
             }
             @Override
             public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
                 super.onAuthenticationSucceeded(result);
+                // Success is cryptographically bound: it was authorized through a
+                // Keystore key that itself requires user authentication, so simply
+                // hooking this callback is not enough to bypass the lock
                 isAuthenticated = true;
                 initUI();
             }
         });
 
-        BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
+        // Bind the unlock to a Keystore key (crypto-bound authentication) instead
+        // of relying only on the success callback
+        BiometricPrompt.CryptoObject cryptoObject = createCryptoObject();
+
+        if (cryptoObject != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // On Android 11+ both biometric and device credential unlock work with
+            // a CryptoObject, and the key allows either authenticator
+            biometricPrompt.authenticate(
+                    buildPromptInfo(BiometricManager.Authenticators.BIOMETRIC_STRONG
+                            | BiometricManager.Authenticators.DEVICE_CREDENTIAL),
+                    cryptoObject);
+        } else if (cryptoObject != null && BiometricManager.from(this)
+                .canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+                == BiometricManager.BIOMETRIC_SUCCESS) {
+            // Android 10 and below with a strong biometric enrolled
+            biometricPrompt.authenticate(
+                    buildPromptInfo(BiometricManager.Authenticators.BIOMETRIC_STRONG),
+                    cryptoObject);
+        } else {
+            // No crypto-capable biometric available: gate with the device
+            // credential via KeyguardManager
+            confirmDeviceCredential();
+        }
+    }
+
+    private BiometricPrompt.PromptInfo buildPromptInfo(int authenticators) {
+        return new BiometricPrompt.PromptInfo.Builder()
                 .setTitle("Elite Memo Security")
                 .setSubtitle("Unlock to access your notes")
-                .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+                .setAllowedAuthenticators(authenticators)
                 .build();
-        biometricPrompt.authenticate(promptInfo);
+    }
+
+    /**
+     * Creates a {@link BiometricPrompt.CryptoObject} backed by an AES key in
+     * the Android Keystore that requires user authentication to use, so the
+     * biometric unlock is cryptographically enforced.
+     */
+    private BiometricPrompt.CryptoObject createCryptoObject() {
+        try {
+            KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
+            keyStore.load(null);
+            SecretKey secretKey = (SecretKey) keyStore.getKey(KEYSTORE_KEY_NAME, null);
+            if (secretKey == null) {
+                KeyGenParameterSpec.Builder builder = new KeyGenParameterSpec.Builder(KEYSTORE_KEY_NAME,
+                        KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
+                        .setBlockModes(KeyProperties.BLOCK_MODE_CBC)
+                        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_PKCS7)
+                        .setUserAuthenticationRequired(true)
+                        .setInvalidatedByBiometricEnrollment(true);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    // Let the device credential unlock the key as well on Android 11+
+                    builder.setUserAuthenticationParameters(0,
+                            KeyProperties.AUTH_BIOMETRIC_STRONG | KeyProperties.AUTH_DEVICE_CREDENTIAL);
+                }
+                KeyGenerator keyGenerator = KeyGenerator.getInstance(
+                        KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore");
+                keyGenerator.init(builder.build());
+                keyGenerator.generateKey();
+                secretKey = (SecretKey) keyStore.getKey(KEYSTORE_KEY_NAME, null);
+            }
+            Cipher cipher = Cipher.getInstance(KeyProperties.KEY_ALGORITHM_AES + "/"
+                    + KeyProperties.BLOCK_MODE_CBC + "/" + KeyProperties.ENCRYPTION_PADDING_PKCS7);
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+            return new BiometricPrompt.CryptoObject(cipher);
+        } catch (Exception e) {
+            // Keystore unavailable on this device; fall back to a non-crypto gate
+            return null;
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private void confirmDeviceCredential() {
+        KeyguardManager keyguardManager = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
+        if (keyguardManager != null && keyguardManager.isKeyguardSecure()) {
+            Intent intent = keyguardManager.createConfirmDeviceCredentialIntent(
+                    "Elite Memo Security", "Unlock to access your notes");
+            startActivityForResult(intent, REQUEST_CONFIRM_CREDENTIAL);
+        } else {
+            // No lock screen is configured at all; nothing to gate with
+            isAuthenticated = true;
+            initUI();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CONFIRM_CREDENTIAL) {
+            if (resultCode == RESULT_OK) {
+                isAuthenticated = true;
+                initUI();
+            } else {
+                finish();
+            }
+        }
     }
 
     @Override
@@ -118,7 +235,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
 
     @Override
     public void onBackPressed() {
-        if (isSelectionMode) adapter.clearSelection();
+        if (isSelectionMode && adapter != null) adapter.clearSelection();
         else super.onBackPressed();
     }
 
@@ -133,13 +250,18 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
             @Override public boolean onQueryTextSubmit(String query) { loadNotes(query); return false; }
             @Override public boolean onQueryTextChange(String newText) { loadNotes(newText); return false; }
         });
+        // Reset the list when the search view is closed so the user is not
+        // stuck looking at stale filtered results
+        searchView.setOnCloseListener(new SearchView.OnCloseListener() {
+            @Override public boolean onClose() { loadNotes(""); return false; }
+        });
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
-        if (id == R.id.action_settings) { startActivity(new Intent(this, SettingsActivity.class)); return true; } 
+        if (id == R.id.action_settings) { startActivity(new Intent(this, SettingsActivity.class)); return true; }
         else if (id == R.id.action_delete_selected) { showDeleteConfirmation(); return true; }
         return super.onOptionsItemSelected(item);
     }
@@ -166,25 +288,30 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         else AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
     }
 
-    @Override protected void onResume() { 
-        super.onResume(); 
-        if (isAuthenticated || !isLockEnabled()) loadNotes(""); 
+    @Override protected void onResume() {
+        super.onResume();
+        if (isAuthenticated || !isLockEnabled()) loadNotes("");
     }
 
     private void loadNotes(String query) {
         if (noteList == null) return;
         noteList.clear();
-        Cursor cursor = (query.isEmpty()) ? dbHelper.getAllNotes() : dbHelper.searchNotes(query);
-        if (cursor != null && cursor.moveToFirst()) {
-            do {
-                noteList.add(new Note(
-                    cursor.getLong(cursor.getColumnIndex(DatabaseHelper.COLUMN_ID)),
-                    cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_TITLE)),
-                    cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_CONTENT)),
-                    cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_DATE))
-                ));
-            } while (cursor.moveToNext());
-            cursor.close();
+        Cursor cursor = null;
+        try {
+            cursor = (query == null || query.isEmpty()) ? dbHelper.getAllNotes() : dbHelper.searchNotes(query);
+            if (cursor != null && cursor.moveToFirst()) {
+                do {
+                    noteList.add(new Note(
+                        cursor.getLong(cursor.getColumnIndex(DatabaseHelper.COLUMN_ID)),
+                        cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_TITLE)),
+                        cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_CONTENT)),
+                        cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_DATE))
+                    ));
+                } while (cursor.moveToNext());
+            }
+        } finally {
+            // Always close the cursor, including when the result set is empty
+            if (cursor != null) cursor.close();
         }
         if (noteList.isEmpty()) { recyclerView.setVisibility(View.GONE); emptyView.setVisibility(View.VISIBLE); }
         else { recyclerView.setVisibility(View.VISIBLE); emptyView.setVisibility(View.GONE); }

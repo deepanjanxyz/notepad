@@ -1,7 +1,7 @@
 package com.deepanjanxyz.notepad.data;
 
 import android.content.ContentValues;
-import android.context.Context;
+import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;

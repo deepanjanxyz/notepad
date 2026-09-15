@@ -3,6 +3,7 @@ package com.deepanjanxyz.notepad;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -26,6 +27,8 @@ import java.util.List;
 import java.util.concurrent.Executor;
 
 public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNoteListener {
+    private static final String KEY_AUTHENTICATED = "is_authenticated";
+
     private RecyclerView recyclerView;
     private NoteAdapter adapter;
     private DatabaseHelper dbHelper;
@@ -39,20 +42,31 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
     protected void onCreate(Bundle savedInstanceState) {
         applyUserTheme();
         super.onCreate(savedInstanceState);
-        
+
+        // Survive rotation / config changes without re-prompting for the lock
+        if (savedInstanceState != null) {
+            isAuthenticated = savedInstanceState.getBoolean(KEY_AUTHENTICATED, false);
+        }
+
         if (isLockEnabled() && !isAuthenticated) {
-            setContentView(new View(this)); 
+            setContentView(new View(this));
             showBiometricPrompt();
         } else {
             initUI();
         }
     }
 
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putBoolean(KEY_AUTHENTICATED, isAuthenticated);
+    }
+
     private void initUI() {
         setContentView(R.layout.activity_main);
         dbHelper = new DatabaseHelper(this);
         noteList = new ArrayList<>();
-        
+
         setSupportActionBar(findViewById(R.id.toolbar));
         recyclerView = findViewById(R.id.recyclerView);
         emptyView = findViewById(R.id.empty_view);
@@ -77,6 +91,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
             @Override
             public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
                 super.onAuthenticationError(errorCode, errString);
+                Toast.makeText(MainActivity.this, errString, Toast.LENGTH_SHORT).show();
                 finish();
             }
             @Override
@@ -87,12 +102,25 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
             }
         });
 
-        BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
+        // Combining BIOMETRIC_STRONG with DEVICE_CREDENTIAL is only supported on
+        // Android 11 (API 30) and above. On older devices fall back to whichever
+        // authenticator is actually available, otherwise the prompt can crash
+        // or silently fail to appear.
+        BiometricPrompt.PromptInfo.Builder builder = new BiometricPrompt.PromptInfo.Builder()
                 .setTitle("Elite Memo Security")
-                .setSubtitle("Unlock to access your notes")
-                .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.DEVICE_CREDENTIAL)
-                .build();
-        biometricPrompt.authenticate(promptInfo);
+                .setSubtitle("Unlock to access your notes");
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            builder.setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG
+                    | BiometricManager.Authenticators.DEVICE_CREDENTIAL);
+        } else if (BiometricManager.from(this).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+                == BiometricManager.BIOMETRIC_SUCCESS) {
+            builder.setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG);
+        } else {
+            builder.setAllowedAuthenticators(BiometricManager.Authenticators.DEVICE_CREDENTIAL);
+        }
+
+        biometricPrompt.authenticate(builder.build());
     }
 
     @Override
@@ -118,7 +146,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
 
     @Override
     public void onBackPressed() {
-        if (isSelectionMode) adapter.clearSelection();
+        if (isSelectionMode && adapter != null) adapter.clearSelection();
         else super.onBackPressed();
     }
 
@@ -133,13 +161,18 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
             @Override public boolean onQueryTextSubmit(String query) { loadNotes(query); return false; }
             @Override public boolean onQueryTextChange(String newText) { loadNotes(newText); return false; }
         });
+        // Reset the list when the search view is closed so the user is not
+        // stuck looking at stale filtered results
+        searchView.setOnCloseListener(new SearchView.OnCloseListener() {
+            @Override public boolean onClose() { loadNotes(""); return false; }
+        });
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
-        if (id == R.id.action_settings) { startActivity(new Intent(this, SettingsActivity.class)); return true; } 
+        if (id == R.id.action_settings) { startActivity(new Intent(this, SettingsActivity.class)); return true; }
         else if (id == R.id.action_delete_selected) { showDeleteConfirmation(); return true; }
         return super.onOptionsItemSelected(item);
     }
@@ -166,25 +199,30 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         else AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
     }
 
-    @Override protected void onResume() { 
-        super.onResume(); 
-        if (isAuthenticated || !isLockEnabled()) loadNotes(""); 
+    @Override protected void onResume() {
+        super.onResume();
+        if (isAuthenticated || !isLockEnabled()) loadNotes("");
     }
 
     private void loadNotes(String query) {
         if (noteList == null) return;
         noteList.clear();
-        Cursor cursor = (query.isEmpty()) ? dbHelper.getAllNotes() : dbHelper.searchNotes(query);
-        if (cursor != null && cursor.moveToFirst()) {
-            do {
-                noteList.add(new Note(
-                    cursor.getLong(cursor.getColumnIndex(DatabaseHelper.COLUMN_ID)),
-                    cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_TITLE)),
-                    cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_CONTENT)),
-                    cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_DATE))
-                ));
-            } while (cursor.moveToNext());
-            cursor.close();
+        Cursor cursor = null;
+        try {
+            cursor = (query == null || query.isEmpty()) ? dbHelper.getAllNotes() : dbHelper.searchNotes(query);
+            if (cursor != null && cursor.moveToFirst()) {
+                do {
+                    noteList.add(new Note(
+                        cursor.getLong(cursor.getColumnIndex(DatabaseHelper.COLUMN_ID)),
+                        cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_TITLE)),
+                        cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_CONTENT)),
+                        cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_DATE))
+                    ));
+                } while (cursor.moveToNext());
+            }
+        } finally {
+            // Always close the cursor, including when the result set is empty
+            if (cursor != null) cursor.close();
         }
         if (noteList.isEmpty()) { recyclerView.setVisibility(View.GONE); emptyView.setVisibility(View.VISIBLE); }
         else { recyclerView.setVisibility(View.VISIBLE); emptyView.setVisibility(View.GONE); }

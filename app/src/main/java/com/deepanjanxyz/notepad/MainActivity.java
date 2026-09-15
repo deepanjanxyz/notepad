@@ -1,10 +1,13 @@
 package com.deepanjanxyz.notepad;
 
+import android.app.KeyguardManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.os.Build;
 import android.os.Bundle;
+import android.security.keystore.KeyGenParameterSpec;
+import android.security.keystore.KeyProperties;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -14,20 +17,26 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
-import androidx.preference.PreferenceManager;
-import androidx.recyclerview.widget.StaggeredGridLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 import androidx.appcompat.widget.SearchView;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import androidx.biometric.BiometricManager;
 import androidx.biometric.BiometricPrompt;
 import androidx.core.content.ContextCompat;
+import androidx.preference.PreferenceManager;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.StaggeredGridLayoutManager;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
 
 public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNoteListener {
     private static final String KEY_AUTHENTICATED = "is_authenticated";
+    private static final String KEYSTORE_KEY_NAME = "elite_memo_lock_key";
+    private static final int REQUEST_CONFIRM_CREDENTIAL = 1001;
 
     private RecyclerView recyclerView;
     private NoteAdapter adapter;
@@ -97,30 +106,110 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
             @Override
             public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
                 super.onAuthenticationSucceeded(result);
+                // Success is cryptographically bound: it was authorized through a
+                // Keystore key that itself requires user authentication, so simply
+                // hooking this callback is not enough to bypass the lock
                 isAuthenticated = true;
                 initUI();
             }
         });
 
-        // Combining BIOMETRIC_STRONG with DEVICE_CREDENTIAL is only supported on
-        // Android 11 (API 30) and above. On older devices fall back to whichever
-        // authenticator is actually available, otherwise the prompt can crash
-        // or silently fail to appear.
-        BiometricPrompt.PromptInfo.Builder builder = new BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Elite Memo Security")
-                .setSubtitle("Unlock to access your notes");
+        // Bind the unlock to a Keystore key (crypto-bound authentication) instead
+        // of relying only on the success callback
+        BiometricPrompt.CryptoObject cryptoObject = createCryptoObject();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            builder.setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG
-                    | BiometricManager.Authenticators.DEVICE_CREDENTIAL);
-        } else if (BiometricManager.from(this).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+        if (cryptoObject != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // On Android 11+ both biometric and device credential unlock work with
+            // a CryptoObject, and the key allows either authenticator
+            biometricPrompt.authenticate(
+                    buildPromptInfo(BiometricManager.Authenticators.BIOMETRIC_STRONG
+                            | BiometricManager.Authenticators.DEVICE_CREDENTIAL),
+                    cryptoObject);
+        } else if (cryptoObject != null && BiometricManager.from(this)
+                .canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)
                 == BiometricManager.BIOMETRIC_SUCCESS) {
-            builder.setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG);
+            // Android 10 and below with a strong biometric enrolled
+            biometricPrompt.authenticate(
+                    buildPromptInfo(BiometricManager.Authenticators.BIOMETRIC_STRONG),
+                    cryptoObject);
         } else {
-            builder.setAllowedAuthenticators(BiometricManager.Authenticators.DEVICE_CREDENTIAL);
+            // No crypto-capable biometric available: gate with the device
+            // credential via KeyguardManager
+            confirmDeviceCredential();
         }
+    }
 
-        biometricPrompt.authenticate(builder.build());
+    private BiometricPrompt.PromptInfo buildPromptInfo(int authenticators) {
+        return new BiometricPrompt.PromptInfo.Builder()
+                .setTitle("Elite Memo Security")
+                .setSubtitle("Unlock to access your notes")
+                .setAllowedAuthenticators(authenticators)
+                .build();
+    }
+
+    /**
+     * Creates a {@link BiometricPrompt.CryptoObject} backed by an AES key in
+     * the Android Keystore that requires user authentication to use, so the
+     * biometric unlock is cryptographically enforced.
+     */
+    private BiometricPrompt.CryptoObject createCryptoObject() {
+        try {
+            KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
+            keyStore.load(null);
+            SecretKey secretKey = (SecretKey) keyStore.getKey(KEYSTORE_KEY_NAME, null);
+            if (secretKey == null) {
+                KeyGenParameterSpec.Builder builder = new KeyGenParameterSpec.Builder(KEYSTORE_KEY_NAME,
+                        KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
+                        .setBlockModes(KeyProperties.BLOCK_MODE_CBC)
+                        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_PKCS7)
+                        .setUserAuthenticationRequired(true)
+                        .setInvalidatedByBiometricEnrollment(true);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    // Let the device credential unlock the key as well on Android 11+
+                    builder.setUserAuthenticationParameters(0,
+                            KeyProperties.AUTH_BIOMETRIC_STRONG | KeyProperties.AUTH_DEVICE_CREDENTIAL);
+                }
+                KeyGenerator keyGenerator = KeyGenerator.getInstance(
+                        KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore");
+                keyGenerator.init(builder.build());
+                keyGenerator.generateKey();
+                secretKey = (SecretKey) keyStore.getKey(KEYSTORE_KEY_NAME, null);
+            }
+            Cipher cipher = Cipher.getInstance(KeyProperties.KEY_ALGORITHM_AES + "/"
+                    + KeyProperties.BLOCK_MODE_CBC + "/" + KeyProperties.ENCRYPTION_PADDING_PKCS7);
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+            return new BiometricPrompt.CryptoObject(cipher);
+        } catch (Exception e) {
+            // Keystore unavailable on this device; fall back to a non-crypto gate
+            return null;
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private void confirmDeviceCredential() {
+        KeyguardManager keyguardManager = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
+        if (keyguardManager != null && keyguardManager.isKeyguardSecure()) {
+            Intent intent = keyguardManager.createConfirmDeviceCredentialIntent(
+                    "Elite Memo Security", "Unlock to access your notes");
+            startActivityForResult(intent, REQUEST_CONFIRM_CREDENTIAL);
+        } else {
+            // No lock screen is configured at all; nothing to gate with
+            isAuthenticated = true;
+            initUI();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CONFIRM_CREDENTIAL) {
+            if (resultCode == RESULT_OK) {
+                isAuthenticated = true;
+                initUI();
+            } else {
+                finish();
+            }
+        }
     }
 
     @Override

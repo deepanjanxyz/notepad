@@ -1,6 +1,6 @@
 package com.deepanjanxyz.notepad.data
 
-import android.context.Context
+import android.content.Context
 import com.deepanjanxyz.notepad.domain.Note
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

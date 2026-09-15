@@ -115,16 +115,16 @@ fun NotesScreen(
                                 searchActive = false
                                 viewModel.onQueryChange("")
                             },
-                         ){
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close search")
-                        },
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close search")
+                        }
                     },
                 )
 
                 else -> TopAppBar(
                     title = { Text("Elite Memo Pro") },
                     actions = {
-                         IconButton(onClick = { searchActive = true }) {
+                        IconButton(onClick = { searchActive = true }) {
                             Icon(Icons.Filled.Search, contentDescription = "Search notes")
                         }
                         IconButton(onClick = onOpenSettings) {
@@ -149,9 +149,9 @@ fun NotesScreen(
                 columns = StaggeredGridCells.Fixed(2),
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentPadding = PaddingValues(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalItemSpacing = 8.dp,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-             ){
+            ) {
                 items(items = state.notes, key = { it.id }) { note ->
                     NoteCard(
                         note = note,
@@ -213,7 +213,7 @@ private fun NoteCard(
                 text = note.date,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-           )
+            )
         }
     }
 }
@@ -228,8 +228,8 @@ private fun EmptyState(modifier: Modifier = Modifier) {
             Icon(
                 imageVector = Icons.Filled.Note,
                 contentDescription = null,
-               modifier = Modifier.size(64.dp),
-               tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(12.dp))
             Text(

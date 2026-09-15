@@ -7,7 +7,7 @@
 ## ✨ Key Features
 * 🔐 **Biometric Lock:** Secure your notes with Fingerprint or PIN.
 * ⚡ **Auto-Save:** Never lose a word; every character is saved instantly.
-* 🕒 **Timestamps:** Track when each note was created or modified.
+* 🕒 **Timestamps:** Track when each note is created or modified.
 * 🔍 **Smart Search:** Find any note quickly with the built-in search bar.
 * 🌐 **Offline First:** No internet required, your data stays on your device.
 
@@ -21,9 +21,14 @@
 ---
 
 ## 🛠 Technical Details
-* **Language:** Java / Android SDK
-* **Database:** SQLite
-* **Architecture:** Robust & Lightweight
+
+The app is being redesigned around **Jetpack Compose**, **multi-module Gradle structure**, and **Clean Architecture** — see the [design document](docs/ARCHITECTURE.md) and issue #6 for the target architecture and migration plan.
+
+* **Language:** Kotlin
+* **UI:** Jetpack Compose + Material 3 (single-activity, Navigation Compose)
+* **Architecture:** Clean Architecture — `:domain` (use cases), `:data` (repositories), `:feature:*` (Compose UI), `:core:*` (database, datastore, design system)
+* **Persistence:** Room (with migration from the legacy `notes.db`) + Preferences DataStore
+* **DI / Async:** Hilt, Kotlin coroutines & Flow
 * **Privacy:** Zero trackers, zero analytics, 100% private.
 
 ---

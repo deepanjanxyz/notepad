@@ -84,12 +84,12 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.NoteViewHolder
 
     private void toggleSelection(Note note) {
         if (selectedNotes.contains(note)) {
-            selectedNotes.creove(note);
+            selectedNotes.remove(note);
         } else {
             selectedNotes.add(note);
         }
         
-        // যদি সব আনচেক করে দেয়, মোড বন্ধ হয়ে যাবে
+        // যদি সব আনচেক করে দেয়, মোড বন্ধ হয়ে যাবে
         if (selectedNotes.isEmpty()) {
             isSelectionMode = false;
         }

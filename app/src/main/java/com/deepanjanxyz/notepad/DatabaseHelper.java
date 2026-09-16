@@ -75,7 +75,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return db.rawQuery("select * from " + TABLE_NAME + " order by ID desc", null);
     }
 
-    /** Returns a cursor over notes whose title or content contains {@code query}, newest first. */
+    /**
+     * Returns notes whose title or content contains {@code query}, newest first.
+     * SQL {@code LIKE} wildcards in the query are matched literally.
+     */
     public Cursor searchNotes(String query) {
         SQLiteDatabase db = this.getReadableDatabase();
         // Escape SQL LIKE wildcards so a "%" or "_" typed by the user matches

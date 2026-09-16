@@ -37,6 +37,10 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.NoteViewHolder
         return new NoteViewHolder(view);
     }
 
+    /**
+     * Binds a note card, deriving a blank title from the first content line or
+     * an untitled placeholder, and displaying a missing date as empty text.
+     */
     @Override
     public void onBindViewHolder(@NonNull NoteViewHolder holder, int position) {
         Note note = noteList.get(position);

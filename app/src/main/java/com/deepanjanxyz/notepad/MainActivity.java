@@ -71,7 +71,10 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
                 }
             });
 
-    /** Sets up the activity, restoring the lock state across recreation and showing the biometric gate when enabled. */
+    /**
+     * Restores the lock state, shows the biometric gate when enabled, and makes
+     * back presses clear an active note selection before leaving the activity.
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         applyUserTheme();
@@ -129,7 +132,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
     /**
      * Re-runs the lock gate when needed - when the lock was just enabled in
      * settings, or when returning from the background - and otherwise
-     * refreshes the notes list.
+     * refreshes the notes list with its current search query.
      */
     @Override
     protected void onResume() {
@@ -372,7 +375,10 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         else AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
     }
 
-    /** Loads all notes, or only those matching {@code query}, into the list and toggles the empty view. */
+    /**
+     * Records and loads the current query, then shows either the matching notes
+     * or an empty-state message that distinguishes an empty database from no matches.
+     */
     private void loadNotes(String query) {
         if (noteList == null) return;
         // Remember the query so returning from the editor or the background

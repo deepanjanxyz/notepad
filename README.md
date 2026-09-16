@@ -28,6 +28,21 @@
 
 ---
 
+## 🚀 Upcoming Features & Roadmap
+
+These features are planned for upcoming releases:
+
+- [ ] **Kotlin & Material 3 Migration** — Modernizing the codebase & UI
+- [ ] **Drawing / Canvas Notes** — Handwritten notes & sketch support
+- [ ] **Trash / Bin Section** — Recycle bin for deleted notes
+- [ ] **Archive Notes** — Hide notes from the main list
+- [ ] **Tags & Categories** — Better note organization
+- [ ] **Export Options** — Save notes as TXT, MD, or PDF
+- [ ] **Modern Settings Page** — Theme & security controls
+- [ ] **Encrypted Backup & Restore** — Local data export/import
+
+---
+
 ## 📜 License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 

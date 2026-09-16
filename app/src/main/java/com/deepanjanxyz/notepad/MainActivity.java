@@ -41,8 +41,9 @@ import javax.crypto.SecretKey;
  * deletion, and an optional biometric / device-credential lock gate.
  */
 public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNoteListener {
-    private static final String KEY_AUTHENTICATED
- = "is_authenticated";
+    private static final String KEY_AUTHENTICATED = "is_authenticated";
+    /** Saved-instance key carrying the active search query across rotation/config changes. */
+    private static final String KEY_CURRENT_QUERY = "current_query";
     private static final String KEYSTORE_KEY_NAME = "elite_memo_lock_key";
     /** Preference key of the "Use Device Lock" switch defined in res/xml/preferences.xml. */
     private static final String PREF_KEY_LOCK = "pref_biometric";
@@ -71,10 +72,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
                 }
             });
 
-    /**
-     * Restores the lock state, shows the biometric gate when enabled, and makes
-     * back presses clear an active note selection before leaving the activity.
-     */
+    /** Sets up the activity: restores the lock state, shows the biometric gate when enabled, and makes back presses clear an active note selection before leaving the activity. */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         applyUserTheme();
@@ -83,6 +81,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         // Survive rotation / config changes without re-prompting for the lock
         if (savedInstanceState != null) {
             isAuthenticated = savedInstanceState.getBoolean(KEY_AUTHENTICATED, false);
+            currentQuery = savedInstanceState.getString(KEY_CURRENT_QUERY, "");
         }
 
         if (isLockEnabled() && !isAuthenticated) {
@@ -100,7 +99,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
             public void handleOnBackPressed() {
                 if (isSelectionMode && adapter != null) {
                     adapter.clearSelection();
-               } else {
+                } else {
                     setEnabled(false);
                     getOnBackPressedDispatcher().onBackPressed();
                 }
@@ -108,11 +107,12 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         });
     }
 
-    /** Persists the authenticated state so a config change does not re-trigger the lock. */
+    /** Persists the authenticated state and the active search so a config change does not lose either. */
     @Override
     protected void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putBoolean(KEY_AUTHENTICATED, isAuthenticated);
+        outState.putString(KEY_CURRENT_QUERY, currentQuery);
     }
 
     /**
@@ -172,7 +172,9 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         recyclerView.setAdapter(adapter);
 
         fabAdd.setOnClickListener(v -> startActivity(new Intent(this, NoteEditorActivity.class)));
-        loadNotes("");
+        // Re-apply the current search instead of resetting to all notes, so
+        // App Lock users do not lose their active search after re-authenticating
+        loadNotes(currentQuery);
     }
 
     /** Returns whether the user has enabled the "Use Device Lock" preference in settings. */
@@ -257,8 +259,8 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
                         .setBlockModes(KeyProperties.BLOCK_MODE_CBC)
                         .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_PKCS7)
                         .setUserAuthenticationRequired(true)
-                          .setInvalidatedByBiometricEnrollment(true);
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        .setInvalidatedByBiometricEnrollment(true);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     // Let the device credential unlock the key as well on Android 11+
                     builder.setUserAuthenticationParameters(0,
                             KeyProperties.AUTH_BIOMETRIC_STRONG | KeyProperties.AUTH_DEVICE_CREDENTIAL);
@@ -339,6 +341,12 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
             /** Restores the full note list when the search view is closed. */
             @Override public boolean onClose() { loadNotes(""); return false; }
         });
+        // After a rotation the SearchView starts collapsed with no text;
+        // restore the query that was active before the recreation
+        if (!currentQuery.isEmpty()) {
+            searchItem.expandActionView();
+            searchView.setQuery(currentQuery, false);
+        }
         return true;
     }
 
@@ -375,19 +383,16 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         else AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
     }
 
-    /**
-     * Records and loads the current query, then shows either the matching notes
-     * or an empty-state message that distinguishes an empty database from no matches.
-     */
+    /** Loads all notes, or only those matching {@code query}, into the list and toggles the empty view. */
     private void loadNotes(String query) {
         if (noteList == null) return;
         // Remember the query so returning from the editor or the background
         // restores the same filtered view instead of silently clearing the search
-        currentQuery = query == null ? "" : query;
+        currentQuery = query == null ? "" : query.trim();
         noteList.clear();
         Cursor cursor = null;
         try {
-            cursor = (query == null || query.isEmpty()) ? dbHelper.getAllNotes() : dbHelper.searchNotes(query);
+            cursor = currentQuery.isEmpty() ? dbHelper.getAllNotes() : dbHelper.searchNotes(currentQuery);
             if (cursor != null && cursor.moveToFirst()) {
                 do {
                     noteList.add(new Note(

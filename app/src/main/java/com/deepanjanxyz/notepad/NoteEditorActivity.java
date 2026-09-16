@@ -122,8 +122,10 @@ public class NoteEditorActivity extends AppCompatActivity {
         if (hasText) {
             if (noteId == -1) {
                 noteId = dbHelper.insertNoteWithId(title, content, date);
-            } else {
-                dbHelper.updateNote(noteId, title, content, date);
+            } else if (dbHelper.updateNote(noteId, title, content, date) == 0) {
+                // The original row is gone (deleted elsewhere): insert a new
+                // one instead of silently dropping the user's text
+                noteId = dbHelper.insertNoteWithId(title, content, date);
             }
         } else if (noteId != -1) {
             // The note was emptied out: remove it instead of leaving a stale

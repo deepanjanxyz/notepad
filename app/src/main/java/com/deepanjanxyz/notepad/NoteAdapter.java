@@ -37,20 +37,27 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.NoteViewHolder
         return new NoteViewHolder(view);
     }
 
-    /**
-     * Binds a note card, deriving a blank title from the first content line or
-     * an untitled placeholder, and displaying a missing date as empty text.
-     */
     @Override
+    /**
+     * Binds a note card, deriving a blank title from the first non-blank
+     * content line or an untitled placeholder, and displaying a missing
+     * date as empty text.
+     */
     public void onBindViewHolder(@NonNull NoteViewHolder holder, int position) {
         Note note = noteList.get(position);
-        // Never render a blank heading: fall back to the first line of the
-        // note's content when no title was typed, or a placeholder when the
-        // note is otherwise empty
+        // Never render a blank heading: fall back to the first non-blank
+        // line of the note's content when no title was typed, or a
+        // placeholder when the note is otherwise empty
         String title = note.getTitle();
         if (title == null || title.trim().isEmpty()) {
             String content = note.getContent() == null ? "" : note.getContent();
-            title = content.trim().isEmpty() ? "(Untitled)" : content.split("\n", 2)[0].trim();
+            title = "(Untitled)";
+            for (String line : content.split("\n")) {
+                if (!line.trim().isEmpty()) {
+                    title = line.trim();
+                    break;
+                }
+            }
         }
         holder.title.setText(title);
         holder.date.setText(note.getDate() == null ? "" : note.getDate());

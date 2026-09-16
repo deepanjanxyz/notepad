@@ -386,9 +386,10 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
     /** Loads all notes, or only those matching {@code query}, into the list and toggles the empty view. */
     private void loadNotes(String query) {
         if (noteList == null) return;
-        // Remember the query so returning from the editor or the background
-        // restores the same filtered view instead of silently clearing the search
-        currentQuery = query == null ? "" : query.trim();
+        // Remember the query exactly as typed so returning from the editor
+        // or the background restores the same filtered view instead of
+        // silently clearing the search (or altering what the user typed)
+        currentQuery = query == null ? "" : query;
         noteList.clear();
         Cursor cursor = null;
         try {

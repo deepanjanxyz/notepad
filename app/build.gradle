@@ -10,8 +10,8 @@ android {
         applicationId = "com.deepanjanxyz.notepad"
         minSdk = 24
         targetSdk = 34
-        versionCode 6
-        versionName "1.0.6"
+        versionCode 7
+        versionName "1.0.7"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -21,6 +21,12 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Always embed the VCS revision in release APKs so IzzyOnDroid's
+            // reproducible-build checks can tell exactly which commit an APK
+            // was built from (required since https://codeberg.org/IzzyOnDroid/repodata/issues/539)
+            vcsInfo {
+                include true
+            }
         }
     }
 

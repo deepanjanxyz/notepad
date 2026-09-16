@@ -34,15 +34,17 @@ public class NoteEditorActivity extends AppCompatActivity {
     private Handler autosaveHandler;
     private boolean hasUnsavedChanges = false;
 
-    /** Runs the pending auto-save when the debounce delay elapses. */
     private final Runnable saveRunnable = new Runnable() {
+        /** Writes the pending editor changes once the debounce delay elapses. */
         @Override public void run() { saveNoteLocally(); }
     };
 
-    /** Schedules a debounced auto-save whenever the title or content changes. */
     private final TextWatcher watcher = new TextWatcher() {
+        /** Pre-change notification; no work required. */
         @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+        /** Schedules a debounced save whenever the title or content changes. */
         @Override public void onTextChanged(CharSequence s, int start, int before, int count) { scheduleSave(); }
+        /** Post-change notification; no work required. */
         @Override public void afterTextChanged(Editable s) {}
     };
 
@@ -72,6 +74,7 @@ public class NoteEditorActivity extends AppCompatActivity {
 
         // Save button: save immediately and return to the notes list
         fabSave.setOnClickListener(new View.OnClickListener() {
+            /** Saves the note immediately and returns to the notes list. */
             @Override
             public void onClick(View v) {
                 saveNoteLocally();

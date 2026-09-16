@@ -106,12 +106,14 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
     private void showBiometricPrompt() {
         Executor executor = ContextCompat.getMainExecutor(this);
         BiometricPrompt biometricPrompt = new BiometricPrompt(MainActivity.this, executor, new BiometricPrompt.AuthenticationCallback() {
+            /** Closes the locked activity when authentication cannot continue. */
             @Override
             public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
                 super.onAuthenticationError(errorCode, errString);
                 Toast.makeText(MainActivity.this, errString, Toast.LENGTH_SHORT).show();
                 finish();
             }
+            /** Unlocks and shows the main screen after a successful biometric authentication. */
             @Override
             public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
                 super.onAuthenticationSucceeded(result);
@@ -191,7 +193,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
             cipher.init(Cipher.ENCRYPT_MODE, secretKey);
             return new BiometricPrompt.CryptoObject(cipher);
         } catch (Exception e) {
-            // Keystore unavailable on this device; fall back to a non-crypto gate
+            // Keystore unavailable on this device; fall back to the device credential gate
             return null;
         }
     }
@@ -205,9 +207,11 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
                     "Elite Memo Security", "Unlock to access your notes");
             startActivityForResult(intent, REQUEST_CONFIRM_CREDENTIAL);
         } else {
-            // No lock screen is configured at all; nothing to gate with
-            isAuthenticated = true;
-            initUI();
+            // No screen lock is configured, so there is nothing to
+            // authenticate with. Never silently grant access in that case:
+            // close the app and ask the user to set up a screen lock first.
+            Toast.makeText(this, "Set a screen lock (PIN, pattern or password) to use App Lock", Toast.LENGTH_LONG).show();
+            finish();
         }
     }
 
@@ -264,12 +268,15 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         SearchView searchView = (SearchView) searchItem.getActionView();
         searchView.setQueryHint("Search notes...");
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            /** Applies the submitted query to the note list. */
             @Override public boolean onQueryTextSubmit(String query) { loadNotes(query); return false; }
+            /** Filters the note list as the search text changes. */
             @Override public boolean onQueryTextChange(String newText) { loadNotes(newText); return false; }
         });
         // Reset the list when the search view is closed so the user is not
         // stuck looking at stale filtered results
         searchView.setOnCloseListener(new SearchView.OnCloseListener() {
+            /** Restores the full note list when the search view is closed. */
             @Override public boolean onClose() { loadNotes(""); return false; }
         });
         return true;

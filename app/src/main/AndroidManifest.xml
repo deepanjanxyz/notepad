@@ -26,7 +26,12 @@
             android:name=".NoteEditorActivity"
             android:windowSoftInputMode="adjustResize" />
 
-        <activity android:name=".SettingsActivity" />
+        <!-- Use the action-bar variant of the theme (already defined in
+             themes.xml): without it the settings screen inherits the
+             NoActionBar app theme and renders without a title or up affordance -->
+        <activity
+            android:name=".SettingsActivity"
+            android:theme="@style/Theme.EliteMemoPro.Settings" />
     </application>
 
 </manifest>

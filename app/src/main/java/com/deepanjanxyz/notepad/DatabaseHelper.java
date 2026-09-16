@@ -33,16 +33,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         onCreate(db);
     }
 
-    /** Inserts a new note; kept for backwards compatibility (no row id returned). */
-    public void insertNote(String title, String content, String date) {
-        SQLiteDatabase db = this.getWritableDatabase();
-        ContentValues contentValues = new ContentValues();
-        contentValues.put(COLUMN_TITLE, title);
-        contentValues.put(COLUMN_CONTENT, content);
-        contentValues.put(COLUMN_DATE, date);
-        db.insert(TABLE_NAME, null, contentValues);
-    }
-
     /** Inserts a new note and returns its row id (used by auto-save). */
     public long insertNoteWithId(String title, String content, String date) {
         SQLiteDatabase db = this.getWritableDatabase();
@@ -53,14 +43,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return db.insert(TABLE_NAME, null, contentValues);
     }
 
-    /** Updates the note with the given row id. */
-    public void updateNote(long id, String title, String content, String date) {
+    /** Updates the note with the given row id; returns the number of rows updated (0 if the row no longer exists). */
+    public int updateNote(long id, String title, String content, String date) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues contentValues = new ContentValues();
         contentValues.put(COLUMN_TITLE, title);
         contentValues.put(COLUMN_CONTENT, content);
         contentValues.put(COLUMN_DATE, date);
-        db.update(TABLE_NAME, contentValues, "ID = ?", new String[]{String.valueOf(id)});
+        return db.update(TABLE_NAME, contentValues, "ID = ?", new String[]{String.valueOf(id)});
     }
 
     /** Deletes the note with the given row id. */
@@ -75,10 +65,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return db.rawQuery("select * from " + TABLE_NAME + " order by ID desc", null);
     }
 
-    /**
-     * Returns notes whose title or content contains {@code query}, newest first.
-     * SQL {@code LIKE} wildcards in the query are matched literally.
-     */
+    /** Returns a cursor over notes whose title or content contains {@code query}, newest first. */
     public Cursor searchNotes(String query) {
         SQLiteDatabase db = this.getReadableDatabase();
         // Escape SQL LIKE wildcards so a "%" or "_" typed by the user matches

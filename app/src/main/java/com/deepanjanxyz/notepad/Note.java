@@ -1,5 +1,7 @@
 package com.deepanjanxyz.notepad;
 
+import java.util.Objects;
+
 public class Note {
     private long id;
     private String title;
@@ -28,5 +30,18 @@ public class Note {
 
     public String getDate() {
         return date;
+    }
+
+    // আইডি দিয়ে তুলনা, যাতে লিস্ট রিলোডের পরেও সিলেকশন ঠিক থাকে
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Note)) return false;
+        return id == ((Note) o).id;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(id);
     }
 }

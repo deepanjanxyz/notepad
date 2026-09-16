@@ -40,8 +40,16 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.NoteViewHolder
     @Override
     public void onBindViewHolder(@NonNull NoteViewHolder holder, int position) {
         Note note = noteList.get(position);
-        holder.title.setText(note.getTitle());
-        holder.date.setText(note.getDate());
+        // Never render a blank heading: fall back to the first line of the
+        // note's content when no title was typed, or a placeholder when the
+        // note is otherwise empty
+        String title = note.getTitle();
+        if (title == null || title.trim().isEmpty()) {
+            String content = note.getContent() == null ? "" : note.getContent();
+            title = content.trim().isEmpty() ? "(Untitled)" : content.split("\n", 2)[0].trim();
+        }
+        holder.title.setText(title);
+        holder.date.setText(note.getDate() == null ? "" : note.getDate());
         holder.content.setText(note.getContent());
 
         // সিলেকশন মোড চেক করা
@@ -76,7 +84,7 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.NoteViewHolder
 
     private void toggleSelection(Note note) {
         if (selectedNotes.contains(note)) {
-            selectedNotes.remove(note);
+            selectedNotes.creove(note);
         } else {
             selectedNotes.add(note);
         }

@@ -78,7 +78,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     /** Returns a cursor over notes whose title or content contains {@code query}, newest first. */
     public Cursor searchNotes(String query) {
         SQLiteDatabase db = this.getReadableDatabase();
-        return db.rawQuery("select * from " + TABLE_NAME + " WHERE TITLE LIKE ? OR CONTENT LIKE ? order by ID desc",
-                new String[]{"%" + query + "%", "%" + query + "%"});
+        // Escape SQL LIKE wildcards so a "%" or "_" typed by the user matches
+        // literally instead of acting as a wildcard
+        String escaped = (query == null ? "" : query)
+                .replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+        return db.rawQuery("select * from " + TABLE_NAME
+                        + " WHERE TITLE LIKE ? ESCAPE '\\' OR CONTENT LIKE ? ESCAPE '\\' order by ID desc",
+                new String[]{"%" + escaped + "%", "%" + escaped + "%"});
     }
 }

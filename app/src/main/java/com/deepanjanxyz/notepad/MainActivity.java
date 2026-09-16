@@ -13,6 +13,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
@@ -40,7 +41,8 @@ import javax.crypto.SecretKey;
  * deletion, and an optional biometric / device-credential lock gate.
  */
 public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNoteListener {
-    private static final String KEY_AUTHENTICATED = "is_authenticated";
+    private static final String KEY_AUTHENTICATED
+ = "is_authenticated";
     private static final String KEYSTORE_KEY_NAME = "elite_memo_lock_key";
     /** Preference key of the "Use Device Lock" switch defined in res/xml/preferences.xml. */
     private static final String PREF_KEY_LOCK = "pref_biometric";
@@ -54,6 +56,8 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
     private boolean isSelectionMode = false;
     private boolean isAuthenticated = false;
     private boolean isLockPromptShowing = false;
+    /** The search query currently applied to the list, so returning from the editor or the background restores the same view instead of silently clearing the search. */
+    private String currentQuery = "";
 
     /** Launches the system device-credential screen and handles its result for the lock gate. */
     private final ActivityResultLauncher<Intent> credentialLauncher =
@@ -83,6 +87,22 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         } else {
             initUI();
         }
+
+        // Exit selection mode on back press instead of leaving the activity;
+        // uses the modern OnBackPressedDispatcher instead of the deprecated
+        // onBackPressed() override
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            /** Clears multi-selection first; only the second back press leaves the activity. */
+            @Override
+            public void handleOnBackPressed() {
+                if (isSelectionMode && adapter != null) {
+                    adapter.clearSelection();
+               } else {
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
+                }
+            }
+        });
     }
 
     /** Persists the authenticated state so a config change does not re-trigger the lock. */
@@ -120,7 +140,9 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
             // gate the notes behind authentication again
             if (!isLockPromptShowing) lockApp();
         } else if (noteList != null) {
-            loadNotes("");
+            // Re-apply the current search so returning from the editor or the
+            // background keeps the user's filtered view instead of showing all notes
+            loadNotes(currentQuery);
         }
     }
 
@@ -232,8 +254,8 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
                         .setBlockModes(KeyProperties.BLOCK_MODE_CBC)
                         .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_PKCS7)
                         .setUserAuthenticationRequired(true)
-                        .setInvalidatedByBiometricEnrollment(true);
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                          .setInvalidatedByBiometricEnrollment(true);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     // Let the device credential unlock the key as well on Android 11+
                     builder.setUserAuthenticationParameters(0,
                             KeyProperties.AUTH_BIOMETRIC_STRONG | KeyProperties.AUTH_DEVICE_CREDENTIAL);
@@ -292,13 +314,6 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
             if (selectionMode) getSupportActionBar().setTitle(count + " Selected");
             else getSupportActionBar().setTitle("Elite Memo Pro");
         }
-    }
-
-    /** Exits selection mode on back press instead of leaving the activity. */
-    @Override
-    public void onBackPressed() {
-        if (isSelectionMode && adapter != null) adapter.clearSelection();
-        else super.onBackPressed();
     }
 
     /** Inflates the main menu and wires up live search. */
@@ -360,6 +375,9 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
     /** Loads all notes, or only those matching {@code query}, into the list and toggles the empty view. */
     private void loadNotes(String query) {
         if (noteList == null) return;
+        // Remember the query so returning from the editor or the background
+        // restores the same filtered view instead of silently clearing the search
+        currentQuery = query == null ? "" : query;
         noteList.clear();
         Cursor cursor = null;
         try {
@@ -378,7 +396,10 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
             // Always close the cursor, including when the result set is empty
             if (cursor != null) cursor.close();
         }
-        if (noteList.isEmpty()) { recyclerView.setVisibility(View.GONE); emptyView.setVisibility(View.VISIBLE); }
+        if (noteList.isEmpty()) {
+            // Distinguish "nothing here at all" from "nothing matched this search"
+            emptyView.setText(currentQuery.isEmpty() ? "No notes yet!" : "No notes found");
+            recyclerView.setVisibility(View.GONE); emptyView.setVisibility(View.VISIBLE); }
         else { recyclerView.setVisibility(View.VISIBLE); emptyView.setVisibility(View.GONE); }
         adapter.notifyDataSetChanged();
     }

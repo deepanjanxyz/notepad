@@ -13,6 +13,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -40,7 +42,8 @@ import javax.crypto.SecretKey;
 public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNoteListener {
     private static final String KEY_AUTHENTICATED = "is_authenticated";
     private static final String KEYSTORE_KEY_NAME = "elite_memo_lock_key";
-    private static final int REQUEST_CONFIRM_CREDENTIAL = 1001;
+    /** Preference key of the "Use Device Lock" switch defined in res/xml/preferences.xml. */
+    private static final String PREF_KEY_LOCK = "pref_biometric";
 
     private RecyclerView recyclerView;
     private NoteAdapter adapter;
@@ -50,6 +53,19 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
     private Menu mainMenu;
     private boolean isSelectionMode = false;
     private boolean isAuthenticated = false;
+    private boolean isLockPromptShowing = false;
+
+    /** Launches the system device-credential screen and handles its result for the lock gate. */
+    private final ActivityResultLauncher<Intent> credentialLauncher =
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == RESULT_OK) {
+                    isAuthenticated = true;
+                    isLockPromptShowing = false;
+                    initUI();
+                } else {
+                    finish();
+                }
+            });
 
     /** Sets up the activity, restoring the lock state across recreation and showing the biometric gate when enabled. */
     @Override
@@ -63,8 +79,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         }
 
         if (isLockEnabled() && !isAuthenticated) {
-            setContentView(new View(this));
-            showBiometricPrompt();
+            lockApp();
         } else {
             initUI();
         }
@@ -75,6 +90,45 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
     protected void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putBoolean(KEY_AUTHENTICATED, isAuthenticated);
+    }
+
+    /**
+     * Clears the authenticated state when the app truly goes to the background,
+     * so returning always requires re-authentication. Configuration changes
+     * (rotation) are excluded: the saved instance state carries the flag into
+     * the recreated activity instead.
+     */
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (!isChangingConfigurations()) {
+            isAuthenticated = false;
+        }
+    }
+
+    /**
+     * Re-runs the lock gate when needed - when the lock was just enabled in
+     * settings, or when returning from the background - and otherwise
+     * refreshes the notes list.
+     */
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (isLockEnabled() && !isAuthenticated) {
+            // Either the lock was enabled while this screen was already
+            // visible, or the user is coming back from the background:
+            // gate the notes behind authentication again
+            if (!isLockPromptShowing) lockApp();
+        } else if (noteList != null) {
+            loadNotes("");
+        }
+    }
+
+    /** Blanks the screen and shows the unlock gate (biometric or device credential). */
+    private void lockApp() {
+        setContentView(new View(this));
+        isLockPromptShowing = true;
+        showBiometricPrompt();
     }
 
     /** Inflates the main layout and wires up the toolbar, notes list, empty view and add-note button. */
@@ -96,10 +150,11 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         loadNotes("");
     }
 
-    /** Returns whether the user has enabled the app lock in settings. */
+    /** Returns whether the user has enabled the "Use Device Lock" preference in settings. */
     private boolean isLockEnabled() {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        return prefs.getBoolean("pref_lock", false);
+        // Must match the key of the SwitchPreferenceCompat in res/xml/preferences.xml
+        return prefs.getBoolean(PREF_KEY_LOCK, false);
     }
 
     /** Unlocks the app through a crypto-bound BiometricPrompt, falling back to the device credential gate. */
@@ -121,6 +176,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
                 // Keystore key that itself requires user authentication, so simply
                 // hooking this callback is not enough to bypass the lock
                 isAuthenticated = true;
+                isLockPromptShowing = false;
                 initUI();
             }
         });
@@ -205,27 +261,13 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         if (keyguardManager != null && keyguardManager.isKeyguardSecure()) {
             Intent intent = keyguardManager.createConfirmDeviceCredentialIntent(
                     "Elite Memo Security", "Unlock to access your notes");
-            startActivityForResult(intent, REQUEST_CONFIRM_CREDENTIAL);
+            credentialLauncher.launch(intent);
         } else {
             // No screen lock is configured, so there is nothing to
             // authenticate with. Never silently grant access in that case:
             // close the app and ask the user to set up a screen lock first.
             Toast.makeText(this, "Set a screen lock (PIN, pattern or password) to use App Lock", Toast.LENGTH_LONG).show();
             finish();
-        }
-    }
-
-    /** Handles the result of the device credential confirmation flow. */
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_CONFIRM_CREDENTIAL) {
-            if (resultCode == RESULT_OK) {
-                isAuthenticated = true;
-                initUI();
-            } else {
-                finish();
-            }
         }
     }
 
@@ -313,12 +355,6 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         if (theme.equals("dark")) AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
         else if (theme.equals("light")) AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
         else AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
-    }
-
-    /** Reloads the notes when the list becomes visible again. */
-    @Override protected void onResume() {
-        super.onResume();
-        if (isAuthenticated || !isLockEnabled()) loadNotes("");
     }
 
     /** Loads all notes, or only those matching {@code query}, into the list and toggles the empty view. */

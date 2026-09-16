@@ -6,6 +6,7 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
+/** SQLite helper that stores and queries the notes table. */
 public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String DATABASE_NAME = "notes.db";
     public static final String TABLE_NAME = "notes_table";
@@ -14,22 +15,25 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String COLUMN_CONTENT = "CONTENT";
     public static final String COLUMN_DATE = "DATE";
 
+    /** Opens (and creates if needed) the notes database. */
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, 1);
     }
 
+    /** Creates the notes table when the database is first opened. */
     @Override
     public void onCreate(SQLiteDatabase db) {
         db.execSQL("create table " + TABLE_NAME + " (ID INTEGER PRIMARY KEY AUTOINCREMENT, TITLE TEXT, CONTENT TEXT, DATE TEXT)");
     }
 
+    /** Recreates the notes table on a schema version change. */
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME);
         onCreate(db);
     }
 
-    // এই সেই সাধারণ মেথড (পুরনো কোড যাতে না ভাঙে)
+    /** Inserts a new note; kept for backwards compatibility (no row id returned). */
     public void insertNote(String title, String content, String date) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues contentValues = new ContentValues();
@@ -39,7 +43,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.insert(TABLE_NAME, null, contentValues);
     }
 
-    // ফিক্স: এই নতুন মেথডটা যোগ করা হলো যা ID রিটার্ন করে (অটো-সেভের জন্য)
+    /** Inserts a new note and returns its row id (used by auto-save). */
     public long insertNoteWithId(String title, String content, String date) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues contentValues = new ContentValues();
@@ -49,6 +53,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return db.insert(TABLE_NAME, null, contentValues);
     }
 
+    /** Updates the note with the given row id. */
     public void updateNote(long id, String title, String content, String date) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues contentValues = new ContentValues();
@@ -58,18 +63,22 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.update(TABLE_NAME, contentValues, "ID = ?", new String[]{String.valueOf(id)});
     }
 
+    /** Deletes the note with the given row id. */
     public void deleteNote(long id) {
         SQLiteDatabase db = this.getWritableDatabase();
         db.delete(TABLE_NAME, "ID = ?", new String[]{String.valueOf(id)});
     }
 
+    /** Returns a cursor over every note, newest first. */
     public Cursor getAllNotes() {
-        SQLiteDatabase db = this.getWritableDatabase();
+        SQLiteDatabase db = this.getReadableDatabase();
         return db.rawQuery("select * from " + TABLE_NAME + " order by ID desc", null);
     }
 
+    /** Returns a cursor over notes whose title or content contains {@code query}, newest first. */
     public Cursor searchNotes(String query) {
-        SQLiteDatabase db = this.getWritableDatabase();
-        return db.rawQuery("select * from " + TABLE_NAME + " WHERE TITLE LIKE ? OR CONTENT LIKE ?", new String[]{"%" + query + "%", "%" + query + "%"});
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.rawQuery("select * from " + TABLE_NAME + " WHERE TITLE LIKE ? OR CONTENT LIKE ? order by ID desc",
+                new String[]{"%" + query + "%", "%" + query + "%"});
     }
 }

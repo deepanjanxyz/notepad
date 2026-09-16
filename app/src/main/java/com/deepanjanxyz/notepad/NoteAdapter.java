@@ -38,10 +38,29 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.NoteViewHolder
     }
 
     @Override
+    /**
+     * Binds a note card, deriving a blank title from the first non-blank
+     * content line or an untitled placeholder, and displaying a missing
+     * date as empty text.
+     */
     public void onBindViewHolder(@NonNull NoteViewHolder holder, int position) {
         Note note = noteList.get(position);
-        holder.title.setText(note.getTitle());
-        holder.date.setText(note.getDate());
+        // Never render a blank heading: fall back to the first non-blank
+        // line of the note's content when no title was typed, or a
+        // placeholder when the note is otherwise empty
+        String title = note.getTitle();
+        if (title == null || title.trim().isEmpty()) {
+            String content = note.getContent() == null ? "" : note.getContent();
+            title = "(Untitled)";
+            for (String line : content.split("\n")) {
+                if (!line.trim().isEmpty()) {
+                    title = line.trim();
+                    break;
+                }
+            }
+        }
+        holder.title.setText(title);
+        holder.date.setText(note.getDate() == null ? "" : note.getDate());
         holder.content.setText(note.getContent());
 
         // সিলেকশন মোড চেক করা
@@ -81,7 +100,7 @@ public class NoteAdapter extends RecyclerView.Adapter<NoteAdapter.NoteViewHolder
             selectedNotes.add(note);
         }
         
-        // যদি সব আনচেক করে দেয়, মোড বন্ধ হয়ে যাবে
+        // যদি সব আনচেক করে দেয়, মোড বন্ধ হয়ে যাবে
         if (selectedNotes.isEmpty()) {
             isSelectionMode = false;
         }

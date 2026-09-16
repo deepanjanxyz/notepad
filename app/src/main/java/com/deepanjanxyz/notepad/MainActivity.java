@@ -13,6 +13,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
@@ -41,6 +42,8 @@ import javax.crypto.SecretKey;
  */
 public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNoteListener {
     private static final String KEY_AUTHENTICATED = "is_authenticated";
+    /** Saved-instance key carrying the active search query across rotation/config changes. */
+    private static final String KEY_CURRENT_QUERY = "current_query";
     private static final String KEYSTORE_KEY_NAME = "elite_memo_lock_key";
     /** Preference key of the "Use Device Lock" switch defined in res/xml/preferences.xml. */
     private static final String PREF_KEY_LOCK = "pref_biometric";
@@ -54,6 +57,8 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
     private boolean isSelectionMode = false;
     private boolean isAuthenticated = false;
     private boolean isLockPromptShowing = false;
+    /** The search query currently applied to the list, so returning from the editor or the background restores the same view instead of silently clearing the search. */
+    private String currentQuery = "";
 
     /** Launches the system device-credential screen and handles its result for the lock gate. */
     private final ActivityResultLauncher<Intent> credentialLauncher =
@@ -67,7 +72,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
                 }
             });
 
-    /** Sets up the activity, restoring the lock state across recreation and showing the biometric gate when enabled. */
+    /** Sets up the activity: restores the lock state, shows the biometric gate when enabled, and makes back presses clear an active note selection before leaving the activity. */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         applyUserTheme();
@@ -76,6 +81,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         // Survive rotation / config changes without re-prompting for the lock
         if (savedInstanceState != null) {
             isAuthenticated = savedInstanceState.getBoolean(KEY_AUTHENTICATED, false);
+            currentQuery = savedInstanceState.getString(KEY_CURRENT_QUERY, "");
         }
 
         if (isLockEnabled() && !isAuthenticated) {
@@ -83,13 +89,30 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         } else {
             initUI();
         }
+
+        // Exit selection mode on back press instead of leaving the activity;
+        // uses the modern OnBackPressedDispatcher instead of the deprecated
+        // onBackPressed() override
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            /** Clears multi-selection first; only the second back press leaves the activity. */
+            @Override
+            public void handleOnBackPressed() {
+                if (isSelectionMode && adapter != null) {
+                    adapter.clearSelection();
+                } else {
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
+                }
+            }
+        });
     }
 
-    /** Persists the authenticated state so a config change does not re-trigger the lock. */
+    /** Persists the authenticated state and the active search so a config change does not lose either. */
     @Override
     protected void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putBoolean(KEY_AUTHENTICATED, isAuthenticated);
+        outState.putString(KEY_CURRENT_QUERY, currentQuery);
     }
 
     /**
@@ -109,7 +132,7 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
     /**
      * Re-runs the lock gate when needed - when the lock was just enabled in
      * settings, or when returning from the background - and otherwise
-     * refreshes the notes list.
+     * refreshes the notes list with its current search query.
      */
     @Override
     protected void onResume() {
@@ -120,7 +143,9 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
             // gate the notes behind authentication again
             if (!isLockPromptShowing) lockApp();
         } else if (noteList != null) {
-            loadNotes("");
+            // Re-apply the current search so returning from the editor or the
+            // background keeps the user's filtered view instead of showing all notes
+            loadNotes(currentQuery);
         }
     }
 
@@ -147,7 +172,9 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         recyclerView.setAdapter(adapter);
 
         fabAdd.setOnClickListener(v -> startActivity(new Intent(this, NoteEditorActivity.class)));
-        loadNotes("");
+        // Re-apply the current search instead of resetting to all notes, so
+        // App Lock users do not lose their active search after re-authenticating
+        loadNotes(currentQuery);
     }
 
     /** Returns whether the user has enabled the "Use Device Lock" preference in settings. */
@@ -294,13 +321,6 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         }
     }
 
-    /** Exits selection mode on back press instead of leaving the activity. */
-    @Override
-    public void onBackPressed() {
-        if (isSelectionMode && adapter != null) adapter.clearSelection();
-        else super.onBackPressed();
-    }
-
     /** Inflates the main menu and wires up live search. */
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -321,6 +341,12 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
             /** Restores the full note list when the search view is closed. */
             @Override public boolean onClose() { loadNotes(""); return false; }
         });
+        // After a rotation the SearchView starts collapsed with no text;
+        // restore the query that was active before the recreation
+        if (!currentQuery.isEmpty()) {
+            searchItem.expandActionView();
+            searchView.setQuery(currentQuery, false);
+        }
         return true;
     }
 
@@ -360,10 +386,14 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
     /** Loads all notes, or only those matching {@code query}, into the list and toggles the empty view. */
     private void loadNotes(String query) {
         if (noteList == null) return;
+        // Remember the query exactly as typed so returning from the editor
+        // or the background restores the same filtered view instead of
+        // silently clearing the search (or altering what the user typed)
+        currentQuery = query == null ? "" : query;
         noteList.clear();
         Cursor cursor = null;
         try {
-            cursor = (query == null || query.isEmpty()) ? dbHelper.getAllNotes() : dbHelper.searchNotes(query);
+            cursor = currentQuery.isEmpty() ? dbHelper.getAllNotes() : dbHelper.searchNotes(currentQuery);
             if (cursor != null && cursor.moveToFirst()) {
                 do {
                     noteList.add(new Note(
@@ -378,7 +408,10 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
             // Always close the cursor, including when the result set is empty
             if (cursor != null) cursor.close();
         }
-        if (noteList.isEmpty()) { recyclerView.setVisibility(View.GONE); emptyView.setVisibility(View.VISIBLE); }
+        if (noteList.isEmpty()) {
+            // Distinguish "nothing here at all" from "nothing matched this search"
+            emptyView.setText(currentQuery.isEmpty() ? "No notes yet!" : "No notes found");
+            recyclerView.setVisibility(View.GONE); emptyView.setVisibility(View.VISIBLE); }
         else { recyclerView.setVisibility(View.VISIBLE); emptyView.setVisibility(View.GONE); }
         adapter.notifyDataSetChanged();
     }

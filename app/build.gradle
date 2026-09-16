@@ -10,8 +10,8 @@ android {
         applicationId = "com.deepanjanxyz.notepad"
         minSdk = 24
         targetSdk = 34
-        versionCode 6
-        versionName "1.0.6"
+        versionCode 7
+        versionName "1.0.7"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -21,6 +21,12 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Always embed the VCS revision in release APKs so IzzyOnDroid's
+            // reproducible-build checks can tell exactly which commit an APK
+            // was built from (required since https://codeberg.org/IzzyOnDroid/repodata/issues/539)
+            vcsInfo {
+                include true
+            }
         }
     }
 
@@ -36,8 +42,4 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.preference:preference:1.2.0")
     implementation("androidx.biometric:biometric:1.1.0")
-
-    // PDF & Markdown
-    implementation("io.noties.markwon:core:4.6.2")
-    implementation("com.itextpdf:itext7-core:7.1.15")
 }

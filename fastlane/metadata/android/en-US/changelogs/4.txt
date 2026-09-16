@@ -1,0 +1,6 @@
+Initial stable release.
+
+- Secure biometric lock (fingerprint/face)
+- Instant auto-save
+- Premium dark mode
+- Smart search

@@ -77,8 +77,10 @@ public class NoteEditorActivity extends AppCompatActivity {
             /** Saves the note immediately and returns to the notes list. */
             @Override
             public void onClick(View v) {
-                saveNoteLocally();
-                Toast.makeText(NoteEditorActivity.this, "Saved", Toast.LENGTH_SHORT).show();
+                boolean saved = saveNoteLocally();
+                Toast.makeText(NoteEditorActivity.this,
+                        saved ? "Saved" : "Empty note discarded",
+                        Toast.LENGTH_SHORT).show();
                 finish();
             }
         });
@@ -111,8 +113,11 @@ public class NoteEditorActivity extends AppCompatActivity {
      * Writes the current title/content to the database: inserts a new row for a
      * brand-new note, updates the existing row afterwards, and deletes the
      * note entirely once all of its text has been cleared.
+     *
+     * @return true if a note was inserted or updated, false if it was discarded
+     *         because both the title and the content were empty
      */
-    private void saveNoteLocally() {
+    private boolean saveNoteLocally() {
         String title = etTitle.getText().toString();
         String content = etContent.getText().toString();
         String date = new SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(new Date());
@@ -133,6 +138,7 @@ public class NoteEditorActivity extends AppCompatActivity {
             dbHelper.deleteNote(noteId);
             noteId = -1;
         }
+        return hasText;
     }
 
     /** Flushes any pending auto-save so no typed text is ever lost when leaving the editor. */

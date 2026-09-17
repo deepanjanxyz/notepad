@@ -126,6 +126,10 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         super.onStop();
         if (!isChangingConfigurations()) {
             isAuthenticated = false;
+            // The system prompt is dismissed once the app is in the background;
+            // clear the flag so onResume shows the gate again instead of leaving
+            // the user stuck on the blank lock screen with no way to unlock
+            isLockPromptShowing = false;
         }
     }
 
@@ -235,11 +239,17 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
 
     /** Builds the prompt shown to the user for the given set of allowed authenticators. */
     private BiometricPrompt.PromptInfo buildPromptInfo(int authenticators) {
-        return new BiometricPrompt.PromptInfo.Builder()
+        BiometricPrompt.PromptInfo.Builder builder = new BiometricPrompt.PromptInfo.Builder()
                 .setTitle("Elite Memo Security")
                 .setSubtitle("Unlock to access your notes")
-                .setAllowedAuthenticators(authenticators)
-                .build();
+                .setAllowedAuthenticators(authenticators);
+        if ((authenticators & BiometricManager.Authenticators.DEVICE_CREDENTIAL) == 0) {
+            // A negative button is mandatory when the device credential is not
+            // among the allowed authenticators; without it PromptInfo.build()
+            // throws IllegalArgumentException and crashes the app
+            builder.setNegativeButtonText("Cancel");
+        }
+        return builder.build();
     }
 
     /**
@@ -368,7 +378,9 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
             .setPositiveButton("Delete", (dialog, which) -> {
                 for (Note note : selected) dbHelper.deleteNote(note.getId());
                 adapter.clearSelection();
-                loadNotes("");
+                // Keep the active search applied: reloading with "" here would
+                // show all notes while the SearchView still displays the query
+                loadNotes(currentQuery);
             })
             .setNegativeButton("Cancel", null)
             .show();

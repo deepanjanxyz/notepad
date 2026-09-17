@@ -7,3 +7,5 @@ Bug-fix release.
 - A failed database write is reported as "Could not save note" instead of a false "Saved"
 - Settings now show the currently selected theme in the summary
 - Removed unused font-size resources
+- Updated to compile and target the latest stable Android 17 (API level 37);
+  toolchain upgraded to Android Gradle plugin 9.4.0 and Gradle 9.6.0

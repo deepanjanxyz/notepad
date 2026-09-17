@@ -4,5 +4,6 @@ Bug-fix release.
 - Fix App Lock leaving a blank, stuck screen after backgrounding the app while the unlock prompt was showing
 - Deleting selected notes no longer clears the active search while the search box still shows the query
 - Saving an empty note now shows an honest "Empty note discarded" message instead of "Saved"
+- A failed database write is reported as "Could not save note" instead of a false "Saved"
 - Settings now show the currently selected theme in the summary
 - Removed unused font-size resources

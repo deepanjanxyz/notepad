@@ -27,6 +27,9 @@ public class NoteEditorActivity extends AppCompatActivity {
     /** Key used both for the intent extra and the saved instance state that carries the note's database id. */
     private static final String KEY_NOTE_ID = "note_id";
 
+    /** Outcome of a save attempt, used to give the user accurate feedback. */
+    private enum SaveResult { SAVED, DISCARDED, FAILED }
+
     private EditText etTitle, etContent;
     private DatabaseHelper dbHelper;
     private long noteId = -1;
@@ -77,8 +80,12 @@ public class NoteEditorActivity extends AppCompatActivity {
             /** Saves the note immediately and returns to the notes list. */
             @Override
             public void onClick(View v) {
-                saveNoteLocally();
-                Toast.makeText(NoteEditorActivity.this, "Saved", Toast.LENGTH_SHORT).show();
+                SaveResult result = saveNoteLocally();
+                Toast.makeText(NoteEditorActivity.this,
+                        result == SaveResult.SAVED ? "Saved"
+                                : result == SaveResult.DISCARDED ? "Empty note discarded"
+                                : "Could not save note",
+                        Toast.LENGTH_SHORT).show();
                 finish();
             }
         });
@@ -111,8 +118,12 @@ public class NoteEditorActivity extends AppCompatActivity {
      * Writes the current title/content to the database: inserts a new row for a
      * brand-new note, updates the existing row afterwards, and deletes the
      * note entirely once all of its text has been cleared.
+     *
+     * @return SAVED if the note was inserted or updated, DISCARDED if it was
+     *         empty and therefore deleted, FAILED if the database write did
+     *         not succeed (the user is told the note was NOT saved)
      */
-    private void saveNoteLocally() {
+    private SaveResult saveNoteLocally() {
         String title = etTitle.getText().toString();
         String content = etContent.getText().toString();
         String date = new SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(new Date());
@@ -122,17 +133,22 @@ public class NoteEditorActivity extends AppCompatActivity {
         if (hasText) {
             if (noteId == -1) {
                 noteId = dbHelper.insertNoteWithId(title, content, date);
+                // insertNoteWithId returns -1 when the insert failed
+                return noteId != -1 ? SaveResult.SAVED : SaveResult.FAILED;
             } else if (dbHelper.updateNote(noteId, title, content, date) == 0) {
                 // The original row is gone (deleted elsewhere): insert a new
                 // one instead of silently dropping the user's text
                 noteId = dbHelper.insertNoteWithId(title, content, date);
+                return noteId != -1 ? SaveResult.SAVED : SaveResult.FAILED;
             }
+            return SaveResult.SAVED;
         } else if (noteId != -1) {
             // The note was emptied out: remove it instead of leaving a stale
             // copy of the previous text in the list
             dbHelper.deleteNote(noteId);
             noteId = -1;
         }
+        return SaveResult.DISCARDED;
     }
 
     /** Flushes any pending auto-save so no typed text is ever lost when leaving the editor. */

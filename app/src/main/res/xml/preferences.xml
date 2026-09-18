@@ -8,7 +8,7 @@
             app:entryValues="@array/theme_values"
             app:key="pref_theme"
             app:title="Theme"
-            app:summary="Change app appearance" />
+            app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="Security">

@@ -17,6 +17,9 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
+      - name: Set up Android SDK (platform 37)
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
+
       - name: Make gradlew executable
         run: chmod +x gradlew
 
@@ -29,7 +32,7 @@ jobs:
       - name: Sign APK
         run: |
           APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" ! -name "*-signed.apk" | head -n 1)
-          BUILD_TOOLS_DIR=$ANDROID_HOME/build-tools/34.0.0
+          BUILD_TOOLS_DIR=$ANDROID_HOME/build-tools/36.0.0
           $BUILD_TOOLS_DIR/apksigner sign \
             --ks app/my-release-key.jks \
             --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \

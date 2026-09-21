@@ -1,1 +1,1 @@
-Private, biometric-protected Markdown notepad.
+Private, biometric-protected notepad.

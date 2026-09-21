@@ -1,0 +1,57 @@
+name: Sync Gradle wrapper with pinned version
+
+# Regenerates gradlew, gradlew.bat and gradle/wrapper/gradle-wrapper.jar with
+# the exact Gradle version pinned in gradle-wrapper.properties, so the wrapper
+# jar is no longer older than the declared distribution (F-Droid scanner flags
+# that mismatch). The pinned distributionSha256Sum is passed through so the
+# generated wrapper also verifies the download.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - fix/editor-save-failure-and-theme-default
+
+permissions:
+  contents: write
+
+jobs:
+  sync-wrapper:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Gradle 9.7.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.7.1'
+
+      - name: Regenerate canonical wrapper files
+        run: |
+          # Run the wrapper task in an empty directory so no project/AGP
+          # configuration is evaluated; only the four wrapper files matter.
+          mkdir -p /tmp/wrapgen && cd /tmp/wrapgen
+          gradle wrapper \
+            --gradle-version 9.7.1 \
+            --gradle-distribution-sha256-sum acd53f1edaf02f1a8ff99879f8a34b302661a057d9b063ae9e35b552f804d20a \
+            --no-daemon
+          cp gradlew gradlew.bat "$GITHUB_WORKSPACE/"
+          mkdir -p "$GITHUB_WORKSPACE/gradle/wrapper"
+          cp gradle/wrapper/gradle-wrapper.jar "$GITHUB_WORKSPACE/gradle/wrapper/"
+          cd "$GITHUB_WORKSPACE"
+          # The pinned gradle-wrapper.properties (9.7.1 + sha256) already in
+          # the repo is kept as-is; only the jar and launch scripts change.
+          sha256sum gradle/wrapper/gradle-wrapper.jar
+          chmod +x gradlew
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add gradlew gradlew.bat gradle/wrapper/gradle-wrapper.jar
+          if git diff --cached --quiet; then
+            echo "Wrapper already in sync"
+          else
+            git commit -m "fix: sync gradle-wrapper.jar and launch scripts with pinned Gradle 9.7.1"
+            git push
+          fi

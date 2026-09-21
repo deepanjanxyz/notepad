@@ -31,6 +31,8 @@ jobs:
           # Run the wrapper task in an empty directory so no project/AGP
           # configuration is evaluated; only the four wrapper files matter.
           mkdir -p /tmp/wrapgen && cd /tmp/wrapgen
+          # Gradle 9 refuses to run in a directory without a settings file
+          touch settings.gradle
           gradle wrapper \
             --gradle-version 9.7.1 \
             --gradle-distribution-sha256-sum acd53f1edaf02f1a8ff99879f8a34b302661a057d9b063ae9e35b552f804d20a \

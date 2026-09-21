@@ -4,6 +4,7 @@
 
     <PreferenceCategory android:title="Appearance">
         <ListPreference
+            app:defaultValue="system"
             app:entries="@array/theme_entries"
             app:entryValues="@array/theme_values"
             app:key="pref_theme"

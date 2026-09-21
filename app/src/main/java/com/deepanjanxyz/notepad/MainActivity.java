@@ -163,7 +163,11 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
     /** Inflates the main layout and wires up the toolbar, notes list, empty view and add-note button. */
     private void initUI() {
         setContentView(R.layout.activity_main);
-        dbHelper = new DatabaseHelper(this);
+        // Reuse the existing helper instead of opening a new database
+        // connection on every unlock (initUI runs again after each
+        // re-authentication, and a fresh SQLiteOpenHelper each time would
+        // leak the previous open connection)
+        if (dbHelper == null) dbHelper = new DatabaseHelper(this);
         noteList = new ArrayList<>();
 
         setSupportActionBar(findViewById(R.id.toolbar));

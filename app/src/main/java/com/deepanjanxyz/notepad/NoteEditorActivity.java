@@ -77,7 +77,7 @@ public class NoteEditorActivity extends AppCompatActivity {
 
         // Save button: save immediately and return to the notes list
         fabSave.setOnClickListener(new View.OnClickListener() {
-            /** Saves the note immediately and returns to the notes list. */
+            /** Saves the note immediately and returns to the notes list - unless the save failed, in which case the editor stays open so the user can retry instead of losing the text. */
             @Override
             public void onClick(View v) {
                 SaveResult result = saveNoteLocally();
@@ -86,7 +86,12 @@ public class NoteEditorActivity extends AppCompatActivity {
                                 : result == SaveResult.DISCARDED ? "Empty note discarded"
                                 : "Could not save note",
                         Toast.LENGTH_SHORT).show();
-                finish();
+                // A failed write must NOT close the editor: finishing here would
+                // throw away the text right after telling the user it was not
+                // saved. Keep the editor open so the user can retry the save.
+                if (result != SaveResult.FAILED) {
+                    finish();
+                }
             }
         });
 
@@ -127,20 +132,25 @@ public class NoteEditorActivity extends AppCompatActivity {
         String title = etTitle.getText().toString();
         String content = etContent.getText().toString();
         String date = new SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(new Date());
-        hasUnsavedChanges = false;
 
         boolean hasText = !title.trim().isEmpty() || !content.trim().isEmpty();
         if (hasText) {
             if (noteId == -1) {
                 noteId = dbHelper.insertNoteWithId(title, content, date);
                 // insertNoteWithId returns -1 when the insert failed
+                // Mark the editor as still "dirty" on failure so the onPause /
+                // onSaveInstanceState flushes keep retrying the write instead of
+                // assuming the text was persisted
+                hasUnsavedChanges = (noteId == -1);
                 return noteId != -1 ? SaveResult.SAVED : SaveResult.FAILED;
             } else if (dbHelper.updateNote(noteId, title, content, date) == 0) {
                 // The original row is gone (deleted elsewhere): insert a new
                 // one instead of silently dropping the user's text
                 noteId = dbHelper.insertNoteWithId(title, content, date);
+                hasUnsavedChanges = (noteId == -1);
                 return noteId != -1 ? SaveResult.SAVED : SaveResult.FAILED;
             }
+            hasUnsavedChanges = false;
             return SaveResult.SAVED;
         } else if (noteId != -1) {
             // The note was emptied out: remove it instead of leaving a stale
@@ -148,6 +158,7 @@ public class NoteEditorActivity extends AppCompatActivity {
             dbHelper.deleteNote(noteId);
             noteId = -1;
         }
+        hasUnsavedChanges = false;
         return SaveResult.DISCARDED;
     }
 

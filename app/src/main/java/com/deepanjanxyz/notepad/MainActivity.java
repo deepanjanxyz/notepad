@@ -160,7 +160,10 @@ public class MainActivity extends AppCompatActivity implements NoteAdapter.OnNot
         showBiometricPrompt();
     }
 
-    /** Inflates the main layout and wires up the toolbar, notes list, empty view and add-note button. */
+    /**
+     * Inflates and wires up the main screen, creating the database helper only
+     * on the first call so subsequent unlocks reuse the same helper.
+     */
     private void initUI() {
         setContentView(R.layout.activity_main);
         // Reuse the existing helper instead of opening a new database

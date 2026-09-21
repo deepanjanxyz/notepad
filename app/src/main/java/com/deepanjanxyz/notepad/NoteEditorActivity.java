@@ -120,13 +120,13 @@ public class NoteEditorActivity extends AppCompatActivity {
     }
 
     /**
-     * Writes the current title/content to the database: inserts a new row for a
-     * brand-new note, updates the existing row afterwards, and deletes the
-     * note entirely once all of its text has been cleared.
+     * Writes the current title and content to the database, inserting a new row
+     * when needed and removing an existing row when both fields contain only
+     * whitespace. Failed inserts leave the changes pending for a later retry.
      *
-     * @return SAVED if the note was inserted or updated, DISCARDED if it was
-     *         empty and therefore deleted, FAILED if the database write did
-     *         not succeed (the user is told the note was NOT saved)
+     * @return SAVED if the note was inserted or updated, DISCARDED if both
+     *         fields contained no non-whitespace text, or FAILED if non-empty
+     *         text could not be inserted
      */
     private SaveResult saveNoteLocally() {
         String title = etTitle.getText().toString();

@@ -1,1 +1,1 @@
-Private, biometric-protected Markdown notepad.
+Write, organize, and draw notes with labels, checklists, and reminders.

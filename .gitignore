@@ -1,0 +1,61 @@
+# Built application files
+*.apk
+*.aar
+*.aab
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
+bin/
+gen/
+out/
+build/
+**/build/
+app/build/
+core/build/
+features/build/
+
+# Gradle files
+.gradle/
+buildOutputCleanup/
+
+# Local configuration & environment variables
+local.properties
+.env
+.env.*
+.env.local
+
+# Log files
+*.log
+
+# Android Studio / IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+.idea_modules/
+
+# VS Code
+.vscode/
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Keystores & Signing files
+*.jks
+*.keystore
+debug.keystore
+my-release-key.jks
+*.key
+metadata.json
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output

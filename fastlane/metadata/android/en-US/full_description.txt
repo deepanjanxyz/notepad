@@ -1,0 +1,9 @@
+Elite Memo Pro brings text notes and freehand drawings together in one place.
+
+Write notes with titles and checklist items, or sketch on a drawing canvas with pen, marker, highlighter, selection, and eraser tools. Choose a canvas background and use blank, ruled, grid, or dotted guides. Undo and redo drawing changes.
+
+Keep notes organized with labels, colors, and pins. Search note titles, text, and tags, or filter by label and color. Switch between grid and list layouts. Archive notes to set them aside, or move them to Trash where they can be restored or permanently deleted.
+
+Set a reminder for a note to receive a notification at the scheduled time. Choose light, dark, or system appearance. An optional app lock can request biometric authentication or the device credential when the app opens.
+
+Notes and labels are stored in the app's local Room database.

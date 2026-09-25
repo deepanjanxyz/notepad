@@ -48,29 +48,21 @@ android {
 
     val releaseKeystore = projectDir.resolve("keystore.jks")
     val expectedKeystore = projectDir.canonicalFile.resolve("keystore.jks")
-    if (!releaseKeystore.isFile || releaseKeystore.canonicalFile != expectedKeystore) {
-        throw GradleException(
-            "Release signing keystore is missing or invalid. Expected a regular keystore at " +
-                "${projectDir.resolve("keystore.jks").absolutePath}, strictly inside the app/ directory."
-        )
-    }
+    val keystoreIsValid = releaseKeystore.isFile && releaseKeystore.canonicalFile == expectedKeystore
+    val releaseStorePass = findConfig("NOTEPAD_STORE_PASSWORD")
+    val releaseAlias = findConfig("NOTEPAD_KEY_ALIAS")
+    val releaseKeyPass = findConfig("NOTEPAD_KEY_PASSWORD")
+    val hasReleaseSigning = keystoreIsValid && releaseStorePass != null &&
+        releaseAlias != null && releaseKeyPass != null
 
-    fun requiredSigningValue(key: String): String = findConfig(key)
-        ?: throw GradleException(
-            "Missing required release signing value '$key'. Set it in app/.env, " +
-                "app/local.properties, or the '$key' system environment variable."
-        )
-
-    val releaseStorePass = requiredSigningValue("NOTEPAD_STORE_PASSWORD")
-    val releaseAlias = requiredSigningValue("NOTEPAD_KEY_ALIAS")
-    val releaseKeyPass = requiredSigningValue("NOTEPAD_KEY_PASSWORD")
-
-    signingConfigs {
-        create("release") {
-            storeFile = releaseKeystore
-            storePassword = releaseStorePass
-            keyAlias = releaseAlias
-            keyPassword = releaseKeyPass
+    if (hasReleaseSigning) {
+        signingConfigs {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = releaseStorePass
+                keyAlias = releaseAlias
+                keyPassword = releaseKeyPass
+            }
         }
     }
 
@@ -86,7 +78,23 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
+    }
+
+    // Keep debug builds independent from release secrets, but never silently
+    // produce an unsigned release artifact when release signing is unavailable.
+    gradle.taskGraph.whenReady {
+        if (!hasReleaseSigning && allTasks.any { it.name.endsWith("Release") }) {
+            val missing = buildList {
+                if (!keystoreIsValid) add("a valid app/keystore.jks")
+                if (releaseStorePass == null) add("NOTEPAD_STORE_PASSWORD")
+                if (releaseAlias == null) add("NOTEPAD_KEY_ALIAS")
+                if (releaseKeyPass == null) add("NOTEPAD_KEY_PASSWORD")
+            }
+            throw GradleException("Release signing is not configured; missing ${missing.joinToString()}")
         }
     }
 

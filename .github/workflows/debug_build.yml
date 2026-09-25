@@ -72,10 +72,15 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 
-      - name: Create debug keystore in root directory
+      # app/build.gradle.kts validates release signing at configuration time for
+      # every build type (including debug): it requires a regular keystore at
+      # app/keystore.jks plus the NOTEPAD_* values. The debug APK itself is still
+      # signed with the standard Android debug key; this keystore only satisfies
+      # that validation gate.
+      - name: Create keystore required by the signing validation
         run: |
           keytool -genkeypair \
-            -keystore debug.keystore \
+            -keystore app/keystore.jks \
             -storepass android \
             -alias androiddebugkey \
             -keypass android \
@@ -85,6 +90,10 @@ jobs:
             -dname "CN=Android Debug,O=Android,C=US"
 
       - name: Build debug APK
+        env:
+          NOTEPAD_STORE_PASSWORD: android
+          NOTEPAD_KEY_ALIAS: androiddebugkey
+          NOTEPAD_KEY_PASSWORD: android
         run: ./gradlew assembleDebug --no-daemon
 
       - name: Upload debug APK
@@ -94,4 +103,3 @@ jobs:
           path: '**/build/outputs/apk/debug/*.apk'
           if-no-files-found: error
           retention-days: 14
-          

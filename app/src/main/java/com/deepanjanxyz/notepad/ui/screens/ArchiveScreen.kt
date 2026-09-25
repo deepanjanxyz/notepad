@@ -88,7 +88,8 @@ fun ArchiveScreen(
                         }
                         IconButton(
                             onClick = {
-                                onRestoreSelected(selectedNoteIds.toList())
+                                val idsToRestore = selectedNoteIds.toList()
+                                onRestoreSelected(idsToRestore)
                                 selectedNoteIds = emptySet()
                             },
                             modifier = Modifier.testTag("unarchive_selected_button")
@@ -101,7 +102,8 @@ fun ArchiveScreen(
                         }
                         IconButton(
                             onClick = {
-                                onMoveSelectedToTrash(selectedNoteIds.toList())
+                                val idsToMoveToTrash = selectedNoteIds.toList()
+                                onMoveSelectedToTrash(idsToMoveToTrash)
                                 selectedNoteIds = emptySet()
                             },
                             modifier = Modifier.testTag("delete_selected_archive_button")
@@ -211,6 +213,8 @@ fun ArchiveScreen(
                             note = note,
                             isSelected = selectedNoteIds.contains(note.id),
                             isSelectionMode = isSelectionMode,
+                            isInArchive = true,
+                            onUnarchive = { onRestoreNote(note.id) },
                             searchQuery = "",
                             onClick = {
                                 if (isSelectionMode) {

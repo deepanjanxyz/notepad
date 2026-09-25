@@ -279,7 +279,11 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun moveSelectedToTrash() {
-        val idsToTrash = _uiState.value.selectedNoteIds.toList()
+        moveSelectedToTrash(_uiState.value.selectedNoteIds.toList())
+    }
+
+    fun moveSelectedToTrash(selectedIds: List<Long>) {
+        val idsToTrash = selectedIds.distinct()
         viewModelScope.launch {
             repository.moveNotesToTrash(idsToTrash)
             idsToTrash.forEach { id ->
@@ -325,8 +329,12 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun restoreSelectedArchiveNotes() {
-        val ids = _uiState.value.selectedNoteIds.toList()
+    fun restoreSelectedArchiveNotes(selectedIds: List<Long>) {
+        val ids = selectedIds.distinct()
+        if (ids.isEmpty()) {
+            clearSelection()
+            return
+        }
         viewModelScope.launch {
             repository.restoreNotesFromArchive(ids)
             clearSelection()

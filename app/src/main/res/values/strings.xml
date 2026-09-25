@@ -16,7 +16,7 @@
     <string name="biometric_lock">Biometric / App Lock</string>
     <string name="biometric_lock_desc">Require biometric or device credential to unlock notes</string>
     <string name="app_info">About Elite Memo Pro</string>
-    <string name="version_label">Version 2.0.0 (Kotlin &amp; Compose M3)</string>
+    <string name="version_label">Version %1$s (Kotlin &amp; Compose M3)</string>
     <string name="delete_confirmation_title">Delete Notes</string>
     <string name="delete_confirmation_msg">Are you sure you want to delete the selected notes? This cannot be undone.</string>
 </resources>

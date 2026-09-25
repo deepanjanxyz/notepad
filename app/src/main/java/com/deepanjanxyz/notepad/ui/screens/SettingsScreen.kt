@@ -1,5 +1,6 @@
 package com.deepanjanxyz.notepad.ui.screens
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -72,6 +73,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val versionName = getAppVersionName(context)
 
     BackHandler {
         onNavigateBack()
@@ -344,7 +346,7 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = stringResource(R.string.version_label),
+                        text = stringResource(R.string.version_label, versionName),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
@@ -359,44 +361,63 @@ fun SettingsScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable {
-                                val browserIntent = Intent(
-                                    Intent.ACTION_VIEW,
-                                    Uri.parse("https://github.com/deepanjanxyz/notepad")
-                                )
-                                context.startActivity(browserIntent)
-                            }
-                            .padding(vertical = 8.dp, horizontal = 4.dp)
-                            .testTag("github_source_row")
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_github),
-                            contentDescription = "GitHub",
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "View Source on GitHub",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.outline,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                    GitHubLinkRow(
+                        label = "View Source on GitHub",
+                        testTag = "github_source_row",
+                        url = "https://github.com/deepanjanxyz/notepad"
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    GitHubLinkRow(
+                        label = "Report an Issue",
+                        testTag = "github_issue_row",
+                        url = "https://github.com/deepanjanxyz/notepad/issues"
+                    )
                 }
             }
         }
     }
 }
+
+@Composable
+private fun GitHubLinkRow(label: String, testTag: String, url: String) {
+    val context = LocalContext.current
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            }
+            .padding(vertical = 8.dp, horizontal = 4.dp)
+            .testTag(testTag)
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_github),
+            contentDescription = "GitHub",
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.outline,
+            modifier = Modifier.size(18.dp)
+        )
+    }
+}
+
+@Suppress("DEPRECATION")
+private fun getAppVersionName(context: Context): String =
+    requireNotNull(context.packageManager.getPackageInfo(context.packageName, 0).versionName) {
+        "App versionName is missing"
+    }

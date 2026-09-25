@@ -1,0 +1,17 @@
+# Signing keystores and temporary signing artifacts
+*.jks
+*.keystore
+*.jks.*
+*.keystore.*
+*.signing
+*.signing.*
+*.tmp
+
+# Local credentials and environment configuration
+.env
+.env.*
+local.properties
+
+# App build outputs and Gradle state
+build/
+.gradle/

@@ -1,15 +1,14 @@
-name: Signed Release APK (dev)
+name: Signed Release APK
 
-# Signed release build for the dev branch.
+# Manually triggered signed release build — no branch is hardcoded.
+# Pick any branch from the "Run workflow" dropdown when dispatching;
+# the workflow builds and signs whatever ref it was dispatched with.
 # The app module's build.gradle.kts signs the release build itself using:
 #   - app/keystore.jks (decoded at build time from the KEYSTORE_BASE64 secret)
 #   - NOTEPAD_STORE_PASSWORD / NOTEPAD_KEY_ALIAS / NOTEPAD_KEY_PASSWORD
 #     (mapped below from the KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD secrets)
 
 on:
-  push:
-    branches:
-      - dev
   workflow_dispatch:
 
 permissions:
@@ -21,7 +20,7 @@ concurrency:
 
 jobs:
   build-signed-release:
-    name: Build signed release APK
+    name: Build signed release APK (${{ github.ref_name }})
     runs-on: ubuntu-latest
 
     env:
@@ -30,7 +29,7 @@ jobs:
       NOTEPAD_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
     steps:
-      - name: Checkout (dev)
+      - name: Checkout
         uses: actions/checkout@v7
 
       - name: Set up JDK 17
@@ -64,10 +63,14 @@ jobs:
         if: always()
         run: rm -f app/keystore.jks
 
+      - name: Sanitize branch name for artifact
+        id: branch
+        run: echo "name=$(echo '${{ github.ref_name }}' | tr '/ ' '__')" >> "$GITHUB_OUTPUT"
+
       - name: Upload signed release APK
         uses: actions/upload-artifact@v7
         with:
-          name: release-apk-dev
+          name: release-apk-${{ steps.branch.outputs.name }}-${{ github.run_number }}
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 14

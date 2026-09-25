@@ -1,18 +1,19 @@
 # Add project specific ProGuard rules here.
 
-# Keep Room entities and database classes
--keep class com.deepanjanxyz.notepad.data.local.database.** { 
-    *; 
+# Keep Room entities and database classes (core:database)
+-keep class com.deepanjanxyz.notepad.core.database.** {
+    *;
 }
 
-# Keep Model/Data classes for serialization
--keep class com.deepanjanxyz.notepad.data.model.** { 
-    *; 
+# Keep domain models (core:model) for serialization
+-keep class com.deepanjanxyz.notepad.core.model.** {
+    *;
 }
 
-# Keep ViewModel classes to prevent stripping during R8 optimization
--keep class com.deepanjanxyz.notepad.ui.viewmodel.** { 
-    *; 
+# Keep the shared ViewModel / UI state (feature:notes) to prevent stripping
+# during R8 optimization
+-keep class com.deepanjanxyz.notepad.feature.notes.** {
+    *;
 }
 
 # Retain generic signature info for reflection-heavy libraries

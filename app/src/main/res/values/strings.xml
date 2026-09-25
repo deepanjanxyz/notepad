@@ -1,22 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Elite Memo Pro</string>
-    <string name="search_hint">Search notes, titles, thoughts...</string>
-    <string name="menu_search">Search</string>
-    <string name="action_save">Save</string>
-    <string name="add_note">New Note</string>
-    <string name="note_title_hint">Title</string>
-    <string name="note_content_hint">Start typing your thoughts here...</string>
-    <string name="empty_notes_title">No notes yet</string>
-    <string name="empty_notes_subtitle">Tap the + button below to write your first note</string>
-    <string name="search_no_results">No matching notes</string>
-    <string name="search_no_results_subtitle">Try searching for a different keyword</string>
-    <string name="settings_title">Settings</string>
-    <string name="theme_setting">Appearance</string>
-    <string name="security_setting">Security &amp; Privacy</string>
-    <string name="biometric_lock">Biometric / App Lock</string>
-    <string name="biometric_lock_desc">Require biometric or device credential to unlock notes</string>
-    <string name="app_info">About Elite Memo Pro</string>
-    <string name="version_label">Version 2.0.0 (Kotlin &amp; Compose M3)</string>
-    <string name="delete_confirmation_title">Delete Notes</string>
-    <string name="delete_confirmation_msg">Are you sure you want to delete the selected notes? This cannot be undone.</string>
 </resources>

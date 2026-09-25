@@ -1,9 +1,9 @@
 package com.deepanjanxyz.notepad
 
-import com.deepanjanxyz.notepad.data.local.entity.NoteEntity
-import com.deepanjanxyz.notepad.domain.model.Note
-import com.deepanjanxyz.notepad.ui.theme.NoteColorNames
-import com.deepanjanxyz.notepad.ui.theme.NoteColorOptions
+import com.deepanjanxyz.notepad.core.database.entity.NoteEntity
+import com.deepanjanxyz.notepad.core.model.Note
+import com.deepanjanxyz.notepad.core.designsystem.NoteColorNames
+import com.deepanjanxyz.notepad.core.designsystem.NoteColorOptions
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -110,20 +110,20 @@ class NoteLogicTest {
 
     @Test
     fun testDrawingSerializationAndParsing() {
-        val stroke1 = com.deepanjanxyz.notepad.domain.model.DrawingStroke(
+        val stroke1 = com.deepanjanxyz.notepad.core.model.DrawingStroke(
             points = listOf(
-                com.deepanjanxyz.notepad.domain.model.DrawingPoint(10f, 20f),
-                com.deepanjanxyz.notepad.domain.model.DrawingPoint(30f, 40f)
+                com.deepanjanxyz.notepad.core.model.DrawingPoint(10f, 20f),
+                com.deepanjanxyz.notepad.core.model.DrawingPoint(30f, 40f)
             ),
             color = 0xFF1E88E5L,
             strokeWidth = 8f,
             alpha = 1f,
             isHighlighter = false
         )
-        val stroke2 = com.deepanjanxyz.notepad.domain.model.DrawingStroke(
+        val stroke2 = com.deepanjanxyz.notepad.core.model.DrawingStroke(
             points = listOf(
-                com.deepanjanxyz.notepad.domain.model.DrawingPoint(50f, 60f),
-                com.deepanjanxyz.notepad.domain.model.DrawingPoint(70f, 80f)
+                com.deepanjanxyz.notepad.core.model.DrawingPoint(50f, 60f),
+                com.deepanjanxyz.notepad.core.model.DrawingPoint(70f, 80f)
             ),
             color = 0xFFFDD835L,
             strokeWidth = 24f,
@@ -131,15 +131,15 @@ class NoteLogicTest {
             isHighlighter = true
         )
 
-        val serialized = com.deepanjanxyz.notepad.domain.model.DrawingSerializer.serialize(
+        val serialized = com.deepanjanxyz.notepad.core.model.DrawingSerializer.serialize(
             strokes = listOf(stroke1, stroke2),
             backgroundColor = 0xFFFFFFFFL
         )
 
-        assertTrue(com.deepanjanxyz.notepad.domain.model.DrawingSerializer.isDrawing(serialized))
-        assertFalse(com.deepanjanxyz.notepad.domain.model.DrawingSerializer.isDrawing("Just regular text"))
+        assertTrue(com.deepanjanxyz.notepad.core.model.DrawingSerializer.isDrawing(serialized))
+        assertFalse(com.deepanjanxyz.notepad.core.model.DrawingSerializer.isDrawing("Just regular text"))
 
-        val parsed = com.deepanjanxyz.notepad.domain.model.DrawingSerializer.parse(serialized)
+        val parsed = com.deepanjanxyz.notepad.core.model.DrawingSerializer.parse(serialized)
         assertEquals(0xFFFFFFFFL, parsed.backgroundColor)
         assertEquals(2, parsed.strokes.size)
         assertEquals(2, parsed.strokes[0].points.size)
@@ -151,37 +151,37 @@ class NoteLogicTest {
 
     @Test
     fun testDrawingAndTextExtractionAndCombine() {
-        val serializedDrawing = com.deepanjanxyz.notepad.domain.model.DrawingSerializer.serialize(
+        val serializedDrawing = com.deepanjanxyz.notepad.core.model.DrawingSerializer.serialize(
             strokes = emptyList(),
             backgroundColor = 0xFF131314L
         )
         val textBody = "Here are my notes underneath the drawing."
-        val combined = com.deepanjanxyz.notepad.domain.model.DrawingSerializer.combine(serializedDrawing, textBody)
+        val combined = com.deepanjanxyz.notepad.core.model.DrawingSerializer.combine(serializedDrawing, textBody)
 
-        assertTrue(com.deepanjanxyz.notepad.domain.model.DrawingSerializer.isDrawing(combined))
-        assertEquals(serializedDrawing.trim(), com.deepanjanxyz.notepad.domain.model.DrawingSerializer.extractDrawingPart(combined))
-        assertEquals(textBody, com.deepanjanxyz.notepad.domain.model.DrawingSerializer.extractTextPart(combined))
+        assertTrue(com.deepanjanxyz.notepad.core.model.DrawingSerializer.isDrawing(combined))
+        assertEquals(serializedDrawing.trim(), com.deepanjanxyz.notepad.core.model.DrawingSerializer.extractDrawingPart(combined))
+        assertEquals(textBody, com.deepanjanxyz.notepad.core.model.DrawingSerializer.extractTextPart(combined))
 
         // When content is pure drawing with no text
-        assertEquals("", com.deepanjanxyz.notepad.domain.model.DrawingSerializer.extractTextPart(serializedDrawing))
+        assertEquals("", com.deepanjanxyz.notepad.core.model.DrawingSerializer.extractTextPart(serializedDrawing))
 
         // When content is pure text with no drawing
-        assertFalse(com.deepanjanxyz.notepad.domain.model.DrawingSerializer.isDrawing(textBody))
-        assertEquals("", com.deepanjanxyz.notepad.domain.model.DrawingSerializer.extractDrawingPart(textBody))
-        assertEquals(textBody, com.deepanjanxyz.notepad.domain.model.DrawingSerializer.extractTextPart(textBody))
+        assertFalse(com.deepanjanxyz.notepad.core.model.DrawingSerializer.isDrawing(textBody))
+        assertEquals("", com.deepanjanxyz.notepad.core.model.DrawingSerializer.extractDrawingPart(textBody))
+        assertEquals(textBody, com.deepanjanxyz.notepad.core.model.DrawingSerializer.extractTextPart(textBody))
     }
 
     @Test
     fun testSelectionBoundsCalculation() {
-        val stroke = com.deepanjanxyz.notepad.domain.model.DrawingStroke(
+        val stroke = com.deepanjanxyz.notepad.core.model.DrawingStroke(
             points = listOf(
-                com.deepanjanxyz.notepad.domain.model.DrawingPoint(100f, 150f),
-                com.deepanjanxyz.notepad.domain.model.DrawingPoint(200f, 250f)
+                com.deepanjanxyz.notepad.core.model.DrawingPoint(100f, 150f),
+                com.deepanjanxyz.notepad.core.model.DrawingPoint(200f, 250f)
             ),
             color = 0xFF00B0FFL,
             strokeWidth = 6f
         )
-        val bounds = com.deepanjanxyz.notepad.ui.screens.getSelectionBounds(listOf(stroke), setOf(0))
+        val bounds = com.deepanjanxyz.notepad.core.designsystem.drawing.getSelectionBounds(listOf(stroke), setOf(0))
         assertNotNull(bounds)
         assertTrue(bounds!!.left < 100f)
         assertTrue(bounds.right > 200f)
@@ -221,47 +221,47 @@ class NoteLogicTest {
         val allNotes = listOf(note1, note2, note3)
 
         // 1. Single keyword in title
-        val titleMatch = com.deepanjanxyz.notepad.domain.util.NoteFilter.filterNotes(allNotes, "Grocery")
+        val titleMatch = com.deepanjanxyz.notepad.core.domain.util.NoteFilter.filterNotes(allNotes, "Grocery")
         assertEquals(1, titleMatch.size)
         assertEquals(2L, titleMatch[0].id)
 
         // 2. Single keyword in content
-        val contentMatch = com.deepanjanxyz.notepad.domain.util.NoteFilter.filterNotes(allNotes, "budget")
+        val contentMatch = com.deepanjanxyz.notepad.core.domain.util.NoteFilter.filterNotes(allNotes, "budget")
         assertEquals(1, contentMatch.size)
         assertEquals(1L, contentMatch[0].id)
 
         // 3. Multi-keyword matching across title and content
-        val multiKeywordMatch = com.deepanjanxyz.notepad.domain.util.NoteFilter.filterNotes(allNotes, "sync marketing")
+        val multiKeywordMatch = com.deepanjanxyz.notepad.core.domain.util.NoteFilter.filterNotes(allNotes, "sync marketing")
         assertEquals(1, multiKeywordMatch.size)
         assertEquals(1L, multiKeywordMatch[0].id)
 
         // 4. Case-insensitivity & whitespace trimming
-        val caseWhitespaceMatch = com.deepanjanxyz.notepad.domain.util.NoteFilter.filterNotes(allNotes, "   TEAM   ROADMAP   ")
+        val caseWhitespaceMatch = com.deepanjanxyz.notepad.core.domain.util.NoteFilter.filterNotes(allNotes, "   TEAM   ROADMAP   ")
         assertEquals(1, caseWhitespaceMatch.size)
         assertEquals(1L, caseWhitespaceMatch[0].id)
 
         // 5. Keyword in tags
-        val tagMatch = com.deepanjanxyz.notepad.domain.util.NoteFilter.filterNotes(allNotes, "fitness")
+        val tagMatch = com.deepanjanxyz.notepad.core.domain.util.NoteFilter.filterNotes(allNotes, "fitness")
         assertEquals(1, tagMatch.size)
         assertEquals(3L, tagMatch[0].id)
 
         // 6. Blank query returns all notes
-        val emptyMatch = com.deepanjanxyz.notepad.domain.util.NoteFilter.filterNotes(allNotes, "   ")
+        val emptyMatch = com.deepanjanxyz.notepad.core.domain.util.NoteFilter.filterNotes(allNotes, "   ")
         assertEquals(3, emptyMatch.size)
 
         // 7. No matches
-        val noMatch = com.deepanjanxyz.notepad.domain.util.NoteFilter.filterNotes(allNotes, "cryptocurrency")
+        val noMatch = com.deepanjanxyz.notepad.core.domain.util.NoteFilter.filterNotes(allNotes, "cryptocurrency")
         assertEquals(0, noMatch.size)
     }
 
     @Test
     fun testNoteFilterWithDrawingNote() {
-        val stroke = com.deepanjanxyz.notepad.domain.model.DrawingStroke(
-            points = listOf(com.deepanjanxyz.notepad.domain.model.DrawingPoint(10f, 20f)),
+        val stroke = com.deepanjanxyz.notepad.core.model.DrawingStroke(
+            points = listOf(com.deepanjanxyz.notepad.core.model.DrawingPoint(10f, 20f)),
             color = 0xFFFFFFFFL,
             strokeWidth = 4f
         )
-        val drawingContent = com.deepanjanxyz.notepad.domain.model.DrawingSerializer.serialize(
+        val drawingContent = com.deepanjanxyz.notepad.core.model.DrawingSerializer.serialize(
             strokes = listOf(stroke),
             backgroundColor = 0xFF000000L
         )
@@ -276,11 +276,11 @@ class NoteLogicTest {
         val notes = listOf(drawingNote)
 
         // Title matches
-        val matchTitle = com.deepanjanxyz.notepad.domain.util.NoteFilter.filterNotes(notes, "mountain")
+        val matchTitle = com.deepanjanxyz.notepad.core.domain.util.NoteFilter.filterNotes(notes, "mountain")
         assertEquals(1, matchTitle.size)
 
         // Internal JSON keywords (like "strokes" or "points") should NOT match
-        val matchJson = com.deepanjanxyz.notepad.domain.util.NoteFilter.filterNotes(notes, "strokes")
+        val matchJson = com.deepanjanxyz.notepad.core.domain.util.NoteFilter.filterNotes(notes, "strokes")
         assertEquals(0, matchJson.size)
     }
 
@@ -304,43 +304,43 @@ class NoteLogicTest {
 
     @Test
     fun testNoteReminderSchedulerWorkName() {
-        val workName = com.deepanjanxyz.notepad.worker.NoteReminderScheduler.getWorkName(42L)
+        val workName = com.deepanjanxyz.notepad.core.work.NoteReminderScheduler.getWorkName(42L)
         assertEquals("note_reminder_42", workName)
     }
 
     @Test
     fun testNoteReminderDateTimeFormatting() {
         val now = System.currentTimeMillis()
-        val formattedNow = com.deepanjanxyz.notepad.worker.NoteReminderScheduler.formatReminderDateTime(now)
+        val formattedNow = com.deepanjanxyz.notepad.core.work.NoteReminderScheduler.formatReminderDateTime(now)
         assertTrue(formattedNow.startsWith("Today, "))
 
         val tomorrow = java.util.Calendar.getInstance().apply {
             add(java.util.Calendar.DAY_OF_YEAR, 1)
         }.timeInMillis
-        val formattedTomorrow = com.deepanjanxyz.notepad.worker.NoteReminderScheduler.formatReminderDateTime(tomorrow)
+        val formattedTomorrow = com.deepanjanxyz.notepad.core.work.NoteReminderScheduler.formatReminderDateTime(tomorrow)
         assertTrue(formattedTomorrow.startsWith("Tomorrow, "))
     }
 
     @Test
     fun testDrawingStateAndBoundsIntegrity() {
-        val stroke1 = com.deepanjanxyz.notepad.domain.model.DrawingStroke(
+        val stroke1 = com.deepanjanxyz.notepad.core.model.DrawingStroke(
             points = listOf(
-                com.deepanjanxyz.notepad.domain.model.DrawingPoint(10f, 10f),
-                com.deepanjanxyz.notepad.domain.model.DrawingPoint(50f, 50f)
+                com.deepanjanxyz.notepad.core.model.DrawingPoint(10f, 10f),
+                com.deepanjanxyz.notepad.core.model.DrawingPoint(50f, 50f)
             ),
             color = 0xFF00B0FFL,
             strokeWidth = 6f
         )
-        val stroke2 = com.deepanjanxyz.notepad.domain.model.DrawingStroke(
+        val stroke2 = com.deepanjanxyz.notepad.core.model.DrawingStroke(
             points = listOf(
-                com.deepanjanxyz.notepad.domain.model.DrawingPoint(100f, 100f),
-                com.deepanjanxyz.notepad.domain.model.DrawingPoint(200f, 200f)
+                com.deepanjanxyz.notepad.core.model.DrawingPoint(100f, 100f),
+                com.deepanjanxyz.notepad.core.model.DrawingPoint(200f, 200f)
             ),
             color = 0xFF34A853L,
             strokeWidth = 12f
         )
         val strokes = listOf(stroke1, stroke2)
-        val bounds = com.deepanjanxyz.notepad.ui.screens.getSelectionBounds(strokes, setOf(0, 1))
+        val bounds = com.deepanjanxyz.notepad.core.designsystem.drawing.getSelectionBounds(strokes, setOf(0, 1))
         assertNotNull(bounds)
         assertEquals(10f - 12f, bounds!!.left, 0.01f)
         assertEquals(10f - 12f, bounds.top, 0.01f)

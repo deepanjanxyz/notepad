@@ -16,13 +16,22 @@ Elite Memo Pro is an Android note-taking app written in Kotlin with a Jetpack Co
 
 ## Project structure
 
-This is a Gradle project with three Android modules:
+This is a multi-module Gradle project following clean architecture with strict layer boundaries. Modules may only depend on modules listed below them:
 
-- `:app` — the Android application and the current implementation: Compose screens and components, note and label domain models and use cases, Room database/DAOs and repository, and WorkManager reminder code.
-- `:core` — Android library module included by the app. It currently contains its Gradle configuration and manifest, with no Kotlin source files.
-- `:features` — Android library module included by the app. It currently contains its Gradle configuration and manifest, with no Kotlin source files.
+- `:app` — the Android application: `MainActivity`, navigation between screens, biometric lock UI, and release signing. Depends on all feature and core modules.
+- `:core:model` — pure domain models (`Note`, `Label`, drawing models and the `DrawingSerializer`).
+- `:core:domain` — repository contracts, use cases and note filtering. Depends on `:core:model`.
+- `:core:database` — Room persistence: entities, DAOs, `AppDatabase`, and entity-to-domain mappers. Depends on `:core:model`.
+- `:core:data` — `NoteRepositoryImpl`, the data-layer implementation of the domain contract. Depends on `:core:model`, `:core:domain`, `:core:database`.
+- `:core:work` — WorkManager reminder scheduling and the `NoteReminderWorker` notification logic. Depends on `:core:model`, `:core:database`.
+- `:core:ui` — shared UI contracts: the `Screen` destinations and `NotesUiState`.
+- `:core:designsystem` — Compose theme, note color palette, shared components (search bar, note card, navigation drawer, dialogs) and drawing render utilities. Depends on `:core:model`, `:core:ui`, `:core:work`.
+- `:feature:notes` — home screen, archive, trash and tags screens, plus the shared `NotesViewModel` (manual DI wiring of the data layer).
+- `:feature:editor` — the text note editor screen and its components.
+- `:feature:drawing` — the freehand drawing screen and its canvas components.
+- `:feature:settings` — the settings screen (appearance, biometric lock toggle, about).
 
-Within `:app`, Kotlin code is organized under `com.deepanjanxyz.notepad` into `data` (Room persistence and repository), `domain` (models, repository contract, filtering and use cases), `ui` (Compose screens, components, theme, and `NotesViewModel`), and `worker` (note reminder scheduling and notifications). `MainActivity` connects the screen state, view model, and navigation between the app's screens.
+Dependency direction is strictly downward (`app` -> `feature:*` -> `core:*`); no module depends on `:app` and there are no cycles. Versions are managed centrally in `gradle/libs.versions.toml`.
 
 ## Technology
 

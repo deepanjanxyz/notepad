@@ -46,18 +46,18 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.deepanjanxyz.notepad.domain.model.DrawingSerializer
-import com.deepanjanxyz.notepad.ui.components.AppDrawerContent
-import com.deepanjanxyz.notepad.ui.components.EditLabelsDialog
-import com.deepanjanxyz.notepad.ui.screens.ArchiveScreen
-import com.deepanjanxyz.notepad.ui.screens.DrawingScreen
-import com.deepanjanxyz.notepad.ui.screens.HomeScreen
-import com.deepanjanxyz.notepad.ui.screens.NoteEditorScreen
-import com.deepanjanxyz.notepad.ui.screens.SettingsScreen
-import com.deepanjanxyz.notepad.ui.screens.TrashScreen
-import com.deepanjanxyz.notepad.ui.theme.EliteMemoTheme
-import com.deepanjanxyz.notepad.ui.viewmodel.NotesViewModel
-import com.deepanjanxyz.notepad.ui.viewmodel.Screen
+import com.deepanjanxyz.notepad.core.model.DrawingSerializer
+import com.deepanjanxyz.notepad.core.designsystem.components.AppDrawerContent
+import com.deepanjanxyz.notepad.core.designsystem.components.EditLabelsDialog
+import com.deepanjanxyz.notepad.feature.notes.ArchiveScreen
+import com.deepanjanxyz.notepad.feature.drawing.DrawingScreen
+import com.deepanjanxyz.notepad.feature.notes.HomeScreen
+import com.deepanjanxyz.notepad.feature.editor.NoteEditorScreen
+import com.deepanjanxyz.notepad.feature.settings.SettingsScreen
+import com.deepanjanxyz.notepad.feature.notes.TrashScreen
+import com.deepanjanxyz.notepad.core.designsystem.EliteMemoTheme
+import com.deepanjanxyz.notepad.feature.notes.NotesViewModel
+import com.deepanjanxyz.notepad.core.ui.Screen
 import kotlinx.coroutines.launch
 
 class MainActivity : FragmentActivity() {

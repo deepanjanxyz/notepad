@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="action_save">Save</string>
+    <string name="note_title_hint">Title</string>
+    <string name="note_content_hint">Start typing your thoughts here...</string>
+</resources>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="add_note">New Note</string>
+    <string name="empty_notes_title">No notes yet</string>
+    <string name="empty_notes_subtitle">Tap the + button below to write your first note</string>
+    <string name="menu_search">Search</string>
+    <string name="search_no_results">No matching notes</string>
+    <string name="search_no_results_subtitle">Try searching for a different keyword</string>
+    <string name="delete_confirmation_title">Delete Notes</string>
+    <string name="delete_confirmation_msg">Are you sure you want to delete the selected notes? This cannot be undone.</string>
+</resources>

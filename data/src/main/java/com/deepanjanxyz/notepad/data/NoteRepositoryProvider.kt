@@ -10,8 +10,7 @@ object NoteRepositoryProvider {
         val database = AppDatabase.getInstance(context)
         return NoteRepositoryImpl(
             noteDao = database.noteDao(),
-            labelDao = database.labelDao(),
-            database = database
+            labelDao = database.labelDao()
         )
     }
 }

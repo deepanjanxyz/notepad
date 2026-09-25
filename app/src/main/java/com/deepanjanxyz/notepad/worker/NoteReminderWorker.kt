@@ -12,7 +12,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.deepanjanxyz.notepad.MainActivity
 import com.deepanjanxyz.notepad.R
-import com.deepanjanxyz.notepad.data.local.database.AppDatabase
+import com.deepanjanxyz.notepad.data.NoteRepositoryProvider
 import com.deepanjanxyz.notepad.domain.model.DrawingSerializer
 
 class NoteReminderWorker(
@@ -51,15 +51,13 @@ class NoteReminderWorker(
             return Result.failure()
         }
 
-        val db = AppDatabase.getInstance(applicationContext)
-        val noteEntity = db.noteDao().getNoteById(noteId)
+        val repository = NoteRepositoryProvider.create(applicationContext)
+        val note = repository.getNoteById(noteId)
 
         // If note was deleted or moved to trash, don't show notification
-        if (noteEntity == null || noteEntity.inTrash) {
+        if (note == null || note.inTrash) {
             return Result.success()
         }
-
-        val note = noteEntity.toDomain()
 
         // Create channel on Oreo+
         createNotificationChannel(applicationContext)
@@ -122,7 +120,7 @@ class NoteReminderWorker(
         }
 
         // Clear reminderTime in the database as it has now fired
-        db.noteDao().updateReminderTime(noteId, null)
+        repository.updateReminderTime(noteId, null)
 
         return Result.success()
     }

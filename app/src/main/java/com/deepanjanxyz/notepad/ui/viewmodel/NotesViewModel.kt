@@ -4,8 +4,7 @@ import android.app.Application
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.deepanjanxyz.notepad.data.local.database.AppDatabase
-import com.deepanjanxyz.notepad.data.repository.NoteRepositoryImpl
+import com.deepanjanxyz.notepad.NotepadApplication
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.domain.repository.NoteRepository
 import com.deepanjanxyz.notepad.domain.util.NoteFilter
@@ -47,12 +46,8 @@ data class NotesUiState(
 class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     private val prefs = application.getSharedPreferences("notepad_prefs", Context.MODE_PRIVATE)
-    private val repository: NoteRepository
-
-    init {
-        val db = AppDatabase.getInstance(application)
-        repository = NoteRepositoryImpl(db.noteDao(), db.labelDao())
-    }
+    private val repository: NoteRepository =
+        (application as NotepadApplication).container.repository
 
     private val _uiState = MutableStateFlow(
         NotesUiState(

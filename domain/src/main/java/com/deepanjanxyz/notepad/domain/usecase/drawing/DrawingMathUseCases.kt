@@ -1,17 +1,26 @@
 package com.deepanjanxyz.notepad.domain.usecase.drawing
 
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import com.deepanjanxyz.notepad.domain.model.DrawingPoint
 import com.deepanjanxyz.notepad.domain.model.DrawingStroke
-import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.hypot
-import kotlin.math.sin
+
+data class DrawingOffset(val x: Float, val y: Float)
+
+data class DrawingRect(
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float
+) {
+    val centerX: Float get() = (left + right) / 2f
+    val centerY: Float get() = (top + bottom) / 2f
+
+    fun contains(point: DrawingOffset): Boolean =
+        point.x >= left && point.x < right && point.y >= top && point.y < bottom
+}
 
 object DrawingMathUseCases {
 
-    fun calculateSelectionBounds(strokes: List<DrawingStroke>, selectedIndices: Set<Int>): Rect? {
+    fun calculateSelectionBounds(strokes: List<DrawingStroke>, selectedIndices: Set<Int>): DrawingRect? {
         if (selectedIndices.isEmpty()) return null
         var minX = Float.MAX_VALUE
         var minY = Float.MAX_VALUE
@@ -42,21 +51,26 @@ object DrawingMathUseCases {
             minY = cy - minDimension / 2f
             maxY = cy + minDimension / 2f
         }
-        return Rect(minX, minY, maxX, maxY)
+        return DrawingRect(minX, minY, maxX, maxY)
     }
 
-    fun getHandleHit(b: Rect, touch: Offset, radius: Float = 34f, stalkLengthPx: Float = 60f): Int? {
+    fun getHandleHit(
+        b: DrawingRect,
+        touch: DrawingOffset,
+        radius: Float = 34f,
+        stalkLengthPx: Float = 60f
+    ): Int? {
         val rSq = radius * radius
         val handles = listOf(
-            Offset(b.left, b.top),                   // 0: Top-Left
-            Offset(b.center.x, b.top),               // 1: Top-Mid
-            Offset(b.right, b.top),                  // 2: Top-Right
-            Offset(b.left, b.center.y),              // 3: Mid-Left
-            Offset(b.right, b.center.y),             // 4: Mid-Right
-            Offset(b.left, b.bottom),                // 5: Bottom-Left
-            Offset(b.center.x, b.bottom),            // 6: Bottom-Mid
-            Offset(b.right, b.bottom),               // 7: Bottom-Right
-            Offset(b.center.x, b.top - stalkLengthPx) // 8: Top rotation handle
+            DrawingOffset(b.left, b.top),
+            DrawingOffset(b.centerX, b.top),
+            DrawingOffset(b.right, b.top),
+            DrawingOffset(b.left, b.centerY),
+            DrawingOffset(b.right, b.centerY),
+            DrawingOffset(b.left, b.bottom),
+            DrawingOffset(b.centerX, b.bottom),
+            DrawingOffset(b.right, b.bottom),
+            DrawingOffset(b.centerX, b.top - stalkLengthPx)
         )
         for (i in handles.indices) {
             val h = handles[i]
@@ -66,59 +80,59 @@ object DrawingMathUseCases {
         return null
     }
 
-    fun isMoveTargetHit(b: Rect, touch: Offset, padding: Float = 28f): Boolean {
-        val expanded = Rect(b.left - padding, b.top - padding, b.right + padding, b.bottom + padding)
+    fun isMoveTargetHit(b: DrawingRect, touch: DrawingOffset, padding: Float = 28f): Boolean {
+        val expanded = DrawingRect(b.left - padding, b.top - padding, b.right + padding, b.bottom + padding)
         return expanded.contains(touch)
     }
 
-    fun updateBoundsWithHandle(oldB: Rect, handleIdx: Int, newPos: Offset): Rect {
+    fun updateBoundsWithHandle(oldB: DrawingRect, handleIdx: Int, newPos: DrawingOffset): DrawingRect {
         val minSize = 20f
         return when (handleIdx) {
             0 -> {
                 val left = minOf(newPos.x, oldB.right - minSize)
                 val top = minOf(newPos.y, oldB.bottom - minSize)
-                Rect(left, top, oldB.right, oldB.bottom)
+                DrawingRect(left, top, oldB.right, oldB.bottom)
             }
             1 -> {
                 val top = minOf(newPos.y, oldB.bottom - minSize)
-                Rect(oldB.left, top, oldB.right, oldB.bottom)
+                DrawingRect(oldB.left, top, oldB.right, oldB.bottom)
             }
             2 -> {
                 val right = maxOf(newPos.x, oldB.left + minSize)
                 val top = minOf(newPos.y, oldB.bottom - minSize)
-                Rect(oldB.left, top, right, oldB.bottom)
+                DrawingRect(oldB.left, top, right, oldB.bottom)
             }
             3 -> {
                 val left = minOf(newPos.x, oldB.right - minSize)
-                Rect(left, oldB.top, oldB.right, oldB.bottom)
+                DrawingRect(left, oldB.top, oldB.right, oldB.bottom)
             }
             4 -> {
                 val right = maxOf(newPos.x, oldB.left + minSize)
-                Rect(oldB.left, oldB.top, right, oldB.bottom)
+                DrawingRect(oldB.left, oldB.top, right, oldB.bottom)
             }
             5 -> {
                 val left = minOf(newPos.x, oldB.right - minSize)
                 val bottom = maxOf(newPos.y, oldB.top + minSize)
-                Rect(left, oldB.top, oldB.right, bottom)
+                DrawingRect(left, oldB.top, oldB.right, bottom)
             }
             6 -> {
                 val bottom = maxOf(newPos.y, oldB.top + minSize)
-                Rect(oldB.left, oldB.top, oldB.right, bottom)
+                DrawingRect(oldB.left, oldB.top, oldB.right, bottom)
             }
             7 -> {
                 val right = maxOf(newPos.x, oldB.left + minSize)
                 val bottom = maxOf(newPos.y, oldB.top + minSize)
-                Rect(oldB.left, oldB.top, right, bottom)
+                DrawingRect(oldB.left, oldB.top, right, bottom)
             }
             else -> oldB
         }
     }
 
-    fun isStrokeInRect(stroke: DrawingStroke, rect: Rect): Boolean {
-        return stroke.points.any { rect.contains(Offset(it.x, it.y)) }
+    fun isStrokeInRect(stroke: DrawingStroke, rect: DrawingRect): Boolean {
+        return stroke.points.any { rect.contains(DrawingOffset(it.x, it.y)) }
     }
 
-    fun isPointNearStrokeSegment(stroke: DrawingStroke, pt: Offset, threshold: Float = 24f): Boolean {
+    fun isPointNearStrokeSegment(stroke: DrawingStroke, pt: DrawingOffset, threshold: Float = 24f): Boolean {
         if (stroke.points.isEmpty()) return false
         val tSq = (threshold + stroke.strokeWidth / 2f) * (threshold + stroke.strokeWidth / 2f)
         for (i in 0 until stroke.points.size - 1) {

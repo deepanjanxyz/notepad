@@ -5,7 +5,6 @@ import org.gradle.api.GradleException
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
-    id("com.google.devtools.ksp")
 }
 
 val localProperties = Properties().apply {
@@ -103,6 +102,8 @@ android {
 
 dependencies {
     implementation(project(":core"))
+    implementation(project(":data"))
+    implementation(project(":domain"))
     implementation(project(":features"))
 
     implementation(platform("androidx.compose:compose-bom:2026.08.00"))
@@ -118,11 +119,6 @@ dependencies {
     implementation("androidx.core:core-ktx:1.19.0")
     implementation("androidx.fragment:fragment-ktx:1.8.5")
     implementation("androidx.biometric:biometric:1.4.0-alpha07")
-
-    // Room Database
-    implementation("androidx.room:room-runtime:2.8.5")
-    implementation("androidx.room:room-ktx:2.8.5")
-    ksp("androidx.room:room-compiler:2.8.5")
 
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.11.2")

@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "EliteMemoPro"
-include(":app", ":core", ":features")
+include(":app", ":core", ":data", ":domain", ":features")

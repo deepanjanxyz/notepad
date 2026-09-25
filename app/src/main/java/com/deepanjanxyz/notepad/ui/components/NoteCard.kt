@@ -383,8 +383,9 @@ fun NoteCard(
                 }
 
                 // Reminder Chip (if set)
-                if (note.reminderTime != null) {
-                    val isPast = note.reminderTime < System.currentTimeMillis()
+                val reminderTime = note.reminderTime
+                if (reminderTime != null) {
+                    val isPast = reminderTime < System.currentTimeMillis()
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = if (isPast) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f),
@@ -403,7 +404,7 @@ fun NoteCard(
                                 modifier = Modifier.size(12.dp)
                             )
                             Text(
-                                text = NoteReminderScheduler.formatReminderDateTime(note.reminderTime),
+                                text = NoteReminderScheduler.formatReminderDateTime(reminderTime),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Medium,
                                 color = if (isPast) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onPrimaryContainer

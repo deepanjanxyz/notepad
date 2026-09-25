@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.RestoreFromTrash
+import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -143,10 +144,12 @@ fun NoteCard(
     isSelectionMode: Boolean,
     searchQuery: String = "",
     isInTrash: Boolean = false,
+    isInArchive: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onTogglePin: () -> Unit = {},
     onRestore: (() -> Unit)? = null,
+    onUnarchive: (() -> Unit)? = null,
     onDeleteForever: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -452,6 +455,18 @@ fun NoteCard(
                                         )
                                     }
                                 }
+                            }
+                        } else if (isInArchive && onUnarchive != null) {
+                            IconButton(
+                                onClick = onUnarchive,
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Unarchive,
+                                    contentDescription = "Unarchive",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
                         }
                     }

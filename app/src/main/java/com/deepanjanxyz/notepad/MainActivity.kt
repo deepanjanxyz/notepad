@@ -239,8 +239,12 @@ class MainActivity : FragmentActivity() {
                                                 },
                                                 onRestoreNote = { viewModel.restoreFromArchive(it) },
                                                 onMoveToTrash = { viewModel.moveToTrash(it) },
-                                                onRestoreSelected = { viewModel.restoreSelectedArchiveNotes() },
-                                                onMoveSelectedToTrash = { viewModel.moveSelectedToTrash() },
+                                                onRestoreSelected = { selectedIds ->
+                                                    viewModel.restoreSelectedArchiveNotes(selectedIds)
+                                                },
+                                                onMoveSelectedToTrash = { selectedIds ->
+                                                    viewModel.moveSelectedToTrash(selectedIds)
+                                                },
                                                 onNoteClick = { note ->
                                                     if (DrawingSerializer.isDrawing(note.content)) {
                                                         viewModel.navigateTo(Screen.Drawing(note.id))

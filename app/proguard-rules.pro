@@ -1,13 +1,19 @@
 # Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Keep Room entities and database classes
+-keep class com.deepanjanxyz.notepad.data.local.database.** { 
+    *; 
+}
+
+# Keep Model/Data classes for serialization
+-keep class com.deepanjanxyz.notepad.data.model.** { 
+    *; 
+}
+
+# Keep ViewModel classes to prevent stripping during R8 optimization
+-keep class com.deepanjanxyz.notepad.ui.viewmodel.** { 
+    *; 
+}
+
+# Retain generic signature info for reflection-heavy libraries
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod

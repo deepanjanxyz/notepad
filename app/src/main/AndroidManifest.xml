@@ -2,7 +2,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <application
+        android:name=".NotepadApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -11,27 +16,17 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.EliteMemoPro"
-        tools:targetApi="31">
+        tools:targetApi="35">
 
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <activity
-            android:name=".NoteEditorActivity"
-            android:windowSoftInputMode="adjustResize" />
-
-        <!-- Use the action-bar variant of the theme (already defined in
-             themes.xml): without it the settings screen inherits the
-             NoActionBar app theme and renders without a title or up affordance -->
-        <activity
-            android:name=".SettingsActivity"
-            android:theme="@style/Theme.EliteMemoPro.Settings" />
     </application>
 
 </manifest>

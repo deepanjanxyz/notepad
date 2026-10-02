@@ -6,8 +6,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.deepanjanxyz.notepad.NotepadApplication
 import com.deepanjanxyz.notepad.domain.model.Note
-import com.deepanjanxyz.notepad.domain.repository.NoteRepository
-import com.deepanjanxyz.notepad.domain.util.NoteFilter
+import com.deepanjanxyz.notepad.domain.usecase.label.LabelUseCases
+import com.deepanjanxyz.notepad.domain.usecase.note.NoteUseCases
 import com.deepanjanxyz.notepad.worker.NoteReminderScheduler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -16,9 +16,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 sealed interface Screen {
     data object Home : Screen
@@ -46,8 +43,8 @@ data class NotesUiState(
 class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     private val prefs = application.getSharedPreferences("notepad_prefs", Context.MODE_PRIVATE)
-    private val repository: NoteRepository =
-        (application as NotepadApplication).container.repository
+    private val noteUseCases: NoteUseCases = (application as NotepadApplication).container.noteUseCases
+    private val labelUseCases: LabelUseCases = (application as NotepadApplication).container.labelUseCases
 
     private val _uiState = MutableStateFlow(
         NotesUiState(
@@ -69,7 +66,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     val selectedTagFilter: StateFlow<String?> = _selectedTagFilter.asStateFlow()
 
     // Room DB Labels Stream - starts completely clean
-    val roomLabels: StateFlow<List<String>> = repository.getAllLabels()
+    val roomLabels: StateFlow<List<String>> = labelUseCases.getLabels()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -77,7 +74,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         )
 
     // All active notes stream (not trash, not archive)
-    val rawActiveNotes: StateFlow<List<Note>> = repository.getAllNotes()
+    val rawActiveNotes: StateFlow<List<Note>> = noteUseCases.getNotes()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -85,7 +82,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         )
 
     // Archive notes stream
-    val archiveNotes: StateFlow<List<Note>> = repository.getArchiveNotes()
+    val archiveNotes: StateFlow<List<Note>> = noteUseCases.getArchiveNotes()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -93,7 +90,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         )
 
     // All trash notes stream
-    val trashNotes: StateFlow<List<Note>> = repository.getTrashNotes()
+    val trashNotes: StateFlow<List<Note>> = noteUseCases.getTrashNotes()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -107,7 +104,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         _selectedColorFilter,
         _selectedTagFilter
     ) { allNotes, query, colorFilter, tagFilter ->
-        NoteFilter.filterNotes(
+        noteUseCases.filterNotes(
             notes = allNotes,
             query = query,
             colorFilter = colorFilter,
@@ -163,7 +160,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
             val exists = allTags.value.any { it.equals(trimmed, ignoreCase = true) }
             if (!exists) {
                 viewModelScope.launch {
-                    repository.insertLabel(trimmed)
+                    labelUseCases.addLabel(trimmed)
                 }
             }
         }
@@ -175,7 +172,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
             val exists = allTags.value.any { it.equals(trimmed, ignoreCase = true) }
             if (!exists) {
                 viewModelScope.launch {
-                    repository.renameLabel(oldName, trimmed)
+                    labelUseCases.renameLabel(oldName, trimmed)
                 }
             }
         }
@@ -183,7 +180,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteLabel(labelName: String) {
         viewModelScope.launch {
-            repository.deleteLabel(labelName)
+            labelUseCases.deleteLabel(labelName)
             if (_uiState.value.selectedTagFilter.equals(labelName, ignoreCase = true)) {
                 onTagFilterChange(null)
             }
@@ -245,7 +242,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     fun togglePin(noteId: Long, currentPinned: Boolean) {
         viewModelScope.launch {
-            repository.togglePin(noteId, !currentPinned)
+            noteUseCases.togglePin(noteId, !currentPinned)
         }
     }
 
@@ -259,7 +256,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             selectedIds.forEach { id ->
-                repository.togglePin(id, shouldPin)
+                noteUseCases.togglePin(id, shouldPin)
             }
             clearSelection()
         }
@@ -268,7 +265,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     // Move to Trash (Recycler)
     fun moveToTrash(noteId: Long) {
         viewModelScope.launch {
-            repository.moveToTrash(noteId)
+            noteUseCases.trashNote(noteId)
             NoteReminderScheduler.cancelReminder(getApplication(), noteId)
         }
     }
@@ -280,7 +277,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     fun moveSelectedToTrash(selectedIds: List<Long>) {
         val idsToTrash = selectedIds.distinct()
         viewModelScope.launch {
-            repository.moveNotesToTrash(idsToTrash)
+            noteUseCases.trashNote(idsToTrash)
             idsToTrash.forEach { id ->
                 NoteReminderScheduler.cancelReminder(getApplication(), id)
             }
@@ -291,14 +288,14 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     // Restore from Trash
     fun restoreFromTrash(noteId: Long) {
         viewModelScope.launch {
-            repository.restoreFromTrash(noteId)
+            noteUseCases.restoreNote(noteId)
         }
     }
 
     fun restoreSelectedTrashNotes() {
         val idsToRestore = _uiState.value.selectedNoteIds.toList()
         viewModelScope.launch {
-            repository.restoreNotesFromTrash(idsToRestore)
+            noteUseCases.restoreNote(idsToRestore)
             clearSelection()
         }
     }
@@ -306,21 +303,21 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     // Archive / Unarchive
     fun moveToArchive(noteId: Long) {
         viewModelScope.launch {
-            repository.moveToArchive(noteId)
+            noteUseCases.archiveNote.moveToArchive(noteId)
         }
     }
 
     fun moveSelectedToArchive() {
         val ids = _uiState.value.selectedNoteIds.toList()
         viewModelScope.launch {
-            repository.moveNotesToArchive(ids)
+            noteUseCases.archiveNote.moveNotesToArchive(ids)
             clearSelection()
         }
     }
 
     fun restoreFromArchive(noteId: Long) {
         viewModelScope.launch {
-            repository.restoreFromArchive(noteId)
+            noteUseCases.archiveNote.restoreFromArchive(noteId)
         }
     }
 
@@ -331,7 +328,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         viewModelScope.launch {
-            repository.restoreNotesFromArchive(ids)
+            noteUseCases.archiveNote.restoreNotesFromArchive(ids)
             clearSelection()
         }
     }
@@ -339,7 +336,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     // Permanent deletion in Trash
     fun permanentlyDelete(noteId: Long) {
         viewModelScope.launch {
-            repository.permanentlyDelete(noteId)
+            noteUseCases.permanentlyDeleteNote(noteId)
             NoteReminderScheduler.cancelReminder(getApplication(), noteId)
         }
     }
@@ -347,7 +344,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     fun permanentlyDeleteSelectedTrashNotes() {
         val idsToDelete = _uiState.value.selectedNoteIds.toList()
         viewModelScope.launch {
-            repository.permanentlyDeleteNotes(idsToDelete)
+            noteUseCases.permanentlyDeleteNote(idsToDelete)
             idsToDelete.forEach { id ->
                 NoteReminderScheduler.cancelReminder(getApplication(), id)
             }
@@ -357,14 +354,14 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     fun emptyTrash() {
         viewModelScope.launch {
-            repository.emptyTrash()
+            noteUseCases.emptyTrash()
             clearSelection()
         }
     }
 
     // Note Editor actions
     suspend fun getNote(noteId: Long): Note? {
-        return repository.getNoteById(noteId)
+        return noteUseCases.getNoteById(noteId)
     }
 
     suspend fun saveNote(
@@ -377,32 +374,24 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         inArchive: Boolean? = null,
         reminderTime: Long? = null
     ): Long {
-        val existing = if (id != 0L) repository.getNoteById(id) else null
-        val finalReminderTime = if (reminderTime != null) {
-            reminderTime
-        } else {
-            existing?.reminderTime
-        }
-        val noteToSave = Note(
+        val savedId = noteUseCases.saveNote(
             id = id,
             title = title,
             content = content,
             colorIndex = colorIndex,
             tags = tags,
-            date = existing?.date ?: SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date()),
-            isPinned = isPinned ?: existing?.isPinned ?: false,
-            inTrash = existing?.inTrash ?: false,
-            inArchive = inArchive ?: existing?.inArchive ?: false,
-            reminderTime = finalReminderTime
+            isPinned = isPinned,
+            inArchive = inArchive,
+            reminderTime = reminderTime
         )
-        val savedId = repository.insertOrUpdate(noteToSave)
-        if (finalReminderTime != null && finalReminderTime > System.currentTimeMillis()) {
+        val effectiveReminder = reminderTime ?: noteUseCases.getNoteById(savedId)?.reminderTime
+        if (effectiveReminder != null && effectiveReminder > System.currentTimeMillis()) {
             NoteReminderScheduler.scheduleReminder(
                 context = getApplication(),
                 noteId = savedId,
                 noteTitle = title,
                 noteContent = content,
-                triggerAtMillis = finalReminderTime
+                triggerAtMillis = effectiveReminder
             )
         }
         return savedId
@@ -410,7 +399,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setNoteReminder(noteId: Long, reminderTime: Long?, title: String = "", content: String = "") {
         viewModelScope.launch {
-            repository.updateReminderTime(noteId, reminderTime)
+            noteUseCases.setNoteReminder(noteId, reminderTime)
             val context = getApplication<Application>()
             if (reminderTime != null) {
                 NoteReminderScheduler.scheduleReminder(

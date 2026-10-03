@@ -79,6 +79,7 @@ fun EliteMemoTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = EliteMemoShapes,
         content = content
     )
 }

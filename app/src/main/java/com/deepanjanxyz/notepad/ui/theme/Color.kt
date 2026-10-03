@@ -50,6 +50,22 @@ val SurfaceVariantDark = Color(0xFF202533)
 val OnSurfaceVariantDark = Color(0xFFC4C7D4)
 val OutlineDark = Color(0xFF8D92A0)
 
+/**
+ * Foreground tokens for tinted note cards.
+ *
+ * All [NoteColorOptions] are dark, saturated surfaces, but the card text used to
+ * inherit the active colour scheme. In the light theme that meant near-black
+ * (0xFF191C20) text on a dark crimson/indigo note, which is unreadable and fails
+ * WCAG AA. These tokens keep a light, high-contrast foreground on tinted notes in
+ * both themes; untinted cards keep using the scheme colours.
+ */
+val NoteTintContent = Color(0xFFF2F3F8)
+val NoteTintContentMuted = Color(0xFFC9CDDA)
+val NoteTintOutline = Color(0x40FFFFFF)
+
+/** Translucent surface used for chips painted on top of a tinted card. */
+val NoteTintChip = Color(0x1FFFFFFF)
+
 // Rich, High-Contrast Google Keep-style Dark Palette
 val NoteColorOptions = listOf(
     Color(0x00000000), // 0: Default / None

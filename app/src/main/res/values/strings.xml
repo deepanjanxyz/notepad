@@ -19,4 +19,89 @@
     <string name="version_label">Version %1$s (Kotlin &amp; Compose M3)</string>
     <string name="delete_confirmation_title">Delete Notes</string>
     <string name="delete_confirmation_msg">Are you sure you want to delete the selected notes? This cannot be undone.</string>
+
+    <!-- Screen titles -->
+    <string name="title_archive">Archive</string>
+    <string name="title_trash">Trash &amp; Recycler</string>
+    <string name="title_notes">Notes</string>
+
+    <!-- Shared actions -->
+    <string name="action_undo">Undo</string>
+    <string name="action_dismiss">Dismiss</string>
+    <string name="action_retry">Try again</string>
+    <string name="action_clear_filters">Clear filters</string>
+    <string name="action_clear_search">Clear search</string>
+    <string name="action_close_selection">Cancel selection</string>
+    <string name="action_select_all">Select all</string>
+    <string name="action_deselect_all">Deselect all</string>
+    <string name="action_pin_selected">Pin selected notes</string>
+    <string name="action_unpin_selected">Unpin selected notes</string>
+    <string name="action_archive_selected">Archive selected notes</string>
+    <string name="action_delete_selected">Move selected notes to trash</string>
+    <string name="action_restore_selected">Restore selected notes</string>
+    <string name="action_delete_forever_selected">Delete selected notes permanently</string>
+    <string name="action_restore">Restore</string>
+    <string name="action_delete_forever">Delete forever</string>
+    <string name="action_unarchive">Unarchive</string>
+    <string name="action_empty_trash">Empty Trash</string>
+
+    <!-- Filter row / results sub-header -->
+    <string name="filter_chip_all">All</string>
+    <string name="filter_summary_all">All notes</string>
+    <string name="filter_summary_query">Results for "%1$s"</string>
+    <string name="filter_summary_query_in_tag">Searching "%1$s" in %2$s</string>
+    <string name="filter_summary_tag">Filtered by %1$s</string>
+    <string name="filter_summary_color">Filtered by color</string>
+    <string name="filter_results_count">%1$d found</string>
+
+    <!-- Loading / empty / error states -->
+    <string name="loading_notes">Loading your notes</string>
+    <string name="loading_archive">Loading archived notes</string>
+    <string name="loading_trash">Loading trash</string>
+    <string name="empty_filtered_title">No matching notes</string>
+    <string name="empty_filtered_subtitle">Clear the active filters to see every note again.</string>
+    <string name="empty_archive_title">No archived notes</string>
+    <string name="empty_archive_subtitle">Notes you archive will be stored here safely.</string>
+    <string name="empty_trash_title">Trash is empty</string>
+    <string name="empty_trash_subtitle">Deleted notes will appear here so you can restore them.</string>
+    <string name="error_title">Something went wrong</string>
+
+    <!-- Feedback messages -->
+    <string name="snackbar_moved_to_trash">%1$d note(s) moved to Trash</string>
+    <string name="snackbar_archived">%1$d note(s) archived</string>
+    <string name="snackbar_restored">%1$d note(s) restored</string>
+    <string name="snackbar_deleted_permanently">%1$d note(s) deleted permanently</string>
+    <string name="selection_count">%1$d selected</string>
+
+    <!-- Note card -->
+    <string name="note_untitled">Untitled Note</string>
+    <string name="note_pinned">Pinned note</string>
+    <string name="note_drawing_badge">Drawing</string>
+    <string name="note_reminder_chip">Reminder</string>
+
+    <!-- Accessibility labels -->
+    <string name="a11y_open_note">Open note</string>
+    <string name="a11y_select_note">Select note</string>
+    <string name="a11y_drawing_preview">Drawing preview</string>
+    <string name="a11y_color_filter">Filter by %1$s color</string>
+    <string name="a11y_note_selected">Selected</string>
+    <string name="a11y_note_not_selected">Not selected</string>
+
+    <!-- Editor top bar -->
+    <string name="editor_save">Save and close</string>
+    <string name="editor_back">Back to notes</string>
+    <string name="editor_pin">Pin note</string>
+    <string name="editor_unpin">Unpin note</string>
+    <string name="editor_reminder_add">Add reminder</string>
+    <string name="editor_reminder_edit">Edit reminder</string>
+    <string name="editor_checklist">Checklist format</string>
+    <string name="editor_color">Note color</string>
+    <string name="editor_drawing">Open drawing canvas</string>
+    <string name="editor_archive">Archive note</string>
+
+    <!-- App lock screen -->
+    <string name="lock_title">Elite Memo Pro is locked</string>
+    <string name="lock_subtitle">Authenticate to access your personal notes</string>
+    <string name="lock_unlock_action">Unlock with biometrics</string>
+    <string name="lock_fallback_action">Continue to notes without unlocking</string>
 </resources>

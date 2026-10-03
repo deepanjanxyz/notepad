@@ -44,9 +44,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.paneTitle
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.R
+import com.deepanjanxyz.notepad.ui.theme.Spacing
 import com.deepanjanxyz.notepad.ui.viewmodel.Screen
 
 @Composable
@@ -63,71 +67,86 @@ fun AppDrawerContent(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val appTitle = stringResource(R.string.app_name)
 
     ModalDrawerSheet(
         modifier = modifier
             .width(310.dp)
             .fillMaxHeight()
+            // Announced as the drawer's pane title by TalkBack, and the drawer
+            // column is a single scroll container a keyboard user can traverse.
+            .semantics { paneTitle = appTitle }
             .testTag("modal_drawer_sheet"),
         drawerContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column(
             modifier = Modifier
                 .fillMaxHeight()
-                .padding(vertical = 16.dp)
+                .padding(vertical = Spacing.lg)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Header: App Title ("Elite Memo Pro")
+            // Header
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 12.dp)
+                    .padding(horizontal = Spacing.xxl, vertical = Spacing.md)
             ) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(Spacing.avatar)
                 ) {
                     Icon(
                         imageVector = Icons.Default.EditNote,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
-                            .padding(8.dp)
-                            .size(24.dp)
+                            .padding(Spacing.sm)
+                            .size(Spacing.iconLarge)
                     )
                 }
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(Spacing.md))
                 Column {
                     Text(
-                        text = "Elite Memo Pro",
+                        text = appTitle,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Smart Notes & Organization",
+                        text = stringResource(R.string.drawer_subtitle),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(Spacing.md))
             HorizontalDivider(
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                modifier = Modifier.padding(horizontal = 16.dp)
+                modifier = Modifier.padding(horizontal = Spacing.lg)
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(Spacing.md))
 
-            // Item 1: Notes (Main View)
+            // Notes (main view). The icon is decorative: NavigationDrawerItem
+            // already exposes the row label, so a content description here only
+            // produced duplicated announcements.
             NavigationDrawerItem(
-                label = { Text("Notes", fontWeight = FontWeight.Medium) },
+                label = {
+                    Text(
+                        text = stringResource(R.string.title_notes),
+                        fontWeight = FontWeight.Medium
+                    )
+                },
                 icon = {
                     Icon(
-                        imageVector = if (currentScreen is Screen.Home && selectedTagFilter == null) Icons.Filled.Description else Icons.Outlined.Description,
-                        contentDescription = "Notes"
+                        imageVector = if (currentScreen is Screen.Home && selectedTagFilter == null) {
+                            Icons.Filled.Description
+                        } else {
+                            Icons.Outlined.Description
+                        },
+                        contentDescription = null
                     )
                 },
                 selected = currentScreen is Screen.Home && selectedTagFilter == null,
@@ -138,22 +157,27 @@ fun AppDrawerContent(
                     .testTag("drawer_nav_notes")
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Spacing.sm))
             HorizontalDivider(
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                modifier = Modifier.padding(horizontal = 24.dp)
+                modifier = Modifier.padding(horizontal = Spacing.xxl)
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Spacing.sm))
 
-            // Item 2: Labels / Tags Section Header
+            // Labels section header
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 28.dp, end = 16.dp, top = 4.dp, bottom = 4.dp)
+                    .padding(
+                        start = Spacing.xxl,
+                        end = Spacing.lg,
+                        top = Spacing.xs,
+                        bottom = Spacing.xs
+                    )
             ) {
                 Text(
-                    text = "Labels",
+                    text = stringResource(R.string.drawer_labels),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -165,23 +189,23 @@ fun AppDrawerContent(
                     modifier = Modifier.testTag("drawer_edit_labels_header_button")
                 ) {
                     Text(
-                        text = "Edit",
+                        text = stringResource(R.string.action_edit),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold
                     )
                 }
             }
 
-            // Sub-items: each label
             labels.forEach { label ->
-                val isSelected = currentScreen is Screen.Home && selectedTagFilter.equals(label, ignoreCase = true)
+                val isSelected = currentScreen is Screen.Home &&
+                    selectedTagFilter.equals(label, ignoreCase = true)
                 NavigationDrawerItem(
                     label = { Text(label) },
                     icon = {
                         Icon(
                             imageVector = if (isSelected) Icons.Filled.Label else Icons.Outlined.Label,
-                            contentDescription = label,
-                            modifier = Modifier.size(20.dp)
+                            contentDescription = null,
+                            modifier = Modifier.size(Spacing.iconMedium)
                         )
                     },
                     selected = isSelected,
@@ -193,14 +217,18 @@ fun AppDrawerContent(
                 )
             }
 
-            // Sub-item: "+ Create new label / Edit Labels"
             NavigationDrawerItem(
-                label = { Text("+ Create new label / Edit Labels", style = MaterialTheme.typography.bodyMedium) },
+                label = {
+                    Text(
+                        text = stringResource(R.string.drawer_create_label),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
                 icon = {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = "Create or edit labels",
-                        modifier = Modifier.size(20.dp)
+                        contentDescription = null,
+                        modifier = Modifier.size(Spacing.iconMedium)
                     )
                 },
                 selected = false,
@@ -211,20 +239,28 @@ fun AppDrawerContent(
                     .testTag("drawer_create_or_edit_labels_item")
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Spacing.sm))
             HorizontalDivider(
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                modifier = Modifier.padding(horizontal = 24.dp)
+                modifier = Modifier.padding(horizontal = Spacing.xxl)
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Spacing.sm))
 
-            // Item 3: Archive
             NavigationDrawerItem(
-                label = { Text("Archive", fontWeight = FontWeight.Medium) },
+                label = {
+                    Text(
+                        text = stringResource(R.string.title_archive),
+                        fontWeight = FontWeight.Medium
+                    )
+                },
                 icon = {
                     Icon(
-                        imageVector = if (currentScreen is Screen.Archive) Icons.Filled.Archive else Icons.Outlined.Archive,
-                        contentDescription = "Archive"
+                        imageVector = if (currentScreen is Screen.Archive) {
+                            Icons.Filled.Archive
+                        } else {
+                            Icons.Outlined.Archive
+                        },
+                        contentDescription = null
                     )
                 },
                 selected = currentScreen is Screen.Archive,
@@ -235,13 +271,21 @@ fun AppDrawerContent(
                     .testTag("drawer_nav_archive")
             )
 
-            // Item 4: Trash (Recycler view for deleted notes)
             NavigationDrawerItem(
-                label = { Text("Trash", fontWeight = FontWeight.Medium) },
+                label = {
+                    Text(
+                        text = stringResource(R.string.title_trash),
+                        fontWeight = FontWeight.Medium
+                    )
+                },
                 icon = {
                     Icon(
-                        imageVector = if (currentScreen is Screen.Trash) Icons.Filled.Delete else Icons.Outlined.Delete,
-                        contentDescription = "Trash"
+                        imageVector = if (currentScreen is Screen.Trash) {
+                            Icons.Filled.Delete
+                        } else {
+                            Icons.Outlined.Delete
+                        },
+                        contentDescription = null
                     )
                 },
                 selected = currentScreen is Screen.Trash,
@@ -256,16 +300,24 @@ fun AppDrawerContent(
 
             HorizontalDivider(
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm)
             )
 
-            // Item 5: Settings (Inside the Navigation Drawer at the bottom)
             NavigationDrawerItem(
-                label = { Text("Settings", fontWeight = FontWeight.Medium) },
+                label = {
+                    Text(
+                        text = stringResource(R.string.settings_title),
+                        fontWeight = FontWeight.Medium
+                    )
+                },
                 icon = {
                     Icon(
-                        imageVector = if (currentScreen is Screen.Settings) Icons.Filled.Settings else Icons.Outlined.Settings,
-                        contentDescription = "Settings"
+                        imageVector = if (currentScreen is Screen.Settings) {
+                            Icons.Filled.Settings
+                        } else {
+                            Icons.Outlined.Settings
+                        },
+                        contentDescription = null
                     )
                 },
                 selected = currentScreen is Screen.Settings,
@@ -276,15 +328,14 @@ fun AppDrawerContent(
                     .testTag("drawer_nav_settings")
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(Spacing.xs))
 
-            // GitHub Source in Drawer Footer - Neatly sized 24.dp Octocat vector in a single Material 3 Row
             Surface(
-                shape = RoundedCornerShape(16.dp),
+                shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.surfaceContainer,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .padding(horizontal = Spacing.lg, vertical = Spacing.xs)
                     .clickable {
                         val browserIntent = Intent(
                             Intent.ACTION_VIEW,
@@ -298,17 +349,17 @@ fun AppDrawerContent(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = Spacing.lg, vertical = Spacing.md)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_github),
-                        contentDescription = "GitHub",
+                        contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(Spacing.iconLarge)
                     )
-                    Spacer(modifier = Modifier.width(14.dp))
+                    Spacer(modifier = Modifier.width(Spacing.md))
                     Text(
-                        text = "Source on GitHub",
+                        text = stringResource(R.string.link_view_source),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -317,8 +368,8 @@ fun AppDrawerContent(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.outline,
-                        modifier = Modifier.size(16.dp)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(Spacing.iconSmall)
                     )
                 }
             }

@@ -44,6 +44,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClickLabel
+import androidx.compose.ui.semantics.onLongClickLabel
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -53,14 +59,27 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.domain.model.DrawingPoint
 import com.deepanjanxyz.notepad.domain.model.DrawingSerializer
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.ui.feature_drawing.util.drawDrawingStroke
 import com.deepanjanxyz.notepad.ui.theme.NoteColorOptions
+import com.deepanjanxyz.notepad.ui.theme.NoteTintChip
+import com.deepanjanxyz.notepad.ui.theme.NoteTintContent
+import com.deepanjanxyz.notepad.ui.theme.NoteTintContentMuted
+import com.deepanjanxyz.notepad.ui.theme.NoteTintOutline
+import com.deepanjanxyz.notepad.ui.theme.Spacing
+import com.deepanjanxyz.notepad.ui.util.NoteUiFormat
 import com.deepanjanxyz.notepad.worker.NoteReminderScheduler
 import java.util.Locale
 
+/**
+ * Highlights every keyword occurrence in [text].
+ *
+ * Highlight colours default to the active theme; tinted note cards override them
+ * with the high-contrast note-tint tokens.
+ */
 @Composable
 fun buildHighlightedText(
     text: String,
@@ -68,18 +87,14 @@ fun buildHighlightedText(
     highlightColor: Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
     highlightTextColor: Color = MaterialTheme.colorScheme.primary
 ): AnnotatedString {
-    if (query.isBlank()) {
-        return AnnotatedString(text)
-    }
+    if (query.isBlank()) return AnnotatedString(text)
 
     return remember(text, query, highlightColor, highlightTextColor) {
         val keywords = query.trim().lowercase(Locale.getDefault())
-            .split("\\s+".toRegex())
+            .split(Regex("\\s+"))
             .filter { it.isNotBlank() }
 
-        if (keywords.isEmpty()) {
-            return@remember AnnotatedString(text)
-        }
+        if (keywords.isEmpty()) return@remember AnnotatedString(text)
 
         val lowerText = text.lowercase(Locale.getDefault())
         val ranges = mutableListOf<IntRange>()
@@ -88,15 +103,12 @@ fun buildHighlightedText(
             while (startIndex < text.length) {
                 val matchIndex = lowerText.indexOf(kw, startIndex)
                 if (matchIndex == -1) break
-                val endIndex = matchIndex + kw.length
-                ranges.add(matchIndex until endIndex)
+                ranges.add(matchIndex until matchIndex + kw.length)
                 startIndex = matchIndex + 1
             }
         }
 
-        if (ranges.isEmpty()) {
-            return@remember AnnotatedString(text)
-        }
+        if (ranges.isEmpty()) return@remember AnnotatedString(text)
 
         ranges.sortBy { it.first }
         val mergedRanges = mutableListOf<IntRange>()
@@ -115,9 +127,7 @@ fun buildHighlightedText(
         buildAnnotatedString {
             var cursor = 0
             for (r in mergedRanges) {
-                if (r.first > cursor) {
-                    append(text.substring(cursor, r.first))
-                }
+                if (r.first > cursor) append(text.substring(cursor, r.first))
                 withStyle(
                     SpanStyle(
                         background = highlightColor,
@@ -129,13 +139,22 @@ fun buildHighlightedText(
                 }
                 cursor = r.last + 1
             }
-            if (cursor < text.length) {
-                append(text.substring(cursor))
-            }
+            if (cursor < text.length) append(text.substring(cursor))
         }
     }
 }
 
+/**
+ * A single note in the grid/list.
+ *
+ * Accessibility notes:
+ * * the card is a single focus stop with a spoken description and an explicit
+ *   selected/not-selected state, so TalkBack no longer reads just the clipped
+ *   snippet of body text;
+ * * on a tinted card the text switches to the [NoteTintContent] tokens, because
+ *   the card background is dark in both themes and inheriting the light-theme
+ *   onSurface colour produced unreadable near-black text on a dark tint.
+ */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun NoteCard(
@@ -153,35 +172,60 @@ fun NoteCard(
     onDeleteForever: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val hasCustomColor = note.colorIndex in 1 until NoteColorOptions.size
-    val cardColor = if (hasCustomColor) {
-        NoteColorOptions[note.colorIndex]
+    val hasCustomColor = NoteUiFormat.isCustomTint(note.colorIndex)
+    val tint = if (hasCustomColor) NoteColorOptions[note.colorIndex] else null
+    val cardColor = tint ?: MaterialTheme.colorScheme.surface
+
+    val titleColor = if (hasCustomColor) NoteTintContent else MaterialTheme.colorScheme.onSurface
+    val titlePlaceholderColor = if (hasCustomColor) {
+        NoteTintContentMuted
     } else {
-        MaterialTheme.colorScheme.surface
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val bodyColor = if (hasCustomColor) {
+        NoteTintContentMuted
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val metaColor = if (hasCustomColor) NoteTintContentMuted else MaterialTheme.colorScheme.outline
+
+    val borderStroke = when {
+        isSelected -> BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+        tint != null -> BorderStroke(1.dp, tint.copy(alpha = 0.7f))
+        else -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
     }
 
-    val borderStroke = if (isSelected) {
-        BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-    } else if (hasCustomColor) {
-        BorderStroke(1.dp, NoteColorOptions[note.colorIndex].copy(alpha = 0.7f))
-    } else {
-        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-    }
+    val displayTitle = note.title.ifBlank { stringResource(R.string.note_untitled) }
+    val isDrawing = remember(note.content) { DrawingSerializer.isDrawing(note.content) }
+
+    val spokenDescription = NoteUiFormat.noteContentDescription(
+        title = note.title,
+        isPinned = note.isPinned,
+        isSelected = isSelected,
+        isDrawing = isDrawing,
+        isInArchive = isInArchive,
+        isInTrash = isInTrash
+    )
 
     val highlightedTitle = buildHighlightedText(
-        text = note.title.ifBlank { "Untitled Note" },
-        query = searchQuery
+        text = displayTitle,
+        query = searchQuery,
+        highlightTextColor = if (hasCustomColor) {
+            NoteTintContent
+        } else {
+            MaterialTheme.colorScheme.primary
+        }
     )
 
     val formattedContent = remember(note.content) {
         if (note.content.contains("[ ] ") || note.content.contains("[x] ", ignoreCase = true)) {
-            note.content.lines().map { line ->
+            note.content.lines().joinToString("\n") { line ->
                 when {
-                    line.startsWith("[x] ", ignoreCase = true) -> "☑ " + line.substring(4)
-                    line.startsWith("[ ] ") -> "☐ " + line.substring(4)
+                    line.startsWith("[x] ", ignoreCase = true) -> "\u2611 " + line.substring(4)
+                    line.startsWith("[ ] ") -> "\u2610 " + line.substring(4)
                     else -> line
                 }
-            }.joinToString("\n")
+            }
         } else {
             note.content
         }
@@ -189,7 +233,12 @@ fun NoteCard(
 
     val highlightedContent = buildHighlightedText(
         text = formattedContent,
-        query = searchQuery
+        query = searchQuery,
+        highlightTextColor = if (hasCustomColor) {
+            NoteTintContent
+        } else {
+            MaterialTheme.colorScheme.primary
+        }
     )
 
     Card(
@@ -198,24 +247,33 @@ fun NoteCard(
             .clip(RoundedCornerShape(16.dp))
             .combinedClickable(
                 onClick = onClick,
-                onLongClick = onLongClick
+                onLongClick = onLongClick,
+                onClickLabel = stringResource(R.string.a11y_open_note),
+                onLongClickLabel = stringResource(R.string.a11y_select_note)
             )
+            .semantics(mergeDescendants = true) {
+                contentDescription = spokenDescription
+                stateDescription = if (isSelected) "selected" else "not selected"
+            }
             .testTag("note_card_${note.id}"),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f) else cardColor
+            containerColor = if (isSelected) {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+            } else {
+                cardColor
+            }
         ),
         border = borderStroke,
         elevation = CardDefaults.cardElevation(
             defaultElevation = if (note.isPinned) 4.dp else 1.dp
         )
     ) {
-        Box(modifier = Modifier.padding(16.dp)) {
+        Box(modifier = Modifier.padding(Spacing.lg)) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(Spacing.xs)
             ) {
-                // Header row: Title + Pin/Selection indicator
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -224,8 +282,12 @@ fun NoteCard(
                     Text(
                         text = highlightedTitle,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = if (note.title.isNotBlank()) FontWeight.Bold else FontWeight.Normal,
-                        color = if (note.title.isNotBlank()) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        fontWeight = if (note.title.isNotBlank()) {
+                            FontWeight.Bold
+                        } else {
+                            FontWeight.Normal
+                        },
+                        color = if (note.title.isNotBlank()) titleColor else titlePlaceholderColor,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
@@ -233,33 +295,39 @@ fun NoteCard(
 
                     if (isSelectionMode) {
                         Icon(
-                            imageVector = if (isSelected) Icons.Filled.CheckCircle else Icons.Outlined.Circle,
-                            contentDescription = if (isSelected) "Selected" else "Not selected",
-                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                            imageVector = if (isSelected) {
+                                Icons.Filled.CheckCircle
+                            } else {
+                                Icons.Outlined.Circle
+                            },
+                            contentDescription = null,
+                            tint = if (isSelected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                metaColor
+                            },
                             modifier = Modifier.size(22.dp)
                         )
                     } else if (note.isPinned && !isInTrash) {
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
+                            shape = MaterialTheme.shapes.extraSmall,
                             color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f)
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.PushPin,
-                                contentDescription = "Pinned note",
+                                contentDescription = stringResource(R.string.note_pinned),
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier
-                                    .padding(4.dp)
-                                    .size(16.dp)
+                                    .padding(Spacing.xs)
+                                    .size(Spacing.iconSmall)
                             )
                         }
                     }
                 }
 
-                // Content snippet or Drawing Thumbnail
-                val isDrawing = remember(note.content) {
-                    DrawingSerializer.isDrawing(note.content)
-                }
                 if (isDrawing) {
+                    // Thumbnail of the sketch. The card description already says
+                    // "drawing", so the canvas itself stays decorative.
                     val drawingData = remember(note.content) {
                         DrawingSerializer.parse(note.content)
                     }
@@ -281,8 +349,8 @@ fun NoteCard(
                                 var minY = Float.MAX_VALUE
                                 var maxX = Float.MIN_VALUE
                                 var maxY = Float.MIN_VALUE
-                                for (s in drawingData.strokes) {
-                                    for (pt in s.points) {
+                                for (stroke in drawingData.strokes) {
+                                    for (pt in stroke.points) {
                                         if (pt.x < minX) minX = pt.x
                                         if (pt.y < minY) minY = pt.y
                                         if (pt.x > maxX) maxX = pt.x
@@ -292,9 +360,10 @@ fun NoteCard(
                                 val drawingW = (maxX - minX).coerceAtLeast(1f)
                                 val drawingH = (maxY - minY).coerceAtLeast(1f)
                                 val padding = 16f
-                                val scaleX = (size.width - padding * 2) / drawingW
-                                val scaleY = (size.height - padding * 2) / drawingH
-                                val scale = minOf(scaleX, scaleY).coerceAtMost(1f)
+                                val scale = minOf(
+                                    (size.width - padding * 2) / drawingW,
+                                    (size.height - padding * 2) / drawingH
+                                ).coerceAtMost(1f)
                                 val offsetX = (size.width - drawingW * scale) / 2f - minX * scale
                                 val offsetY = (size.height - drawingH * scale) / 2f - minY * scale
 
@@ -306,14 +375,14 @@ fun NoteCard(
                                     drawDrawingStroke(
                                         stroke.copy(
                                             points = scaledPts,
-                                            strokeWidth = (stroke.strokeWidth * scale).coerceAtLeast(1.5f)
+                                            strokeWidth = (stroke.strokeWidth * scale)
+                                                .coerceAtLeast(1.5f)
                                         )
                                     )
                                 }
                             }
                         }
 
-                        // Badge in top right corner
                         Surface(
                             shape = RoundedCornerShape(bottomStart = 8.dp),
                             color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
@@ -321,7 +390,10 @@ fun NoteCard(
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(
+                                    horizontal = Spacing.xs + 2.dp,
+                                    vertical = 2.dp
+                                )
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Brush,
@@ -329,9 +401,9 @@ fun NoteCard(
                                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                     modifier = Modifier.size(12.dp)
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.width(Spacing.xs))
                                 Text(
-                                    text = "Drawing",
+                                    text = stringResource(R.string.note_drawing_badge),
                                     style = TextStyle(
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
@@ -345,77 +417,113 @@ fun NoteCard(
                     Text(
                         text = highlightedContent,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = bodyColor,
                         maxLines = 5,
-                        overflow = TextOverflow.Ellipsis,
-                        lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                // Vibrant, high-contrast tag chips
                 if (note.tags.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(2.dp))
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         note.tags.forEach { tag ->
                             Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                                shape = MaterialTheme.shapes.extraSmall,
+                                // A light chip colour on a dark tinted card made the
+                                // chips the brightest element on screen; the chip is
+                                // now a translucent lift of the card itself.
+                                color = if (hasCustomColor) {
+                                    NoteTintChip
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceContainerHigh
+                                },
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (hasCustomColor) {
+                                        NoteTintOutline
+                                    } else {
+                                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                    }
+                                )
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                ) {
-                                    Text(
-                                        text = tag,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                Text(
+                                    text = tag,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (hasCustomColor) {
+                                        NoteTintContentMuted
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    },
+                                    modifier = Modifier.padding(
+                                        horizontal = Spacing.sm,
+                                        vertical = 3.dp
                                     )
-                                }
+                                )
                             }
                         }
                     }
                 }
 
-                // Reminder Chip (if set)
                 val reminderTime = note.reminderTime
                 if (reminderTime != null) {
                     val isPast = reminderTime < System.currentTimeMillis()
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isPast) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f),
-                        border = BorderStroke(1.dp, if (isPast) MaterialTheme.colorScheme.outlineVariant else MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
+                        shape = MaterialTheme.shapes.small,
+                        color = if (isPast) {
+                            MaterialTheme.colorScheme.surfaceContainerHigh
+                        } else {
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
+                        },
+                        border = BorderStroke(
+                            1.dp,
+                            if (isPast) {
+                                MaterialTheme.colorScheme.outlineVariant
+                            } else {
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                            }
+                        ),
                         modifier = Modifier.testTag("note_card_reminder_chip")
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                            modifier = Modifier.padding(horizontal = Spacing.sm, vertical = 3.dp)
                         ) {
                             Icon(
-                                imageVector = if (isPast) Icons.Default.Alarm else Icons.Default.NotificationsActive,
+                                imageVector = if (isPast) {
+                                    Icons.Default.Alarm
+                                } else {
+                                    Icons.Default.NotificationsActive
+                                },
                                 contentDescription = null,
-                                tint = if (isPast) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.primary,
+                                tint = if (isPast) {
+                                    MaterialTheme.colorScheme.outline
+                                } else {
+                                    MaterialTheme.colorScheme.primary
+                                },
                                 modifier = Modifier.size(12.dp)
                             )
                             Text(
                                 text = NoteReminderScheduler.formatReminderDateTime(reminderTime),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Medium,
-                                color = if (isPast) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onPrimaryContainer
+                                color = if (isPast) {
+                                    MaterialTheme.colorScheme.outline
+                                } else {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                }
                             )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(Spacing.xs))
 
-                // Bottom row: Date + Actions
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -424,55 +532,71 @@ fun NoteCard(
                     Text(
                         text = note.date,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline
+                        color = metaColor
                     )
 
                     if (!isSelectionMode) {
                         if (isInTrash) {
                             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                                 if (onRestore != null) {
-                                    IconButton(
-                                        onClick = onRestore,
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.RestoreFromTrash,
-                                            contentDescription = "Restore",
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
+                                    CardActionButton(
+                                        icon = Icons.Default.RestoreFromTrash,
+                                        contentDescription = stringResource(R.string.action_restore),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        testTag = "restore_note_${note.id}",
+                                        onClick = onRestore
+                                    )
                                 }
                                 if (onDeleteForever != null) {
-                                    IconButton(
-                                        onClick = onDeleteForever,
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.DeleteForever,
-                                            contentDescription = "Delete forever",
-                                            tint = MaterialTheme.colorScheme.error,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
+                                    CardActionButton(
+                                        icon = Icons.Default.DeleteForever,
+                                        contentDescription = stringResource(R.string.action_delete_forever),
+                                        tint = MaterialTheme.colorScheme.error,
+                                        testTag = "delete_forever_note_${note.id}",
+                                        onClick = onDeleteForever
+                                    )
                                 }
                             }
                         } else if (isInArchive && onUnarchive != null) {
-                            IconButton(
-                                onClick = onUnarchive,
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Unarchive,
-                                    contentDescription = "Unarchive",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
+                            CardActionButton(
+                                icon = Icons.Default.Unarchive,
+                                contentDescription = stringResource(R.string.action_unarchive),
+                                tint = MaterialTheme.colorScheme.primary,
+                                testTag = "unarchive_note_${note.id}",
+                                onClick = onUnarchive
+                            )
                         }
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * Icon button used inside a note card.
+ *
+ * It keeps the default (48 dp) touch container and only shrinks the painted
+ * icon. These buttons previously forced a 28 dp box, below the minimum target
+ * size, which made restore/delete hard to hit.
+ */
+@Composable
+private fun CardActionButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    tint: Color,
+    testTag: String,
+    onClick: () -> Unit
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.testTag(testTag)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(Spacing.iconMedium)
+        )
     }
 }

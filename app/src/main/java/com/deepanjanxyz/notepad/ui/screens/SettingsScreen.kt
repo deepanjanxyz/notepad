@@ -25,7 +25,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Analytics
-import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Info
@@ -49,6 +48,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,10 +56,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.domain.model.Note
+import com.deepanjanxyz.notepad.ui.theme.Spacing
+import com.deepanjanxyz.notepad.ui.util.NoteUiFormat
 import com.deepanjanxyz.notepad.ui.viewmodel.NotesUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,15 +80,12 @@ fun SettingsScreen(
     val context = LocalContext.current
     val versionName = getAppVersionName(context)
 
-    BackHandler {
-        onNavigateBack()
-    }
+    BackHandler { onNavigateBack() }
 
     val totalNotes = notes.size
     val totalPinned = notes.count { it.isPinned }
-    val totalWords = notes.sumOf {
-        if (it.content.isBlank()) 0 else it.content.trim().split("\\s+".toRegex()).size
-    }
+    // Drawing payloads are not prose; counting them inflated the workspace totals.
+    val totalWords = remember(notes) { NoteUiFormat.countWords(notes) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -104,7 +106,7 @@ fun SettingsScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.action_back)
                         )
                     }
                 },
@@ -120,18 +122,18 @@ fun SettingsScreen(
                 .padding(innerPadding)
                 .background(MaterialTheme.colorScheme.background)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(Spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xl)
         ) {
             // Stats Card
             Card(
-                shape = RoundedCornerShape(20.dp),
+                shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
                 ),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(Spacing.lg)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
                             shape = CircleShape,
@@ -141,115 +143,69 @@ fun SettingsScreen(
                                 imageVector = Icons.Default.Analytics,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.padding(6.dp).size(20.dp)
+                                modifier = Modifier
+                                    .padding(6.dp)
+                                    .size(Spacing.iconMedium)
                             )
                         }
                         Spacer(modifier = Modifier.size(10.dp))
                         Text(
-                            text = "Workspace Statistics",
+                            text = stringResource(R.string.settings_stats_title),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(Spacing.lg))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceAround
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "$totalNotes",
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = "Total Notes",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "$totalPinned",
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = "Pinned",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "$totalWords",
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = "Words",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        StatColumn(value = totalNotes, label = stringResource(R.string.settings_stat_notes))
+                        StatColumn(value = totalPinned, label = stringResource(R.string.settings_stat_pinned))
+                        StatColumn(value = totalWords, label = stringResource(R.string.settings_stat_words))
                     }
                 }
             }
 
-            // Theme Settings Card
+            // Appearance Card
             Card(
-                shape = RoundedCornerShape(20.dp),
+                shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Palette,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.size(12.dp))
-                        Text(
-                            text = stringResource(R.string.theme_setting),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
+                Column(modifier = Modifier.padding(Spacing.lg)) {
+                    SettingHeader(
+                        icon = Icons.Default.Palette,
+                        title = stringResource(R.string.theme_setting)
+                    )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(Spacing.md))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                     ) {
                         listOf(
-                            Triple("system", "System", Icons.Default.SettingsBrightness),
-                            Triple("light", "Light", Icons.Default.LightMode),
-                            Triple("dark", "Dark", Icons.Default.DarkMode)
-                        ).forEach { (mode, label, icon) ->
+                            Triple("system", R.string.theme_system, Icons.Default.SettingsBrightness),
+                            Triple("light", R.string.theme_light, Icons.Default.LightMode),
+                            Triple("dark", R.string.theme_dark, Icons.Default.DarkMode)
+                        ).forEach { (mode, labelRes, icon) ->
                             val isSelected = uiState.themeMode == mode
                             FilterChip(
                                 selected = isSelected,
                                 onClick = { onThemeChange(mode) },
-                                label = { Text(label) },
+                                label = { Text(stringResource(labelRes)) },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = icon,
                                         contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(Spacing.iconSmall)
                                     )
                                 },
                                 colors = FilterChipDefaults.filterChipColors(
@@ -265,16 +221,16 @@ fun SettingsScreen(
                 }
             }
 
-            // Security Settings Card
+            // Security Card
             Card(
-                shape = RoundedCornerShape(20.dp),
+                shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(Spacing.lg)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -288,9 +244,9 @@ fun SettingsScreen(
                                 imageVector = Icons.Default.Fingerprint,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(Spacing.iconLarge)
                             )
-                            Spacer(modifier = Modifier.size(12.dp))
+                            Spacer(modifier = Modifier.size(Spacing.md))
                             Column {
                                 Text(
                                     text = stringResource(R.string.biometric_lock),
@@ -312,7 +268,9 @@ fun SettingsScreen(
                                 checkedThumbColor = MaterialTheme.colorScheme.primary,
                                 checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
                             ),
-                            modifier = Modifier.testTag("biometric_lock_switch")
+                            modifier = Modifier
+                                .semantics { role = Role.Switch }
+                                .testTag("biometric_lock_switch")
                         )
                     }
                 }
@@ -320,30 +278,20 @@ fun SettingsScreen(
 
             // About Card
             Card(
-                shape = RoundedCornerShape(20.dp),
+                shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Info,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.size(12.dp))
-                        Text(
-                            text = stringResource(R.string.app_info),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
+                Column(modifier = Modifier.padding(Spacing.lg)) {
+                    SettingHeader(
+                        icon = Icons.Default.Info,
+                        title = stringResource(R.string.app_info)
+                    )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(Spacing.md))
 
                     Text(
                         text = stringResource(R.string.version_label, versionName),
@@ -352,29 +300,66 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Crafted with Kotlin Coroutines, Jetpack Compose Material 3, and Room local persistence.",
+                        text = stringResource(R.string.app_info_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(Spacing.lg))
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                    )
+                    Spacer(modifier = Modifier.height(Spacing.md))
 
                     GitHubLinkRow(
-                        label = "View Source on GitHub",
+                        label = stringResource(R.string.link_view_source),
                         testTag = "github_source_row",
                         url = "https://github.com/deepanjanxyz/notepad"
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(Spacing.xs))
                     GitHubLinkRow(
-                        label = "Report an Issue",
+                        label = stringResource(R.string.link_report_issue),
                         testTag = "github_issue_row",
                         url = "https://github.com/deepanjanxyz/notepad/issues"
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun StatColumn(value: Int, label: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = value.toString(),
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun SettingHeader(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(Spacing.iconLarge)
+        )
+        Spacer(modifier = Modifier.size(Spacing.md))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 
@@ -390,16 +375,16 @@ private fun GitHubLinkRow(label: String, testTag: String, url: String) {
             .clickable {
                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
             }
-            .padding(vertical = 8.dp, horizontal = 4.dp)
+            .padding(vertical = Spacing.sm, horizontal = Spacing.xs)
             .testTag(testTag)
     ) {
         Icon(
             painter = painterResource(R.drawable.ic_github),
-            contentDescription = "GitHub",
+            contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(Spacing.iconLarge)
         )
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(Spacing.md))
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
@@ -407,10 +392,12 @@ private fun GitHubLinkRow(label: String, testTag: String, url: String) {
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f)
         )
+        // The row itself is clickable and reads as a link; the trailing glyph is
+        // decorative so TalkBack does not announce it twice.
         Icon(
             imageVector = Icons.AutoMirrored.Filled.OpenInNew,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.outline,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(18.dp)
         )
     }

@@ -41,6 +41,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.ui.components.EmptyState
@@ -108,7 +109,11 @@ fun ArchiveScreen(
                             modifier = Modifier.testTag("select_all_archive_button")
                         ) {
                             Icon(
-                                imageVector = if (isAllSelected) Icons.Default.Deselect else Icons.Default.SelectAll,
+                                imageVector = if (isAllSelected) {
+                                    Icons.Default.Deselect
+                                } else {
+                                    Icons.Default.SelectAll
+                                },
                                 contentDescription = if (isAllSelected) {
                                     stringResource(R.string.action_deselect_all)
                                 } else {
@@ -211,7 +216,11 @@ fun ArchiveScreen(
                             onUnarchive = { onRestoreNote(note.id) },
                             searchQuery = "",
                             onClick = {
-                                if (isSelectionMode) onToggleSelection(note.id) else onNoteClick(note)
+                                if (isSelectionMode) {
+                                    onToggleSelection(note.id)
+                                } else {
+                                    onNoteClick(note)
+                                }
                             },
                             onLongClick = { onToggleSelection(note.id) }
                         )
@@ -222,7 +231,7 @@ fun ArchiveScreen(
     }
 }
 
-/** Small rounded counter used by the archive and trash toolbars. */
+/** Small rounded counter shared by the archive and trash toolbars. */
 @Composable
 internal fun CountBadge(count: Int) {
     Surface(

@@ -1,6 +1,12 @@
 <resources>
+    <!--
+      Compose draws the whole UI, so the platform theme only needs a
+      no-action-bar shell plus the correct system-bar appearance.
+    -->
     <style name="Theme.EliteMemoPro" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@color/system_bar_scrim_light</item>
+        <item name="android:navigationBarColor">@color/system_bar_scrim_light</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
     </style>
 </resources>

@@ -1,33 +1,37 @@
 <resources>
     <string name="app_name">Elite Memo Pro</string>
-    <string name="search_hint">Search notes, titles, thoughts...</string>
+    <string name="search_hint">Search notes, titles, thoughts…</string>
     <string name="menu_search">Search</string>
     <string name="action_save">Save</string>
-    <string name="add_note">New Note</string>
+    <string name="action_back">Back</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_edit">Edit</string>
+    <string name="add_note">New note</string>
     <string name="note_title_hint">Title</string>
-    <string name="note_content_hint">Start typing your thoughts here...</string>
+    <string name="note_content_hint">Start typing your thoughts here…</string>
     <string name="empty_notes_title">No notes yet</string>
     <string name="empty_notes_subtitle">Tap the + button below to write your first note</string>
-    <string name="search_no_results">No matching notes</string>
-    <string name="search_no_results_subtitle">Try searching for a different keyword</string>
     <string name="settings_title">Settings</string>
     <string name="theme_setting">Appearance</string>
-    <string name="security_setting">Security &amp; Privacy</string>
-    <string name="biometric_lock">Biometric / App Lock</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="security_setting">Security &amp; privacy</string>
+    <string name="biometric_lock">Biometric / app lock</string>
     <string name="biometric_lock_desc">Require biometric or device credential to unlock notes</string>
     <string name="app_info">About Elite Memo Pro</string>
+    <string name="app_info_description">Crafted with Kotlin Coroutines, Jetpack Compose Material 3, and Room local persistence.</string>
     <string name="version_label">Version %1$s (Kotlin &amp; Compose M3)</string>
-    <string name="delete_confirmation_title">Delete Notes</string>
-    <string name="delete_confirmation_msg">Are you sure you want to delete the selected notes? This cannot be undone.</string>
+    <string name="delete_confirmation_title">Delete notes?</string>
+    <string name="delete_confirmation_msg">The selected notes will be permanently deleted from this device. This cannot be undone.</string>
 
     <!-- Screen titles -->
     <string name="title_archive">Archive</string>
-    <string name="title_trash">Trash &amp; Recycler</string>
+    <string name="title_trash">Trash &amp; recycler</string>
     <string name="title_notes">Notes</string>
 
     <!-- Shared actions -->
     <string name="action_undo">Undo</string>
-    <string name="action_dismiss">Dismiss</string>
     <string name="action_retry">Try again</string>
     <string name="action_clear_filters">Clear filters</string>
     <string name="action_clear_search">Clear search</string>
@@ -43,16 +47,36 @@
     <string name="action_restore">Restore</string>
     <string name="action_delete_forever">Delete forever</string>
     <string name="action_unarchive">Unarchive</string>
-    <string name="action_empty_trash">Empty Trash</string>
+    <string name="action_empty_trash">Empty trash</string>
+    <string name="a11y_open_drawer">Open navigation menu</string>
+
+    <!-- Navigation drawer -->
+    <string name="drawer_subtitle">Smart notes &amp; organization</string>
+    <string name="drawer_labels">Labels</string>
+    <string name="drawer_create_label">Create new label / edit labels</string>
+    <string name="link_view_source">View source on GitHub</string>
+    <string name="link_report_issue">Report an issue</string>
+
+    <!-- Settings -->
+    <string name="settings_stats_title">Workspace statistics</string>
+    <string name="settings_stat_notes">Total notes</string>
+    <string name="settings_stat_pinned">Pinned</string>
+    <string name="settings_stat_words">Words</string>
 
     <!-- Filter row / results sub-header -->
     <string name="filter_chip_all">All</string>
     <string name="filter_summary_all">All notes</string>
-    <string name="filter_summary_query">Results for "%1$s"</string>
-    <string name="filter_summary_query_in_tag">Searching "%1$s" in %2$s</string>
+    <string name="filter_summary_query">Results for &quot;%1$s&quot;</string>
+    <string name="filter_summary_query_in_tag">Searching &quot;%1$s&quot; in %2$s</string>
     <string name="filter_summary_tag">Filtered by %1$s</string>
-    <string name="filter_summary_color">Filtered by color</string>
+    <string name="filter_summary_color">Filtered by colour</string>
     <string name="filter_results_count">%1$d found</string>
+
+    <!-- Note type bottom sheet -->
+    <string name="note_type_text">Text note</string>
+    <string name="note_type_text_desc">Standard text, checklist, and labels</string>
+    <string name="note_type_drawing">Drawing note</string>
+    <string name="note_type_drawing_desc">Free-hand sketch and doodle canvas</string>
 
     <!-- Loading / empty / error states -->
     <string name="loading_notes">Loading your notes</string>
@@ -64,17 +88,20 @@
     <string name="empty_archive_subtitle">Notes you archive will be stored here safely.</string>
     <string name="empty_trash_title">Trash is empty</string>
     <string name="empty_trash_subtitle">Deleted notes will appear here so you can restore them.</string>
-    <string name="error_title">Something went wrong</string>
+    <string name="error_title">Something went wrong. Please try again.</string>
+    <string name="trash_disclaimer">Notes here are recycled. You can restore them anytime or delete them permanently.</string>
+    <string name="empty_trash_confirm_title">Empty trash?</string>
+    <string name="empty_trash_confirm_message">Everything in the trash will be permanently deleted. This action cannot be reversed.</string>
 
     <!-- Feedback messages -->
-    <string name="snackbar_moved_to_trash">%1$d note(s) moved to Trash</string>
+    <string name="snackbar_moved_to_trash">%1$d note(s) moved to trash</string>
     <string name="snackbar_archived">%1$d note(s) archived</string>
     <string name="snackbar_restored">%1$d note(s) restored</string>
     <string name="snackbar_deleted_permanently">%1$d note(s) deleted permanently</string>
     <string name="selection_count">%1$d selected</string>
 
     <!-- Note card -->
-    <string name="note_untitled">Untitled Note</string>
+    <string name="note_untitled">Untitled note</string>
     <string name="note_pinned">Pinned note</string>
     <string name="note_drawing_badge">Drawing</string>
     <string name="note_reminder_chip">Reminder</string>
@@ -83,9 +110,7 @@
     <string name="a11y_open_note">Open note</string>
     <string name="a11y_select_note">Select note</string>
     <string name="a11y_drawing_preview">Drawing preview</string>
-    <string name="a11y_color_filter">Filter by %1$s color</string>
-    <string name="a11y_note_selected">Selected</string>
-    <string name="a11y_note_not_selected">Not selected</string>
+    <string name="a11y_color_filter">Filter by %1$s colour</string>
 
     <!-- Editor top bar -->
     <string name="editor_save">Save and close</string>
@@ -95,7 +120,7 @@
     <string name="editor_reminder_add">Add reminder</string>
     <string name="editor_reminder_edit">Edit reminder</string>
     <string name="editor_checklist">Checklist format</string>
-    <string name="editor_color">Note color</string>
+    <string name="editor_color">Note colour</string>
     <string name="editor_drawing">Open drawing canvas</string>
     <string name="editor_archive">Archive note</string>
 

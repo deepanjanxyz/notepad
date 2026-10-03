@@ -12,13 +12,15 @@ import com.deepanjanxyz.notepad.data.local.entity.NoteEntity
 @Database(
     entities = [NoteEntity::class, LabelEntity::class],
     version = 5,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao
     abstract fun labelDao(): LabelDao
 
     companion object {
+        private const val DATABASE_NAME = "notes.db"
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -27,9 +29,14 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "notes.db"
+                    DATABASE_NAME
                 )
-                    .fallbackToDestructiveMigration()
+                    // Destructive migration is deliberately NOT enabled: silently
+                    // wiping the user's notes when the schema changes is never
+                    // acceptable. Exported schemas (see the room.schemaLocation
+                    // argument) make it possible to author an explicit Migration
+                    // and register it here via addMigrations(...) before any
+                    // future version bump ships.
                     .build()
                 INSTANCE = instance
                 instance

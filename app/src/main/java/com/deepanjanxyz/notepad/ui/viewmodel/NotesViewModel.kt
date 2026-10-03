@@ -26,9 +26,36 @@ sealed interface Screen {
     data object Settings : Screen
 }
 
+/** Kind of transient feedback shown after a note operation. */
+enum class FeedbackType {
+    MOVED_TO_TRASH,
+    ARCHIVED,
+    RESTORED,
+    DELETED_PERMANENTLY,
+    ACTION_FAILED
+}
+
+/**
+ * A user-facing result message. It is deliberately resource-free so the view
+ * model stays Android-UI agnostic; the host activity maps it to a localised
+ * string and decides whether to offer an Undo action.
+ */
+data class FeedbackMessage(
+    val type: FeedbackType,
+    val count: Int = 0,
+    val isUndoable: Boolean = false
+)
+
 data class NotesUiState(
     val currentScreen: Screen = Screen.Home,
     val isSelectionMode: Boolean = false,
+    /**
+     * Single source of truth for multi-selection.
+     *
+     * Home, Archive and Trash all read this set. They used to keep private
+     * copies, which meant archive/trash bulk actions operated on a different set
+     * than the one the view model read and therefore did nothing.
+     */
     val selectedNoteIds: Set<Long> = emptySet(),
     val isLocked: Boolean = false,
     val lockEnabled: Boolean = false,
@@ -37,7 +64,8 @@ data class NotesUiState(
     val searchQuery: String = "",
     val selectedColorFilter: Int? = null,
     val selectedTagFilter: String? = null,
-    val showEditLabelsDialog: Boolean = false
+    val showEditLabelsDialog: Boolean = false,
+    val feedback: FeedbackMessage? = null
 )
 
 class NotesViewModel(application: Application) : AndroidViewModel(application) {
@@ -64,6 +92,10 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _selectedTagFilter = MutableStateFlow<String?>(null)
     val selectedTagFilter: StateFlow<String?> = _selectedTagFilter.asStateFlow()
+
+    /** Undo history for the most recent destructive action. */
+    private var lastTrashedIds: List<Long> = emptyList()
+    private var lastArchivedIds: List<Long> = emptyList()
 
     // Room DB Labels Stream - starts completely clean
     val roomLabels: StateFlow<List<String>> = labelUseCases.getLabels()
@@ -129,6 +161,25 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         initialValue = emptyList()
     )
 
+    /**
+     * False only while the first database emission is still pending on a screen
+     * that shows a note list. The UI uses it to tell "loading" apart from
+     * "genuinely empty", which the old empty-state flash got wrong.
+     */
+    val isContentReady: StateFlow<Boolean> = combine(
+        uiState,
+        rawActiveNotes,
+        archiveNotes,
+        trashNotes
+    ) { state, active, archive, trash ->
+        state.currentScreen is Screen.Settings ||
+            active.isNotEmpty() || archive.isNotEmpty() || trash.isNotEmpty()
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false
+    )
+
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
         _uiState.value = _uiState.value.copy(searchQuery = query)
@@ -159,9 +210,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         if (trimmed.isNotBlank()) {
             val exists = allTags.value.any { it.equals(trimmed, ignoreCase = true) }
             if (!exists) {
-                viewModelScope.launch {
-                    labelUseCases.addLabel(trimmed)
-                }
+                viewModelScope.launch { labelUseCases.addLabel(trimmed) }
             }
         }
     }
@@ -171,9 +220,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         if (trimmed.isNotBlank() && !trimmed.equals(oldName, ignoreCase = true)) {
             val exists = allTags.value.any { it.equals(trimmed, ignoreCase = true) }
             if (!exists) {
-                viewModelScope.launch {
-                    labelUseCases.renameLabel(oldName, trimmed)
-                }
+                viewModelScope.launch { labelUseCases.renameLabel(oldName, trimmed) }
             }
         }
     }
@@ -214,11 +261,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleSelection(noteId: Long) {
         val current = _uiState.value.selectedNoteIds.toMutableSet()
-        if (current.contains(noteId)) {
-            current.remove(noteId)
-        } else {
-            current.add(noteId)
-        }
+        if (current.contains(noteId)) current.remove(noteId) else current.add(noteId)
         _uiState.value = _uiState.value.copy(
             selectedNoteIds = current,
             isSelectionMode = current.isNotEmpty()
@@ -255,9 +298,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         val shouldPin = selectedNotes.any { !it.isPinned }
 
         viewModelScope.launch {
-            selectedIds.forEach { id ->
-                noteUseCases.togglePin(id, shouldPin)
-            }
+            selectedIds.forEach { id -> noteUseCases.togglePin(id, shouldPin) }
             clearSelection()
         }
     }
@@ -276,48 +317,97 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     fun moveSelectedToTrash(selectedIds: List<Long>) {
         val idsToTrash = selectedIds.distinct()
-        viewModelScope.launch {
-            noteUseCases.trashNote(idsToTrash)
-            idsToTrash.forEach { id ->
-                NoteReminderScheduler.cancelReminder(getApplication(), id)
-            }
+        if (idsToTrash.isEmpty()) {
             clearSelection()
+            return
+        }
+        viewModelScope.launch {
+            try {
+                noteUseCases.trashNote(idsToTrash)
+                idsToTrash.forEach { id ->
+                    NoteReminderScheduler.cancelReminder(getApplication(), id)
+                }
+                lastTrashedIds = idsToTrash
+                clearSelection()
+                emitFeedback(FeedbackType.MOVED_TO_TRASH, idsToTrash.size, undoable = true)
+            } catch (error: Exception) {
+                emitFeedback(FeedbackType.ACTION_FAILED)
+            }
         }
     }
 
     // Restore from Trash
     fun restoreFromTrash(noteId: Long) {
         viewModelScope.launch {
-            noteUseCases.restoreNote(noteId)
+            try {
+                noteUseCases.restoreNote(noteId)
+                emitFeedback(FeedbackType.RESTORED, 1)
+            } catch (error: Exception) {
+                emitFeedback(FeedbackType.ACTION_FAILED)
+            }
         }
     }
 
-    fun restoreSelectedTrashNotes() {
-        val idsToRestore = _uiState.value.selectedNoteIds.toList()
-        viewModelScope.launch {
-            noteUseCases.restoreNote(idsToRestore)
+    fun restoreSelectedTrashNotes(ids: List<Long>) {
+        val idsToRestore = ids.distinct()
+        if (idsToRestore.isEmpty()) {
             clearSelection()
+            return
+        }
+        viewModelScope.launch {
+            try {
+                noteUseCases.restoreNote(idsToRestore)
+                clearSelection()
+                emitFeedback(FeedbackType.RESTORED, idsToRestore.size)
+            } catch (error: Exception) {
+                emitFeedback(FeedbackType.ACTION_FAILED)
+            }
         }
     }
 
     // Archive / Unarchive
     fun moveToArchive(noteId: Long) {
         viewModelScope.launch {
-            noteUseCases.archiveNote.moveToArchive(noteId)
+            try {
+                noteUseCases.archiveNote.moveToArchive(noteId)
+                lastArchivedIds = listOf(noteId)
+                emitFeedback(FeedbackType.ARCHIVED, 1, undoable = true)
+            } catch (error: Exception) {
+                emitFeedback(FeedbackType.ACTION_FAILED)
+            }
         }
     }
 
     fun moveSelectedToArchive() {
-        val ids = _uiState.value.selectedNoteIds.toList()
-        viewModelScope.launch {
-            noteUseCases.archiveNote.moveNotesToArchive(ids)
+        moveSelectedToArchive(_uiState.value.selectedNoteIds.toList())
+    }
+
+    fun moveSelectedToArchive(ids: List<Long>) {
+        val idsToArchive = ids.distinct()
+        if (idsToArchive.isEmpty()) {
             clearSelection()
+            return
+        }
+        viewModelScope.launch {
+            try {
+                noteUseCases.archiveNote.moveNotesToArchive(idsToArchive)
+                lastArchivedIds = idsToArchive
+                clearSelection()
+                emitFeedback(FeedbackType.ARCHIVED, idsToArchive.size, undoable = true)
+            } catch (error: Exception) {
+                emitFeedback(FeedbackType.ACTION_FAILED)
+            }
         }
     }
 
     fun restoreFromArchive(noteId: Long) {
         viewModelScope.launch {
-            noteUseCases.archiveNote.restoreFromArchive(noteId)
+            try {
+                noteUseCases.archiveNote.restoreFromArchive(noteId)
+                emitFeedback(FeedbackType.RESTORED, 1)
+            } catch (error: Exception) {
+                emitFeedback(FeedbackType.ACTION_FAILED)
+            }
         }
     }
 
@@ -328,35 +418,93 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         viewModelScope.launch {
-            noteUseCases.archiveNote.restoreNotesFromArchive(ids)
-            clearSelection()
+            try {
+                noteUseCases.archiveNote.restoreNotesFromArchive(ids)
+                clearSelection()
+                emitFeedback(FeedbackType.RESTORED, ids.size)
+            } catch (error: Exception) {
+                emitFeedback(FeedbackType.ACTION_FAILED)
+            }
         }
     }
 
     // Permanent deletion in Trash
     fun permanentlyDelete(noteId: Long) {
         viewModelScope.launch {
-            noteUseCases.permanentlyDeleteNote(noteId)
-            NoteReminderScheduler.cancelReminder(getApplication(), noteId)
+            try {
+                noteUseCases.permanentlyDeleteNote(noteId)
+                NoteReminderScheduler.cancelReminder(getApplication(), noteId)
+                emitFeedback(FeedbackType.DELETED_PERMANENTLY, 1)
+            } catch (error: Exception) {
+                emitFeedback(FeedbackType.ACTION_FAILED)
+            }
         }
     }
 
-    fun permanentlyDeleteSelectedTrashNotes() {
-        val idsToDelete = _uiState.value.selectedNoteIds.toList()
-        viewModelScope.launch {
-            noteUseCases.permanentlyDeleteNote(idsToDelete)
-            idsToDelete.forEach { id ->
-                NoteReminderScheduler.cancelReminder(getApplication(), id)
-            }
+    fun permanentlyDeleteSelectedTrashNotes(ids: List<Long>) {
+        val idsToDelete = ids.distinct()
+        if (idsToDelete.isEmpty()) {
             clearSelection()
+            return
+        }
+        viewModelScope.launch {
+            try {
+                noteUseCases.permanentlyDeleteNote(idsToDelete)
+                idsToDelete.forEach { id ->
+                    NoteReminderScheduler.cancelReminder(getApplication(), id)
+                }
+                clearSelection()
+                emitFeedback(FeedbackType.DELETED_PERMANENTLY, idsToDelete.size)
+            } catch (error: Exception) {
+                emitFeedback(FeedbackType.ACTION_FAILED)
+            }
         }
     }
 
     fun emptyTrash() {
         viewModelScope.launch {
-            noteUseCases.emptyTrash()
-            clearSelection()
+            try {
+                noteUseCases.emptyTrash()
+                clearSelection()
+            } catch (error: Exception) {
+                emitFeedback(FeedbackType.ACTION_FAILED)
+            }
         }
+    }
+
+    /** Reverts the most recent destructive action, if it is still undoable. */
+    fun undoLastAction() {
+        val trashed = lastTrashedIds
+        val archived = lastArchivedIds
+        lastTrashedIds = emptyList()
+        lastArchivedIds = emptyList()
+        viewModelScope.launch {
+            try {
+                when {
+                    trashed.isNotEmpty() -> {
+                        noteUseCases.restoreNote(trashed)
+                        emitFeedback(FeedbackType.RESTORED, trashed.size)
+                    }
+                    archived.isNotEmpty() -> {
+                        noteUseCases.archiveNote.restoreNotesFromArchive(archived)
+                        emitFeedback(FeedbackType.RESTORED, archived.size)
+                    }
+                    else -> dismissFeedback()
+                }
+            } catch (error: Exception) {
+                emitFeedback(FeedbackType.ACTION_FAILED)
+            }
+        }
+    }
+
+    fun dismissFeedback() {
+        _uiState.value = _uiState.value.copy(feedback = null)
+    }
+
+    private fun emitFeedback(type: FeedbackType, count: Int = 0, undoable: Boolean = false) {
+        _uiState.value = _uiState.value.copy(
+            feedback = FeedbackMessage(type = type, count = count, isUndoable = undoable)
+        )
     }
 
     // Note Editor actions

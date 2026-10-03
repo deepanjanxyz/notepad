@@ -8,8 +8,11 @@ import androidx.activity.viewModels
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -31,16 +34,24 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -56,31 +67,26 @@ import com.deepanjanxyz.notepad.ui.screens.NoteEditorScreen
 import com.deepanjanxyz.notepad.ui.screens.SettingsScreen
 import com.deepanjanxyz.notepad.ui.screens.TrashScreen
 import com.deepanjanxyz.notepad.ui.theme.EliteMemoTheme
+import com.deepanjanxyz.notepad.ui.viewmodel.FeedbackType
 import com.deepanjanxyz.notepad.ui.viewmodel.NotesViewModel
 import com.deepanjanxyz.notepad.ui.viewmodel.Screen
 import kotlinx.coroutines.launch
+
+/** Extra used by the reminder notification to deep link into a specific note. */
+private const val EXTRA_OPEN_NOTE_ID = "open_note_id"
 
 class MainActivity : FragmentActivity() {
 
     private val viewModel: NotesViewModel by viewModels()
 
-    private fun handleNotificationIntent(intent: Intent?) {
-        val noteId = intent?.getLongExtra("open_note_id", -1L) ?: -1L
-        if (noteId > 0L) {
-            viewModel.navigateTo(Screen.Editor(noteId))
-        }
-    }
-
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleNotificationIntent(intent)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        handleNotificationIntent(intent)
 
         setContent {
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -90,9 +96,54 @@ class MainActivity : FragmentActivity() {
             val trashNotes by viewModel.trashNotes.collectAsStateWithLifecycle()
             val roomLabels by viewModel.roomLabels.collectAsStateWithLifecycle()
             val allTags by viewModel.allTags.collectAsStateWithLifecycle()
+            val isContentReady by viewModel.isContentReady.collectAsStateWithLifecycle()
 
             val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
             val scope = rememberCoroutineScope()
+            val context = LocalContext.current
+            val snackbarHostState = remember { SnackbarHostState() }
+
+            // A reminder notification must not push the user past the app lock.
+            val pendingNoteId = intent?.getLongExtra(EXTRA_OPEN_NOTE_ID, -1L) ?: -1L
+            LaunchedEffect(uiState.isLocked, pendingNoteId) {
+                if (!uiState.isLocked && pendingNoteId > 0L) {
+                    viewModel.navigateTo(Screen.Editor(pendingNoteId))
+                    intent?.removeExtra(EXTRA_OPEN_NOTE_ID)
+                }
+            }
+
+            // Single place that turns a view-model feedback message into a
+            // localised snackbar, offering Undo for reversible operations.
+            val feedback = uiState.feedback
+            LaunchedEffect(feedback) {
+                if (feedback == null) return@LaunchedEffect
+                val message = when (feedback.type) {
+                    FeedbackType.MOVED_TO_TRASH ->
+                        context.getString(R.string.snackbar_moved_to_trash, feedback.count)
+                    FeedbackType.ARCHIVED ->
+                        context.getString(R.string.snackbar_archived, feedback.count)
+                    FeedbackType.RESTORED ->
+                        context.getString(R.string.snackbar_restored, feedback.count)
+                    FeedbackType.DELETED_PERMANENTLY ->
+                        context.getString(R.string.snackbar_deleted_permanently, feedback.count)
+                    FeedbackType.ACTION_FAILED -> context.getString(R.string.error_title)
+                }
+                val result = snackbarHostState.showSnackbar(
+                    message = message,
+                    actionLabel = if (feedback.isUndoable) {
+                        context.getString(R.string.action_undo)
+                    } else {
+                        null
+                    },
+                    withDismissAction = !feedback.isUndoable,
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    viewModel.undoLastAction()
+                } else {
+                    viewModel.dismissFeedback()
+                }
+            }
 
             EliteMemoTheme(themeMode = uiState.themeMode) {
                 Surface(
@@ -102,7 +153,8 @@ class MainActivity : FragmentActivity() {
                     if (uiState.isLocked && uiState.lockEnabled) {
                         LockScreen(
                             onUnlockRequest = { showBiometricPrompt() },
-                            onBypass = { viewModel.unlockApp() }
+                            onBypass = { viewModel.unlockApp() },
+                            showBypassAction = !canAuthenticateWithDeviceCredentials()
                         )
 
                         LaunchedEffect(Unit) {
@@ -149,11 +201,25 @@ class MainActivity : FragmentActivity() {
                         ) {
                             Scaffold(
                                 modifier = Modifier.fillMaxSize(),
-                                contentWindowInsets = WindowInsets(0, 0, 0, 0)
+                                contentWindowInsets = WindowInsets(0, 0, 0, 0),
+                                snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
                             ) { innerPadding ->
                                 AnimatedContent(
                                     targetState = uiState.currentScreen,
-                                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                                    transitionSpec = {
+                                        val forward = navigationDepth(targetState) >= navigationDepth(initialState)
+                                        val enter = slideInHorizontally(
+                                            animationSpec = tween(
+                                                durationMillis = 280,
+                                                easing = FastOutSlowInEasing
+                                            ),
+                                            initialOffsetX = { width ->
+                                                if (forward) width / 5 else -width / 5
+                                            }
+                                        ) + fadeIn(animationSpec = tween(durationMillis = 220))
+                                        val exit = fadeOut(animationSpec = tween(durationMillis = 160))
+                                        enter togetherWith exit
+                                    },
                                     label = "screen_transition",
                                     modifier = Modifier.padding(innerPadding)
                                 ) { screen ->
@@ -163,6 +229,7 @@ class MainActivity : FragmentActivity() {
                                                 uiState = uiState,
                                                 notes = filteredNotes,
                                                 allTags = allTags,
+                                                isContentReady = isContentReady,
                                                 onOpenDrawer = {
                                                     scope.launch { drawerState.open() }
                                                 },
@@ -234,6 +301,8 @@ class MainActivity : FragmentActivity() {
                                             ArchiveScreen(
                                                 notes = archiveNotes,
                                                 isGridLayout = uiState.isGridLayout,
+                                                isContentReady = isContentReady,
+                                                selectedNoteIds = uiState.selectedNoteIds,
                                                 onOpenDrawer = {
                                                     scope.launch { drawerState.open() }
                                                 },
@@ -245,6 +314,9 @@ class MainActivity : FragmentActivity() {
                                                 onMoveSelectedToTrash = { selectedIds ->
                                                     viewModel.moveSelectedToTrash(selectedIds)
                                                 },
+                                                onToggleSelection = { viewModel.toggleSelection(it) },
+                                                onSelectAll = { viewModel.selectAll(archiveNotes) },
+                                                onClearSelection = { viewModel.clearSelection() },
                                                 onNoteClick = { note ->
                                                     if (DrawingSerializer.isDrawing(note.content)) {
                                                         viewModel.navigateTo(Screen.Drawing(note.id))
@@ -259,14 +331,23 @@ class MainActivity : FragmentActivity() {
                                             TrashScreen(
                                                 trashNotes = trashNotes,
                                                 isGridLayout = uiState.isGridLayout,
+                                                isContentReady = isContentReady,
+                                                selectedNoteIds = uiState.selectedNoteIds,
                                                 onOpenDrawer = {
                                                     scope.launch { drawerState.open() }
                                                 },
                                                 onRestoreNote = { viewModel.restoreFromTrash(it) },
                                                 onPermanentlyDeleteNote = { viewModel.permanentlyDelete(it) },
                                                 onEmptyTrash = { viewModel.emptyTrash() },
-                                                onRestoreSelected = { viewModel.restoreSelectedTrashNotes() },
-                                                onPermanentlyDeleteSelected = { viewModel.permanentlyDeleteSelectedTrashNotes() }
+                                                onRestoreSelected = { selectedIds ->
+                                                    viewModel.restoreSelectedTrashNotes(selectedIds)
+                                                },
+                                                onPermanentlyDeleteSelected = { selectedIds ->
+                                                    viewModel.permanentlyDeleteSelectedTrashNotes(selectedIds)
+                                                },
+                                                onToggleSelection = { viewModel.toggleSelection(it) },
+                                                onSelectAll = { viewModel.selectAll(trashNotes) },
+                                                onClearSelection = { viewModel.clearSelection() }
                                             )
                                         }
 
@@ -302,10 +383,19 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    /** True when the device can authenticate at all, so the lock screen knows
+     * whether offering a fallback exit is meaningful. */
+    private fun canAuthenticateWithDeviceCredentials(): Boolean {
+        val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or
+            BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        return BiometricManager.from(this).canAuthenticate(authenticators) ==
+            BiometricManager.BIOMETRIC_SUCCESS
+    }
+
     private fun showBiometricPrompt() {
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Unlock Elite Memo Pro")
-            .setSubtitle("Confirm your biometric or device credentials")
+            .setTitle(getString(R.string.lock_title))
+            .setSubtitle(getString(R.string.lock_subtitle))
             .setAllowedAuthenticators(
                 BiometricManager.Authenticators.BIOMETRIC_STRONG or
                         BiometricManager.Authenticators.DEVICE_CREDENTIAL
@@ -336,10 +426,24 @@ class MainActivity : FragmentActivity() {
     }
 }
 
+/**
+ * Navigation depth drives the transition direction so going deeper slides in
+ * from the leading edge and going back slides out to it, instead of the flat
+ * cross-fade that made every navigation feel identical.
+ */
+private fun navigationDepth(screen: Screen): Int = when (screen) {
+    is Screen.Home -> 0
+    is Screen.Archive, is Screen.Trash -> 1
+    is Screen.Settings -> 2
+    is Screen.Editor -> 3
+    is Screen.Drawing -> 4
+}
+
 @Composable
 fun LockScreen(
     onUnlockRequest: () -> Unit,
     onBypass: () -> Unit,
+    showBypassAction: Boolean,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -371,7 +475,7 @@ fun LockScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "Elite Memo Pro is Locked",
+                text = stringResource(R.string.lock_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -380,7 +484,7 @@ fun LockScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Authenticate to access your personal notes",
+                text = stringResource(R.string.lock_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -397,7 +501,19 @@ fun LockScreen(
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.size(8.dp))
-                Text("Unlock with Biometrics")
+                Text(stringResource(R.string.lock_unlock_action))
+            }
+
+            // Only offered when the device has no enrolled credential at all -
+            // previously this path silently unlocked the app with no explanation.
+            if (showBypassAction) {
+                Spacer(modifier = Modifier.height(8.dp))
+                TextButton(
+                    onClick = onBypass,
+                    modifier = Modifier.testTag("lock_bypass_button")
+                ) {
+                    Text(stringResource(R.string.lock_fallback_action))
+                }
             }
         }
     }

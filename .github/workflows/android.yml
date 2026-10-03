@@ -1,24 +1,14 @@
-name: Android CI
+name: Build and Sign APK
 
 on:
-  push:
-    branches:
-      - dev
-  pull_request:
-    branches:
-      - dev
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: android-ci-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  verify:
-    name: Unit tests & debug build
+  build:
+    name: Build and sign release APK
     runs-on: ubuntu-latest
 
     steps:
@@ -38,15 +28,30 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Run unit tests
-        run: ./gradlew test --stacktrace
+      - name: Build unsigned release APK
+        run: ./gradlew assembleRelease
 
-      - name: Assemble debug build
-        run: ./gradlew assembleDebug --stacktrace
+      - name: Decode keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/my-release-key.jks
 
-      - name: Upload test reports
+      - name: Sign APK
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" ! -name "*-signed.apk" | head -n 1)
+          BUILD_TOOLS_DIR=$ANDROID_HOME/build-tools/36.0.0
+          $BUILD_TOOLS_DIR/apksigner sign \
+            --ks app/my-release-key.jks \
+            --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
+            --ks-key-alias ${{ secrets.KEY_ALIAS }} \
+            --key-pass pass:${{ secrets.KEY_PASSWORD }} \
+            --out app/build/outputs/apk/release/app-release-signed.apk \
+            "$APK_PATH"
+
+      - name: Remove keystore file
         if: always()
+        run: rm -f app/my-release-key.jks
+
+      - name: Upload signed APK artifact
         uses: actions/upload-artifact@v7
         with:
-          name: test-reports
-          path: '**/build/reports/tests/**'
+          name: release-apk
+          path: app/build/outputs/apk/release/app-release-signed.apk

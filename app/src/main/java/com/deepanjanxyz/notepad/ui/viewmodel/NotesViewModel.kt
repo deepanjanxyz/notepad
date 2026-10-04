@@ -1,6 +1,7 @@
 package com.deepanjanxyz.notepad.ui.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.deepanjanxyz.notepad.NotepadApplication
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.IOException
 
 sealed interface Screen {
     data object Home : Screen
@@ -49,6 +51,10 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(NotesUiState())
     val uiState: StateFlow<NotesUiState> = _uiState.asStateFlow()
+
+    private companion object {
+        const val TAG = "NotesViewModel"
+    }
 
     init {
         observeSettings()
@@ -166,9 +172,9 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleLayoutView() {
         val newLayout = !_uiState.value.isGridLayout
-        viewModelScope.launch {
-            settingsUseCases.saveSettings.setGridLayout(newLayout)
-        }
+        // Update synchronously so two quick toggles don't both read the same value.
+        _uiState.update { it.copy(isGridLayout = newLayout) }
+        persistSetting("layout") { settingsUseCases.saveSettings.setGridLayout(newLayout) }
     }
 
     fun setEditLabelsDialogVisible(visible: Boolean) {
@@ -221,15 +227,36 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setLockEnabled(enabled: Boolean) {
-        viewModelScope.launch {
+        // Reflect the change only once it is persisted, so a failed write is never
+        // reported to the user as saved.
+        persistSetting(
+            label = "lock",
+            onSuccess = { _uiState.update { it.copy(lockEnabled = enabled, isLocked = enabled) } }
+        ) {
             settingsUseCases.saveSettings.setLockEnabled(enabled)
-            _uiState.update { it.copy(lockEnabled = enabled, isLocked = enabled) }
         }
     }
 
     fun setTheme(theme: String) {
+        persistSetting("theme") { settingsUseCases.saveSettings.setThemeMode(theme) }
+    }
+
+    /**
+     * Persists a settings change, logging (instead of crashing on) a failed write.
+     * [onSuccess] runs only after the value has been durably stored.
+     */
+    private fun persistSetting(
+        label: String,
+        onSuccess: () -> Unit = {},
+        block: suspend () -> Unit
+    ) {
         viewModelScope.launch {
-            settingsUseCases.saveSettings.setThemeMode(theme)
+            try {
+                block()
+                onSuccess()
+            } catch (e: IOException) {
+                Log.w(TAG, "Failed to persist $label setting", e)
+            }
         }
     }
 

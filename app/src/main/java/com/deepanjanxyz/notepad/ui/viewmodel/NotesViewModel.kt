@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -174,7 +175,19 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         val newLayout = !_uiState.value.isGridLayout
         // Update synchronously so two quick toggles don't both read the same value.
         _uiState.update { it.copy(isGridLayout = newLayout) }
-        persistSetting("layout") { settingsUseCases.saveSettings.setGridLayout(newLayout) }
+        persistSetting(
+            label = "layout",
+            onFailure = {
+                // Restore the persisted value, but only if no newer toggle has
+                // superseded this optimistic one in the meantime.
+                if (_uiState.value.isGridLayout == newLayout) {
+                    val persisted = settingsUseCases.getSettings().first().isGridLayout
+                    _uiState.update { it.copy(isGridLayout = persisted) }
+                }
+            }
+        ) {
+            settingsUseCases.saveSettings.setGridLayout(newLayout)
+        }
     }
 
     fun setEditLabelsDialogVisible(visible: Boolean) {
@@ -243,11 +256,13 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * Persists a settings change, logging (instead of crashing on) a failed write.
-     * [onSuccess] runs only after the value has been durably stored.
+     * [onSuccess] runs only after the value has been durably stored, and
+     * [onFailure] runs after a write that could not be persisted.
      */
     private fun persistSetting(
         label: String,
         onSuccess: () -> Unit = {},
+        onFailure: suspend () -> Unit = {},
         block: suspend () -> Unit
     ) {
         viewModelScope.launch {
@@ -256,6 +271,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
                 onSuccess()
             } catch (e: IOException) {
                 Log.w(TAG, "Failed to persist $label setting", e)
+                onFailure()
             }
         }
     }

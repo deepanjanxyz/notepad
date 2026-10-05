@@ -3,8 +3,9 @@
 
 The driver only uses adb: it locates real UI elements from `uiautomator dump`
 output (by text or content description) and acts on their bounds, so nothing
-relies on hard-coded screen coordinates. Notes are located through the app's
-own search field rather than by scrolling the list.
+relies on hard-coded screen coordinates. Note dispositions (pin, archive, label,
+trash) are applied while the note is still the one on screen, so no list
+scrolling is ever required.
 """
 
 import os
@@ -173,11 +174,6 @@ def scroll_top():
         time.sleep(0.2)
 
 
-def hide_ime():
-    adb("shell", "input", "keyevent", "4")
-    time.sleep(0.5)
-
-
 def sanitize(text):
     allowed = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ,.-")
     cleaned = "".join(c for c in text if c in allowed)
@@ -262,6 +258,14 @@ def at_home(xml):
     return find(xml, desc="New Note") or find(xml, text="All")
 
 
+def ensure_home(max_presses=2):
+    for _ in range(max_presses + 1):
+        if at_home(dump()):
+            return True
+        press_back()
+    return bool(at_home(dump()))
+
+
 def close_overlays(max_presses=4):
     for _ in range(max_presses):
         if any(m in dump() for m in SHEET_MARKERS):
@@ -270,15 +274,7 @@ def close_overlays(max_presses=4):
             return
 
 
-def ensure_home(max_presses=6):
-    for _ in range(max_presses):
-        if at_home(dump()):
-            return True
-        press_back()
-    return bool(at_home(dump()))
-
-
-def close_drawer(max_presses=4):
+def close_drawer(max_presses=3):
     for _ in range(max_presses):
         if not find(dump(), text="Source on GitHub"):
             return True
@@ -287,7 +283,6 @@ def close_drawer(max_presses=4):
 
 
 def clear_search():
-    hide_ime()
     for _ in range(3):
         if find(dump(), desc="Clear search text"):
             tap_desc("Clear search text", timeout=3)
@@ -308,15 +303,6 @@ def nav_to(name):
         return False
     time.sleep(0.6)
     found = wait_find(lambda x: find(x, text=name), timeout=5)
-    if not found:
-        w, h = screen_size()
-        for _ in range(3):
-            adb("shell", "input", "swipe", str(w // 2), str(int(h * 0.70)),
-                str(w // 2), str(int(h * 0.40)), "600")
-            time.sleep(0.5)
-            found = find(dump(), text=name)
-            if found:
-                break
     return tap_node(found[0]) if found else False
 
 
@@ -331,16 +317,24 @@ def dismiss_dialogs():
             return
 
 
-def search_open(title):
-    """Filter the note list to `title` using the search field and return its card."""
+def open_editor(title):
+    """Open a note through the app's search field (no list scrolling needed)."""
     ensure_home()
     clear_search()
     if not type_into(SEARCH_HINT, title):
-        return None
+        log("   open_editor: search field not found")
+        return False
     time.sleep(1.0)
-    hide_ime()
     found = wait_find(lambda x: find(x, text=title), timeout=8)
-    return found[0] if found else None
+    if not found:
+        log("   open_editor: '%s' not in search results" % title)
+        clear_search()
+        return False
+    tap_node(found[0])
+    ok = wait_find(lambda x: find(x, desc="Save and Close"), timeout=8)
+    if not ok:
+        log("   open_editor: editor did not open for '%s'" % title)
+    return ok
 
 
 # ---------------------------------------------------------------- app flow
@@ -355,7 +349,15 @@ def launch_app():
     time.sleep(1.5)
 
 
-def add_text_note(title, content):
+def add_label(label):
+    if tap_any(desc="Add label", text="Add label"):
+        type_into("Create new label", label)
+        tap_desc("Create label", timeout=10)
+        time.sleep(0.5)
+        close_overlays()
+
+
+def create_text_note(title, content, pin=False, label=None, archive=False):
     if not tap_desc("New Note"):
         return False
     if not tap_text("Text Note"):
@@ -363,12 +365,18 @@ def add_text_note(title, content):
     if not type_into("Title", title):
         return False
     type_into("Note", content)
-    hide_ime()
-    tap_desc("Save and Close")
+    if label:
+        add_label(label)
+    if pin:
+        tap_desc("Pin Note", timeout=8)
+    if archive:
+        tap_desc("Archive Note", timeout=8)
+    else:
+        tap_desc("Save and Close")
     return ensure_home()
 
 
-def add_checklist_note(title, items):
+def create_checklist_note(title, items):
     if not tap_desc("New Note"):
         return False
     if not tap_text("Text Note"):
@@ -381,12 +389,11 @@ def add_checklist_note(title, items):
         type_into("List item", item)
         tap_desc("Add list item")
         time.sleep(0.3)
-    hide_ime()
     tap_desc("Save and Close")
     return ensure_home()
 
 
-def add_drawing_note(title):
+def create_drawing_note(title):
     if not tap_desc("New Note"):
         return False
     if not tap_text("Drawing Note"):
@@ -400,8 +407,8 @@ def add_drawing_note(title):
     ]:
         adb("shell", "input", "swipe", str(x1), str(y1), str(x2), str(y2), "350")
         time.sleep(0.3)
+    type_into("Title", title)
     type_into_field(0, title)
-    hide_ime()
     time.sleep(0.8)
     tap_desc("Back")
     wait_find(lambda x: find(x, desc="Save and Close"), timeout=15)
@@ -409,72 +416,19 @@ def add_drawing_note(title):
     return ensure_home()
 
 
-def open_editor(title):
-    node = search_open(title)
+def create_and_trash(title, content):
+    if not create_text_note(title, content):
+        return False
+    # The newest note is the first card in the list (ORDER BY PINNED DESC, ID DESC).
+    node = wait_find(lambda x: find(x, text=title), timeout=8)
     if not node:
-        log("   open_editor: '%s' not found via search" % title)
-        clear_search()
+        log("   create_and_trash: '%s' not on top of the list" % title)
         return False
-    tap_node(node)
-    ok = wait_find(lambda x: find(x, desc="Save and Close"), timeout=8)
-    if not ok:
-        log("   open_editor: editor did not open for '%s'" % title)
-    return ok
-
-
-def select_note(title):
-    node = search_open(title)
-    if not node:
-        log("   select_note: '%s' not found via search" % title)
-        clear_search()
-        return False
-    long_press(node)
-    ok = wait_find(lambda x: find(x, text="Selected", exact=False), timeout=8)
-    if not ok:
-        log("   select_note: selection did not engage for '%s'" % title)
-    return ok
-
-
-def finish_home():
-    ensure_home()
-    clear_search()
-
-
-def pin_note(title):
-    if not select_note(title):
-        return False
-    ok = tap_desc("Pin selected notes", timeout=8) or tap_desc("Unpin selected notes", timeout=4)
-    finish_home()
-    return ok
-
-
-def archive_note(title):
-    if not select_note(title):
-        return False
-    ok = tap_desc("Archive selected", timeout=8)
-    finish_home()
-    return ok
-
-
-def trash_note(title):
-    if not select_note(title):
+    long_press(node[0])
+    if not wait_find(lambda x: find(x, text="Selected", exact=False), timeout=8):
         return False
     ok = tap_desc("Move to Trash", timeout=8)
-    finish_home()
-    return ok
-
-
-def tag_note(title, label):
-    if not open_editor(title):
-        return False
-    if tap_any(desc="Add label", text="Add label"):
-        type_into("Create new label", label)
-        tap_desc("Create label", timeout=10)
-        time.sleep(0.6)
-        close_overlays()
-    tap_desc("Save and Close")
-    finish_home()
-    return True
+    return ensure_home() and ok
 
 
 def write_readme():
@@ -518,7 +472,8 @@ def safe(label, fn, *args):
 
 
 def capture_dark():
-    finish_home()
+    ensure_home()
+    clear_search()
     scroll_top()
     screenshot("01-home-grid-dark.png",
                "Home screen, two column grid layout, dark theme, with pinned notes and labels.")
@@ -531,7 +486,6 @@ def capture_dark():
 
     if type_into(SEARCH_HINT, "project"):
         time.sleep(1.0)
-        hide_ime()
         screenshot("03-search-results-dark.png",
                    "Search results filtering notes by the keyword project, dark theme.")
         clear_search()
@@ -557,35 +511,35 @@ def capture_dark():
                        "Color picker bottom sheet with the note color options.")
             close_overlays()
         tap_desc("Save and Close")
-        finish_home()
+        ensure_home()
 
     if open_editor("Grocery List"):
         screenshot("08-checklist-editor-dark.png",
                    "Checklist editor showing the list items and the add item row.")
         tap_desc("Save and Close")
-        finish_home()
+        ensure_home()
 
-    if open_editor("Untitled Note"):
+    if open_editor("Sketch") or open_editor("Untitled Note"):
         screenshot("09-drawing-note-dark.png",
                    "Free hand drawing note with the pen toolbar and canvas.")
         press_back()
         wait_find(lambda x: find(x, desc="Save and Close"), timeout=15)
         tap_desc("Save and Close")
-        finish_home()
+        ensure_home()
 
     if nav_to("Archive"):
         time.sleep(1.2)
         screenshot("10-archive-dark.png",
                    "Archive screen listing archived notes, dark theme.")
         nav_to("Notes")
-        finish_home()
+        ensure_home()
 
     if nav_to("Trash"):
         time.sleep(1.2)
         screenshot("11-trash-dark.png",
                    "Trash screen with restore and delete options on each note, dark theme.")
         nav_to("Notes")
-        finish_home()
+        ensure_home()
 
     if nav_to("Settings"):
         time.sleep(1.2)
@@ -601,7 +555,8 @@ def capture_light():
     screenshot("13-settings-light.png", "Settings screen in light theme.")
 
     tap_desc("Back", timeout=10)
-    finish_home()
+    ensure_home()
+    clear_search()
     scroll_top()
     screenshot("14-home-grid-light.png", "Home screen, two column grid layout, light theme.")
 
@@ -615,53 +570,58 @@ def capture_light():
         time.sleep(1.2)
         screenshot("16-archive-light.png", "Archive screen in light theme.")
         nav_to("Notes")
-        finish_home()
+        ensure_home()
 
     if nav_to("Trash"):
         time.sleep(1.2)
         screenshot("17-trash-light.png", "Trash screen in light theme.")
         nav_to("Notes")
-        finish_home()
+        ensure_home()
 
 
 def main():
     launch_app()
     debug_save("after-launch")
 
-    seeded = [
-        ("Meeting Notes", "Q3 planning sync with the product and design leads. Agenda covers roadmap, hiring, and the launch window."),
-        ("Project Roadmap", "Milestones for the next two quarters: private beta in August and the public launch in October."),
-        ("Book Summary", "Key ideas from Atomic Habits: small changes compound and systems beat goals every time."),
-        ("Travel Itinerary", "Three days in Kyoto: temples in the morning, markets in the afternoon, and a quiet dinner each evening."),
-        ("Workout Plan", "Push, pull, legs split across four sessions a week with one full rest day in between."),
-        ("Recipe", "One pan lemon chicken with roasted vegetables, garlic, and fresh herbs."),
-        ("Ideas", "A calm reading app, a gentle habit tracker, and a simple monthly budgeting tool."),
-        ("Weekly Goals", "Ship the settings redesign, review the open pull requests, and write the release notes."),
-        ("Client Feedback", "Summary of the latest review: clearer onboarding, faster search, and larger note previews."),
-        ("Reading List", "Three books queued for the month, one finished each week."),
-    ]
-    for title, content in seeded:
-        safe("add note %s" % title, add_text_note, title, content)
-
-    safe("add checklist Grocery List", add_checklist_note, "Grocery List",
+    safe("note Meeting Notes", create_text_note, "Meeting Notes",
+         "Q3 planning sync with the product and design leads. Agenda covers roadmap, hiring, and the launch window.",
+         True, "Work", False)
+    safe("note Project Roadmap", create_text_note, "Project Roadmap",
+         "Milestones for the next two quarters: private beta in August and the public launch in October.",
+         False, "Work", False)
+    safe("note Book Summary", create_text_note, "Book Summary",
+         "Key ideas from Atomic Habits: small changes compound and systems beat goals every time.",
+         False, None, True)
+    safe("note Recipe", create_text_note, "Recipe",
+         "One pan lemon chicken with roasted vegetables, garlic, and fresh herbs.",
+         False, None, True)
+    safe("note Reading List", create_text_note, "Reading List",
+         "Three books queued for the month, one finished each week.",
+         False, None, True)
+    safe("note Travel Itinerary", create_text_note, "Travel Itinerary",
+         "Three days in Kyoto: temples in the morning, markets in the afternoon, and a quiet dinner each evening.",
+         False, "Travel", False)
+    safe("note Workout Plan", create_text_note, "Workout Plan",
+         "Push, pull, legs split across four sessions a week with one full rest day in between.",
+         False, None, False)
+    safe("note Weekly Goals", create_text_note, "Weekly Goals",
+         "Ship the settings redesign, review the open pull requests, and write the release notes.",
+         True, None, False)
+    safe("note Ideas", create_text_note, "Ideas",
+         "A calm reading app, a gentle habit tracker, and a simple monthly budgeting tool.",
+         False, None, False)
+    safe("note Grocery List", create_checklist_note, "Grocery List",
          ["Milk", "Eggs", "Sourdough bread", "Coffee beans", "Olive oil"])
-    safe("add checklist Product Launch", add_checklist_note, "Product Launch",
+    safe("note Product Launch", create_checklist_note, "Product Launch",
          ["Finalise marketing copy", "Prepare store screenshots", "Submit for review"])
-    safe("add drawing Sketch", add_drawing_note, "Sketch")
+    safe("note Sketch", create_drawing_note, "Sketch")
+    safe("trash Client Feedback", create_and_trash, "Client Feedback",
+         "Summary of the latest review: clearer onboarding, faster search, and larger note previews.")
+    safe("trash Meeting Recap", create_and_trash, "Meeting Recap",
+         "Follow-ups from the design review: adjust spacing and refine the empty states.")
 
-    safe("pin Meeting Notes", pin_note, "Meeting Notes")
-    safe("pin Weekly Goals", pin_note, "Weekly Goals")
-    safe("archive Book Summary", archive_note, "Book Summary")
-    safe("archive Recipe", archive_note, "Recipe")
-    safe("archive Reading List", archive_note, "Reading List")
-    safe("trash Client Feedback", trash_note, "Client Feedback")
-    safe("trash Ideas", trash_note, "Ideas")
-
-    safe("tag Meeting Notes", tag_note, "Meeting Notes", "Work")
-    safe("tag Project Roadmap", tag_note, "Project Roadmap", "Work")
-    safe("tag Travel Itinerary", tag_note, "Travel Itinerary", "Travel")
-
-    finish_home()
+    ensure_home()
+    clear_search()
     scroll_top()
     debug_save("before-captures")
 

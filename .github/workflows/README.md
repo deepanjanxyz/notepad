@@ -154,3 +154,59 @@ PR/commit context instead.
 
 **Permissions.** Least privilege: the workflow default is `contents: read`; only
 the `auto-bump` job and the `release` job are elevated to `contents: write`.
+
+## Store screenshots (`store-screenshots.yml`)
+
+Generates the store screenshots for Elite Memo Pro on a headless Android
+emulator and uploads them as workflow artifacts.
+
+**Trigger.** Manual only (`workflow_dispatch`) — start it from **Actions → Store
+Screenshots → Run workflow** and choose the branch to run against. It never runs
+on `push` or `pull_request`.
+
+**What it does.**
+
+1. Checks out the app from `dev` and the automation scripts from the branch the
+   workflow runs on (`scripts/screenshots/`).
+2. Builds the debug APK with `./gradlew assembleDebug`.
+3. Boots a headless Pixel 6 emulator (API 34, x86_64, google_apis) with KVM.
+4. Installs the APK, seeds realistic notes through the real UI, and captures a
+   full-resolution screenshot of each feature.
+5. Uploads the screenshots and a short log as artifacts.
+
+**Where the screenshots are generated and stored.**
+
+| Location | Contents | Notes |
+|---|---|---|
+| Run artifact `screenshots` | Full-resolution PNGs (1080x2400) | Uploaded by the workflow; retained for the default 90 days. |
+| Run artifact `notes-and-logs` | README listing each screenshot, the run log, and debug UI dumps | From the same run. |
+| `fastlane/metadata/android/en-US/images/phoneScreenshots/` | The store-ready screenshot set | Committed in the repository. |
+
+**Screenshots captured.**
+
+| File | Screen |
+|---|---|
+| `01-home-grid-dark.png` | Home, two-column grid layout |
+| `02-home-list-dark.png` | Home, single-column list layout |
+| `03-search-results-dark.png` | Search results |
+| `04-navigation-drawer-dark.png` | Navigation drawer |
+| `05-note-editor-dark.png` | Note editor |
+| `06-labels-sheet-dark.png` | Labels bottom sheet |
+| `07-color-picker-dark.png` | Color picker |
+| `08-checklist-editor-dark.png` | Checklist editor |
+| `09-drawing-note-dark.png` | Drawing note |
+| `10-archive-dark.png` | Archive |
+| `11-trash-dark.png` | Trash |
+| `12-settings-dark.png` | Settings |
+| `13-reminder-dialog-dark.png` | Reminder dialog |
+| `14-reminder-applied-dark.png` | Reminder applied |
+
+**Usage notes.**
+
+- Screenshots are captured in dark mode only.
+- The status bar is normalised with Android demo mode (fixed 12:00 clock, full
+  battery, full Wi-Fi and cellular) and animations are disabled for stable,
+  consistent captures.
+- The app is always checked out from `dev`; the scripts come from the branch the
+  workflow is run on. Re-running the workflow regenerates every screenshot.
+- No repository secrets are required, and a run takes roughly 20 minutes.

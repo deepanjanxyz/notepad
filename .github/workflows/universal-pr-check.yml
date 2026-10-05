@@ -1,0 +1,87 @@
+name: Universal PR Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - '*'
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  build-and-test:
+    name: Build and Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Build and run unit tests
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug testDebugUnitTest --no-daemon 2>&1 | tee build-output.log
+
+      - name: Add thumbs up reaction
+        if: success()
+        uses: actions/github-script@v9
+        with:
+          script: |
+            await github.rest.reactions.createForIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              content: '+1'
+            });
+
+      - name: Extract error snippet
+        if: failure()
+        shell: bash
+        run: |
+          SNIPPET=$(grep -iE 'error|exception|failed|failure|caused by|what went wrong' build-output.log 2>/dev/null | tail -n 40)
+          if [ -z "$SNIPPET" ]; then
+            SNIPPET="No matching error lines were found in the build output."
+          fi
+
+          {
+            echo "## PR Check Failed"
+            echo ""
+            echo "The Android build or unit tests failed for this pull request."
+            echo ""
+            echo "### Error snippet"
+            echo ""
+            echo '```'
+            echo "$SNIPPET"
+            echo '```'
+            echo ""
+            echo "[View the full action run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          } > pr-comment.md
+
+      - name: Post failure comment
+        if: failure()
+        uses: peter-evans/create-or-update-comment@v5
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-path: pr-comment.md
+
+      - name: Fail the job
+        if: failure()
+        run: exit 1

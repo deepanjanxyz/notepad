@@ -60,6 +60,16 @@ The APK is written under `app/build/outputs/apk/debug/`. To install it on a conn
 
 The application module uses `applicationId` `com.deepanjanxyz.notepad`, `minSdk` 24, `targetSdk` 37, and currently declares version name `1.0.11` (version code `11`).
 
+## Continuous Integration
+
+Pull requests are validated by a GitHub Actions workflow defined in `.github/workflows/universal-pr-check.yml`.
+
+- **Trigger:** runs on `pull_request` events (`opened`, `synchronize`, `reopened`) that target any branch. It does not run on pushes.
+- **Environment:** sets up JDK 17 (Temurin) with Gradle caching and runs `./gradlew assembleDebug testDebugUnitTest --no-daemon`.
+- **On success:** the workflow adds a thumbs up (👍) reaction to the pull request.
+- **On failure:** the workflow posts a comment on the pull request with a filtered error snippet and a direct link to the failed action run, then fails the job so the pull request cannot be merged until the check passes.
+- **Purpose:** provides an automatic, consistent build and unit-test gate for every pull request, surfacing failures where reviewers already are.
+
 ## License
 
 See [LICENSE](LICENSE).

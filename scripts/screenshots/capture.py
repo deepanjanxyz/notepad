@@ -400,7 +400,8 @@ def add_label(label):
         close_overlays()
 
 
-def create_text_note(title, content, pin=False, label=None, archive=False):
+def create_text_note(title, content, pin=False, label=None, archive=False,
+                     shot_editor=None, shot_sheets=False):
     if not tap_desc("New Note"):
         return False
     if not tap_text("Text Note"):
@@ -408,6 +409,22 @@ def create_text_note(title, content, pin=False, label=None, archive=False):
     if not type_into("Title", title):
         return False
     type_into("Note", content)
+    if shot_editor:
+        hide_ime()
+        time.sleep(0.6)
+        screenshot(shot_editor,
+                   "Note editor with title, body text, labels, and the editing toolbar.")
+    if shot_sheets:
+        if tap_any(desc="Add label", text="Add label"):
+            time.sleep(1.0)
+            screenshot("06-labels-sheet-dark.png",
+                       "Labels bottom sheet for applying and creating labels on a note.")
+            close_overlays()
+        if tap_desc("Color palette", timeout=10):
+            time.sleep(1.0)
+            screenshot("07-color-picker-dark.png",
+                       "Color picker bottom sheet with the note color options.")
+            close_overlays()
     if label:
         add_label(label)
     if pin:
@@ -419,7 +436,7 @@ def create_text_note(title, content, pin=False, label=None, archive=False):
     return ensure_home()
 
 
-def create_checklist_note(title, items):
+def create_checklist_note(title, items, shot=None):
     if not tap_desc("New Note"):
         return False
     if not tap_text("Text Note"):
@@ -432,11 +449,15 @@ def create_checklist_note(title, items):
         type_into("List item", item)
         tap_desc("Add list item")
         time.sleep(0.3)
+    if shot:
+        hide_ime()
+        time.sleep(0.6)
+        screenshot(shot, "Checklist editor showing the list items and the add item row.")
     tap_desc("Save and Close")
     return ensure_home()
 
 
-def create_drawing_note(title):
+def create_drawing_note(title, shot=None):
     if not tap_desc("New Note"):
         return False
     if not tap_text("Drawing Note"):
@@ -452,7 +473,11 @@ def create_drawing_note(title):
         time.sleep(0.3)
     type_into("Title", title)
     type_into_field(0, title)
-    time.sleep(0.8)
+    if shot:
+        hide_ime()
+        time.sleep(0.6)
+        screenshot(shot, "Free hand drawing note with the pen toolbar and canvas.")
+    time.sleep(0.5)
     tap_desc("Back")
     wait_find(lambda x: find(x, desc="Save and Close"), timeout=15)
     tap_desc("Save and Close")
@@ -485,7 +510,7 @@ def write_readme():
         "",
     ]
     if captures:
-        for name, description in captures:
+        for name, description in sorted(captures):
             lines.append("- `%s` - %s" % (name, description))
     else:
         lines.append("_No screenshots were captured._")
@@ -541,36 +566,6 @@ def capture_dark():
                    "Navigation drawer with notes, labels, archive, trash, and settings.")
         close_drawer()
         relaunch_to_home()
-
-    if open_editor("Meeting Notes"):
-        screenshot("05-note-editor-dark.png",
-                   "Note editor with title, body text, labels, and the editing toolbar.")
-        if tap_any(desc="Add label", text="Add label"):
-            time.sleep(1.0)
-            screenshot("06-labels-sheet-dark.png",
-                       "Labels bottom sheet for applying and creating labels on a note.")
-            close_overlays()
-        if tap_desc("Color palette", timeout=10):
-            time.sleep(1.0)
-            screenshot("07-color-picker-dark.png",
-                       "Color picker bottom sheet with the note color options.")
-            close_overlays()
-        tap_desc("Save and Close")
-        ensure_home()
-
-    if open_editor("Grocery List"):
-        screenshot("08-checklist-editor-dark.png",
-                   "Checklist editor showing the list items and the add item row.")
-        tap_desc("Save and Close")
-        ensure_home()
-
-    if open_drawing("Sketch"):
-        screenshot("09-drawing-note-dark.png",
-                   "Free hand drawing note with the pen toolbar and canvas.")
-        press_back()
-        wait_find(lambda x: find(x, desc="Save and Close"), timeout=15)
-        tap_desc("Save and Close")
-        ensure_home()
 
     if nav_to("Archive"):
         time.sleep(1.2)
@@ -629,7 +624,7 @@ def main():
 
     safe("note Meeting Notes", create_text_note, "Meeting Notes",
          "Q3 planning sync with the product and design leads. Agenda covers roadmap, hiring, and the launch window.",
-         True, "Work", False)
+         True, "Work", False, "05-note-editor-dark.png", True)
     safe("note Project Roadmap", create_text_note, "Project Roadmap",
          "Milestones for the next two quarters: private beta in August and the public launch in October.",
          False, "Work", False)
@@ -655,10 +650,11 @@ def main():
          "A calm reading app, a gentle habit tracker, and a simple monthly budgeting tool.",
          False, None, False)
     safe("note Grocery List", create_checklist_note, "Grocery List",
-         ["Milk", "Eggs", "Sourdough bread", "Coffee beans", "Olive oil"])
+         ["Milk", "Eggs", "Sourdough bread", "Coffee beans", "Olive oil"],
+         "08-checklist-editor-dark.png")
     safe("note Product Launch", create_checklist_note, "Product Launch",
          ["Finalise marketing copy", "Prepare store screenshots", "Submit for review"])
-    safe("note Sketch", create_drawing_note, "Sketch")
+    safe("note Sketch", create_drawing_note, "Sketch", "09-drawing-note-dark.png")
     safe("trash Client Feedback", create_and_trash, "Client Feedback",
          "Summary of the latest review: clearer onboarding, faster search, and larger note previews.")
     safe("trash Meeting Recap", create_and_trash, "Meeting Recap",

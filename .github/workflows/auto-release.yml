@@ -106,8 +106,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if gh pr list --base main --head auto/bump-version-main --state open --json number --jq '.[0].number' | grep -q .; then
-            echo "A version bump PR is already open; nothing to do."
+          branch="auto/bump-version-pr-${{ github.event.pull_request.number }}"
+
+          if gh pr list --base main --head "$branch" --state open --json number --jq '.[0].number' | grep -q .; then
+            echo "A version bump PR for this pull request is already open; nothing to do."
             exit 0
           fi
 
@@ -122,13 +124,13 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b auto/bump-version-main
+          git checkout -b "$branch"
           git commit -am "chore(release): bump version code [skip ci]"
-          git push origin auto/bump-version-main
+          git push origin "$branch"
 
           gh pr create \
             --base main \
-            --head auto/bump-version-main \
+            --head "$branch" \
             --title "chore(release): bump version code [skip ci]" \
             --body "Automated companion PR: bumps \`versionCode\` to \`$new_vc\` and \`versionName\` to \`$new_vn\` for the change in #${{ github.event.pull_request.number }}. Merge this to trigger the release."
 
@@ -189,7 +191,6 @@ jobs:
           fi
 
       - name: Resolve release context
-        id: context
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -214,14 +215,12 @@ jobs:
           fi
 
           {
-            echo "notes<<EOF"
             echo "## $subject"
             echo ""
             echo "$body"
             echo ""
             echo "Released from commit \`$target\`."
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+          } > /tmp/release-notes.md
 
       - name: Build signed release APK
         run: |
@@ -229,9 +228,10 @@ jobs:
           ./gradlew assembleRelease --no-daemon
 
       - name: Create GitHub release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: v${{ steps.version.outputs.version }}
-          name: v${{ steps.version.outputs.version }}
-          body: ${{ steps.context.outputs.notes }}
-          files: app/build/outputs/apk/release/*.apk
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ steps.version.outputs.version }}" \
+            --title "v${{ steps.version.outputs.version }}" \
+            --notes-file /tmp/release-notes.md \
+            app/build/outputs/apk/release/*.apk

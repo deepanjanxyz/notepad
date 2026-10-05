@@ -113,11 +113,13 @@ version untouched — and was not opened by `github-actions[bot]` — it first
 validates that `versionName` is strict semantic versioning
 (`^[0-9]+\.[0-9]+\.[0-9]+$`). If it is not (e.g. an alpha/beta suffix), the
 arithmetic bump is skipped with a warning instead of risking a malformed version.
-Otherwise it creates the `auto/bump-version-main` branch, increments `versionCode`
-by 1, bumps the patch component of `versionName`, and opens a companion PR to
-`main` titled `chore(release): bump version code [skip ci]`. If a bump PR is
-already open, it does nothing. The global `auto-bump-main` lock (above) prevents
-concurrent runs from racing.
+Otherwise it creates a **per-PR** branch `auto/bump-version-pr-<PR number>`,
+increments `versionCode` by 1, bumps the patch component of `versionName`, and
+opens a companion PR to `main` titled `chore(release): bump version code [skip ci]`.
+Because the branch is unique to the source PR and is pushed with a plain
+`git push` (never a force-push), parallel PRs cannot collide or corrupt history.
+If a bump PR for this source PR is already open, it does nothing; the global
+`auto-bump-main` lock still serialises runs.
 
 **Release (`release` job).** On a merge to `main` with code changes it runs a
 strict pre-flight before doing anything else:
@@ -130,11 +132,12 @@ strict pre-flight before doing anything else:
    job fails hard (`exit 1`) rather than silently skipping.
 
 Only after those pass does it resolve the release context, build the signed
-release APK, and publish a GitHub Release via `softprops/action-gh-release` with
-the tag `v<versionName>` and the APK attached. For the release notes it prefers
-the merged PR's title and body; if the tip commit is the bot's bump commit, it
-walks `git log` back to the last human commit and uses that contributor's
-PR/commit context instead.
+release APK, and publish a GitHub Release using the native GitHub CLI
+(`gh release create`) — tag `v<versionName>`, title `v<versionName>`, the notes
+read from a generated notes file, and the signed APK attached as a release asset.
+For the release notes it prefers the merged PR's title and body; if the tip commit
+is the bot's bump commit, it walks `git log` back to the last human commit and
+uses that contributor's PR/commit context instead.
 
 **Permissions.** Least privilege: the workflow default is `contents: read`. Only
 the `auto-bump` job is elevated to `contents: write` + `pull-requests: write`, and

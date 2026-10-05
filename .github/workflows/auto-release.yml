@@ -4,22 +4,8 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
-    paths-ignore:
-      - '**.md'
-      - '**.txt'
-      - '**.png'
-      - '**.jpg'
-      - 'docs/**'
-      - '.github/**'
   push:
     branches: [main]
-    paths-ignore:
-      - '**.md'
-      - '**.txt'
-      - '**.png'
-      - '**.jpg'
-      - 'docs/**'
-      - '.github/**'
 
 concurrency:
   group: release-${{ github.ref }}
@@ -91,6 +77,9 @@ jobs:
       && needs.guard.outputs.version_updated == 'false'
       && github.event.pull_request.user.login != 'github-actions[bot]'
     runs-on: ubuntu-latest
+    concurrency:
+      group: auto-bump-main
+      cancel-in-progress: false
     permissions:
       contents: write
       pull-requests: write
@@ -178,6 +167,19 @@ jobs:
         run: |
           vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
           echo "version=$vn" >> "$GITHUB_OUTPUT"
+
+      - name: Validate version
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          if ! echo "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "🔴 Release failed: versionName '$version' is not strict SemVer (X.Y.Z)."
+            exit 1
+          fi
+          code=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+')
+          if ! echo "$code" | grep -qE '^[1-9][0-9]*$'; then
+            echo "🔴 Release failed: versionCode '$code' is missing or not a positive integer."
+            exit 1
+          fi
 
       - name: Check for existing tag
         run: |

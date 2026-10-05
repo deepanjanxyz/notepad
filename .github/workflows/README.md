@@ -11,7 +11,7 @@ single responsibility, so it is easy to see what runs, when, and why.
 | [`android.yml`](./android.yml) | Build and Sign APK | manual (`workflow_dispatch`) | Builds the unsigned release APK, decodes the keystore from secrets, signs the APK, and uploads it as the `release-apk` artifact. |
 | [`mirror.yml`](./mirror.yml) | Multi-Platform Smart Auto Mirroring | `push` of any branch or tag | Materializes every branch locally, then mirrors all branches and tags to GitLab and Codeberg (force-syncing when a normal push is rejected). |
 | [`universal-pr-check.yml`](./universal-pr-check.yml) | Universal PR Check | `pull_request` (opened, synchronize, reopened) to `dev` | Runs the build, unit tests, lint, detekt and a secret scan as parallel jobs on JDK 17, then posts a single status-table comment on the PR and blocks the merge if any check fails. |
-| [`auto-release.yml`](./auto-release.yml) | Auto Release | `pull_request` / `push` to `main` (code paths only) | Guards on real application-code changes, auto-bumps the version with a companion PR when a `main` PR skipped it, and on merge to `main` publishes a GitHub release tagged `v<versionName>` with the signed APK and traced release notes. |
+| [`auto-release.yml`](./auto-release.yml) | Auto Release | `pull_request` / `push` to `main` | Guards on real application-code changes, auto-bumps the version with a companion PR when a `main` PR skipped it, and on merge to `main` publishes a GitHub release tagged `v<versionName>` with the signed APK and traced release notes. |
 
 ## In one line each
 
@@ -84,13 +84,18 @@ changed. It bumps the version when a `main` PR forgot to, and publishes a GitHub
 Release when the change lands.
 
 **Trigger.** `pull_request` events (`opened`, `synchronize`, `reopened`) whose
-base branch is `main`, and `push` events to `main` (i.e. merges). The
-`paths-ignore` filter skips the run entirely when only non-code files change
-(`**.md`, `**.txt`, `**.png`, `**.jpg`, `docs/**`, `.github/**`).
+base branch is `main`, and `push` events to `main` (i.e. merges). The workflow
+runs on **every** such event — path filtering is done inside the `guard` job, not
+at the trigger, so a docs-only PR never leaves a required status check waiting
+forever. Non-code changes simply skip the bot jobs (see `code_changed` below).
 
-**Concurrency.** A workflow-level group `release-${{ github.ref }}` with
-`cancel-in-progress: false` serialises runs for the same ref, so two releases can
-never race each other.
+**Concurrency.** Two layers, both non-cancelling:
+
+- Workflow level: `group: release-${{ github.ref }}`, so runs for the same ref
+  never overlap.
+- The `auto-bump` job additionally pins a strict global group `auto-bump-main`
+  (`cancel-in-progress: false`), so two different PRs targeting `main` can never
+  race each other into creating conflicting bump PRs.
 
 **Guard (`guard` job).** Runs on both events and computes two facts used by the
 later jobs:
@@ -111,17 +116,25 @@ arithmetic bump is skipped with a warning instead of risking a malformed version
 Otherwise it creates the `auto/bump-version-main` branch, increments `versionCode`
 by 1, bumps the patch component of `versionName`, and opens a companion PR to
 `main` titled `chore(release): bump version code [skip ci]`. If a bump PR is
-already open, it does nothing.
+already open, it does nothing. The global `auto-bump-main` lock (above) prevents
+concurrent runs from racing.
 
-**Release (`release` job).** On a merge to `main` with code changes it reads
-`versionName` and checks for an existing `v<versionName>` tag. If the tag already
-exists the job **fails hard** (`exit 1`) rather than silently skipping, so a
-missing release can never be mistaken for a successful one. Otherwise it resolves
-the release context, builds the signed release APK, and publishes a GitHub
-Release via `softprops/action-gh-release` with the tag `v<versionName>` and the
-APK attached. For the release notes it prefers the merged PR's title and body; if
-the tip commit is the bot's bump commit, it walks `git log` back to the last human
-commit and uses that contributor's PR/commit context instead.
+**Release (`release` job).** On a merge to `main` with code changes it runs a
+strict pre-flight before doing anything else:
+
+1. `versionName` must match `^[0-9]+\.[0-9]+\.[0-9]+$`; otherwise the job fails
+   with `exit 1`.
+2. `versionCode` must be a positive integer (`^[1-9][0-9]*$`); if it is missing or
+   malformed, the job fails with `exit 1`.
+3. The `v<versionName>` tag must not already exist on the remote; if it does, the
+   job fails hard (`exit 1`) rather than silently skipping.
+
+Only after those pass does it resolve the release context, build the signed
+release APK, and publish a GitHub Release via `softprops/action-gh-release` with
+the tag `v<versionName>` and the APK attached. For the release notes it prefers
+the merged PR's title and body; if the tip commit is the bot's bump commit, it
+walks `git log` back to the last human commit and uses that contributor's
+PR/commit context instead.
 
 **Permissions.** Least privilege: the workflow default is `contents: read`. Only
 the `auto-bump` job is elevated to `contents: write` + `pull-requests: write`, and

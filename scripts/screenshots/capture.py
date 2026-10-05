@@ -53,8 +53,14 @@ def adb_full(*args):
 # ---------------------------------------------------------------- UI helpers
 
 def _clean(xml):
-    pos = [p for p in (xml.find("<?xml"), xml.find("<hierarchy")) if p >= 0]
-    return xml[min(pos):] if pos else xml
+    start = xml.find("<hierarchy")
+    if start < 0:
+        start = xml.find("<?xml")
+    if start < 0:
+        start = 0
+    end = xml.rfind("</hierarchy>")
+    end = end + len("</hierarchy>") if end >= 0 else len(xml)
+    return xml[start:end]
 
 
 def dump():

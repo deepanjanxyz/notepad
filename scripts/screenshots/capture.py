@@ -8,6 +8,7 @@ trash) are applied while the note is still the one on screen, so no list
 scrolling is ever required.
 """
 
+import math
 import os
 import re
 import subprocess
@@ -457,26 +458,43 @@ def create_checklist_note(title, items, shot=None):
     return ensure_home()
 
 
+def draw_star(cx, cy, radius):
+    """Draw a five-pointed star outline as five straight pen strokes.
+
+    The five outer vertices are computed from the canvas centre and radius, and
+    each point of the star is one straight stroke, so the result is a clean,
+    recognisable star rather than scattered lines.
+    """
+    verts = []
+    for k in range(5):
+        angle = math.radians(-90 + k * 72)
+        verts.append((cx + radius * math.cos(angle), cy + radius * math.sin(angle)))
+    for a, b in ((0, 2), (2, 4), (4, 1), (1, 3), (3, 0)):
+        x1, y1 = verts[a]
+        x2, y2 = verts[b]
+        adb("shell", "input", "swipe", str(int(x1)), str(int(y1)),
+            str(int(x2)), str(int(y2)), "300")
+        time.sleep(0.35)
+
+
 def create_drawing_note(title, shot=None):
     if not tap_desc("New Note"):
         return False
     if not tap_text("Drawing Note"):
         return False
-    wait_find(lambda x: find(x, desc="Back") and find(x, text="Title"), timeout=20)
+    # The drawing canvas is ready only once the drawing top bar is on screen.
+    if not wait_find(lambda x: find(x, desc="Canvas Background & Grid") or
+                     (find(x, desc="Back") and find(x, text="Title")), timeout=20):
+        log("   create_drawing_note: drawing canvas did not open")
+        return False
     w, h = screen_size()
-    for x1, y1, x2, y2 in [
-        (int(w * 0.25), int(h * 0.42), int(w * 0.75), int(h * 0.42)),
-        (int(w * 0.28), int(h * 0.52), int(w * 0.72), int(h * 0.52)),
-        (int(w * 0.30), int(h * 0.62), int(w * 0.70), int(h * 0.64)),
-    ]:
-        adb("shell", "input", "swipe", str(x1), str(y1), str(x2), str(y2), "350")
-        time.sleep(0.3)
+    draw_star(w * 0.5, h * 0.46, h * 0.18)
     type_into("Title", title)
     type_into_field(0, title)
     if shot:
         hide_ime()
         time.sleep(0.6)
-        screenshot(shot, "Free hand drawing note with the pen toolbar and canvas.")
+        screenshot(shot, "Drawing note showing a star drawn on the canvas with the pen toolbar.")
     time.sleep(0.5)
     tap_desc("Back")
     wait_find(lambda x: find(x, desc="Save and Close"), timeout=15)
@@ -518,8 +536,9 @@ def write_readme():
         "",
         "## Notes",
         "",
+        "- All screenshots are captured in dark mode only.",
         "- The note editor and the drawing canvas are dark by design regardless of the",
-        "  selected theme, so they appear once rather than per theme.",
+        "  selected theme.",
         "- The status bar is normalised with Android demo mode (fixed 12:00 clock, full",
         "  battery, Wi-Fi on) and animations are disabled for stable captures.",
         "- Notes are seeded through the real UI; nothing is written to the database directly.",
@@ -537,6 +556,49 @@ def safe(label, fn, *args):
     except Exception:
         log("ERROR in %s:\n%s" % (label, traceback.format_exc()))
         return False
+
+
+def handle_notification_permission(timeout=8):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        allow = find(dump(), text="Allow")
+        if allow:
+            log("   reminder: granting notification permission")
+            tap_node(allow[0])
+            time.sleep(1.0)
+            return True
+        time.sleep(0.6)
+    return False
+
+
+def reminder_flow():
+    if not open_editor("Workout Plan"):
+        return False
+    if not tap_desc("Add reminder", timeout=10):
+        log("   reminder: 'Add reminder' button not found")
+        return False
+    if not wait_find(lambda x: find(x, text="Add Reminder"), timeout=10):
+        log("   reminder: dialog did not open")
+        return False
+    if not (tap_text("Tomorrow Morning (9:00 AM)", timeout=6) or
+            tap_text("Later Today (6:00 PM)", timeout=3)):
+        log("   reminder: preset chip not found")
+        return False
+    time.sleep(0.6)
+    screenshot("13-reminder-dialog-dark.png",
+               "Reminder dialog with a preset time selected, before saving.")
+    if not tap_text("Save", timeout=8):
+        log("   reminder: Save button not found")
+        return False
+    handle_notification_permission()
+    if not wait_find(lambda x: find(x, desc="Edit reminder"), timeout=10):
+        log("   reminder: reminder was not applied")
+        return False
+    time.sleep(0.8)
+    screenshot("14-reminder-applied-dark.png",
+               "Note editor showing the reminder applied to the note.")
+    tap_desc("Save and Close")
+    return ensure_home()
 
 
 def capture_dark():
@@ -585,37 +647,6 @@ def capture_dark():
         time.sleep(1.2)
         screenshot("12-settings-dark.png",
                    "Settings screen with workspace statistics, appearance, and security, dark theme.")
-
-
-def capture_light():
-    if not tap_text("Light", timeout=10):
-        log("could not switch to light theme")
-        return
-    time.sleep(1.5)
-    screenshot("13-settings-light.png", "Settings screen in light theme.")
-
-    relaunch_to_home()
-    clear_search()
-    scroll_top()
-    screenshot("14-home-grid-light.png", "Home screen, two column grid layout, light theme.")
-
-    if tap_desc("Switch to Single Column List", timeout=10):
-        time.sleep(1.0)
-        screenshot("15-home-list-light.png", "Home screen, single column list layout, light theme.")
-        tap_desc("Switch to Grid View", timeout=10)
-        time.sleep(0.8)
-
-    if nav_to("Archive"):
-        time.sleep(1.2)
-        screenshot("16-archive-light.png", "Archive screen in light theme.")
-        nav_to("Notes")
-        ensure_home()
-
-    if nav_to("Trash"):
-        time.sleep(1.2)
-        screenshot("17-trash-light.png", "Trash screen in light theme.")
-        nav_to("Notes")
-        ensure_home()
 
 
 def main():
@@ -670,10 +701,7 @@ def main():
     except Exception:
         log("ERROR during dark captures:\n%s" % traceback.format_exc())
 
-    try:
-        capture_light()
-    except Exception:
-        log("ERROR during light captures:\n%s" % traceback.format_exc())
+    safe("reminder flow", reminder_flow)
 
 
 if __name__ == "__main__":

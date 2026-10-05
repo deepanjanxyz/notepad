@@ -1,0 +1,228 @@
+name: Auto Release
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths-ignore:
+      - '**.md'
+      - '**.txt'
+      - '**.png'
+      - '**.jpg'
+      - 'docs/**'
+      - '.github/**'
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '**.txt'
+      - '**.png'
+      - '**.jpg'
+      - 'docs/**'
+      - '.github/**'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  guard:
+    name: Guard - application source check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      code_changed: ${{ steps.diff.outputs.code_changed }}
+      version_updated: ${{ steps.version.outputs.version_updated }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Verify application source changed
+        id: diff
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.sha }}"
+          else
+            base="${{ github.event.before }}"
+            head="${{ github.sha }}"
+          fi
+
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            files=$(git diff --name-only HEAD^ HEAD 2>/dev/null || git show --pretty="" --name-only HEAD)
+          else
+            files=$(git diff --name-only "$base" "$head")
+          fi
+
+          echo "Changed files:"
+          echo "$files"
+
+          if echo "$files" | grep -qE '\.(kt|java|kts|gradle)$|(^|/)src/'; then
+            echo "code_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compare version against main
+        id: version
+        if: github.event_name == 'pull_request'
+        run: |
+          git show "${{ github.event.pull_request.base.sha }}:app/build.gradle.kts" > /tmp/base_build.gradle.kts 2>/dev/null || true
+          head_vc=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+')
+          head_vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
+          base_vc=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' /tmp/base_build.gradle.kts | grep -oE '[0-9]+')
+          base_vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' /tmp/base_build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
+          if [ "$head_vc" != "$base_vc" ] || [ "$head_vn" != "$base_vn" ]; then
+            echo "version_updated=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "version_updated=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  auto-bump:
+    name: Auto-bump version and open companion PR
+    needs: guard
+    if: >-
+      github.event_name == 'pull_request'
+      && needs.guard.outputs.code_changed == 'true'
+      && needs.guard.outputs.version_updated == 'false'
+      && github.event.pull_request.user.login != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Create companion bump PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh pr list --base main --head auto/bump-version-main --state open --json number --jq '.[0].number' | grep -q .; then
+            echo "A version bump PR is already open; nothing to do."
+            exit 0
+          fi
+
+          vc=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+')
+          vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
+          new_vc=$((vc + 1))
+          IFS='.' read -r major minor patch <<< "$vn"
+          major=${major:-0}; minor=${minor:-0}; patch=${patch:-0}
+          new_vn="$major.$minor.$((patch + 1))"
+
+          sed -i "s/versionCode[[:space:]]*=[[:space:]]*[0-9]\+/versionCode = $new_vc/" app/build.gradle.kts
+          sed -i "s/versionName[[:space:]]*=[[:space:]]*\"[^\"]*\"/versionName = \"$new_vn\"/" app/build.gradle.kts
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b auto/bump-version-main
+          git commit -am "chore(release): bump version code [skip ci]"
+          git push origin auto/bump-version-main
+
+          gh pr create \
+            --base main \
+            --head auto/bump-version-main \
+            --title "chore(release): bump version code [skip ci]" \
+            --body "Automated companion PR: bumps \`versionCode\` to \`$new_vc\` and \`versionName\` to \`$new_vn\` for the change in #${{ github.event.pull_request.number }}. Merge this to trigger the release."
+
+  release:
+    name: Release on merge to main
+    needs: guard
+    if: github.event_name == 'push' && needs.guard.outputs.code_changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Set up Android SDK (platform 37)
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
+
+      - name: Read version
+        id: version
+        run: |
+          vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
+          echo "version=$vn" >> "$GITHUB_OUTPUT"
+
+      - name: Check for existing tag
+        id: tag
+        run: |
+          if git ls-remote --tags origin "refs/tags/v${{ steps.version.outputs.version }}" | grep -q .; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve release context
+        id: context
+        if: steps.tag.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          target=$(git rev-parse HEAD)
+          last_author=$(git log -1 --format='%an')
+          if [ "$last_author" = "github-actions[bot]" ]; then
+            while IFS=$'\t' read -r sha author; do
+              case "$author" in
+                *"[bot]"*) continue ;;
+              esac
+              target="$sha"
+              break
+            done < <(git log --format='%H%x09%an' -n 100)
+          fi
+
+          subject=$(git log -1 --format='%s' "$target")
+          body=$(git log -1 --format='%b' "$target")
+          pr_num=$(gh api "repos/${{ github.repository }}/commits/$target/pulls" --jq '.[0].number' 2>/dev/null || true)
+          if [ -n "$pr_num" ] && [ "$pr_num" != "null" ]; then
+            subject=$(gh api "repos/${{ github.repository }}/pulls/$pr_num" --jq '.title')
+            body=$(gh api "repos/${{ github.repository }}/pulls/$pr_num" --jq '.body')
+          fi
+
+          {
+            echo "notes<<EOF"
+            echo "## $subject"
+            echo ""
+            echo "$body"
+            echo ""
+            echo "Released from commit \`$target\`."
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build signed release APK
+        if: steps.tag.outputs.exists == 'false'
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > app/keystore.jks
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Create GitHub release
+        if: steps.tag.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          body: ${{ steps.context.outputs.notes }}
+          files: app/build/outputs/apk/release/*.apk

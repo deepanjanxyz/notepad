@@ -11,6 +11,7 @@ single responsibility, so it is easy to see what runs, when, and why.
 | [`android.yml`](./android.yml) | Build and Sign APK | manual (`workflow_dispatch`) | Builds the unsigned release APK, decodes the keystore from secrets, signs the APK, and uploads it as the `release-apk` artifact. |
 | [`mirror.yml`](./mirror.yml) | Multi-Platform Smart Auto Mirroring | `push` of any branch or tag | Materializes every branch locally, then mirrors all branches and tags to GitLab and Codeberg (force-syncing when a normal push is rejected). |
 | [`universal-pr-check.yml`](./universal-pr-check.yml) | Universal PR Check | `pull_request` (opened, synchronize, reopened) to `dev` | Runs the build, unit tests, lint, detekt and a secret scan as parallel jobs on JDK 17, then posts a single status-table comment on the PR and blocks the merge if any check fails. |
+| [`auto-release.yml`](./auto-release.yml) | Auto Release | `pull_request` / `push` to `main` (code paths only) | Guards on real application-code changes, auto-bumps the version with a companion PR when a `main` PR skipped it, and on merge to `main` publishes a GitHub release tagged `v<versionName>` with the signed APK and traced release notes. |
 
 ## In one line each
 
@@ -18,15 +19,16 @@ single responsibility, so it is easy to see what runs, when, and why.
 - **Release build + signing** → `android.yml`
 - **Mirroring (push) to other hosts (GitLab, Codeberg)** → `mirror.yml`
 - **Per-PR parallel gate with a unified status report** → `universal-pr-check.yml`
+- **Version bump + GitHub release for `main`** → `auto-release.yml`
 
 ## Required repository secrets
 
 | Secret | Used by | Purpose |
 |---|---|---|
-| `KEYSTORE_BASE64` | `android.yml`, `universal-pr-check.yml` | Base64-encoded release keystore. |
-| `KEYSTORE_PASSWORD` | `android.yml`, `universal-pr-check.yml` | Release keystore password. |
-| `KEY_ALIAS` | `android.yml`, `universal-pr-check.yml` | Release key alias. |
-| `KEY_PASSWORD` | `android.yml`, `universal-pr-check.yml` | Release key password. |
+| `KEYSTORE_BASE64` | `android.yml`, `universal-pr-check.yml`, `auto-release.yml` | Base64-encoded release keystore. |
+| `KEYSTORE_PASSWORD` | `android.yml`, `universal-pr-check.yml`, `auto-release.yml` | Release keystore password. |
+| `KEY_ALIAS` | `android.yml`, `universal-pr-check.yml`, `auto-release.yml` | Release key alias. |
+| `KEY_PASSWORD` | `android.yml`, `universal-pr-check.yml`, `auto-release.yml` | Release key password. |
 | `GITLAB_TOKEN` | `mirror.yml` | Push access to the GitLab mirror. |
 | `CODEBERG_TOKEN` | `mirror.yml` | Push access to the Codeberg mirror. |
 
@@ -74,3 +76,42 @@ indicator:
 
 When every check passes, a thumbs up (`+1`) reaction is added to the PR. If any
 check fails, its job fails and the merge button stays blocked until it is fixed.
+
+## Auto Release (`auto-release.yml`)
+
+A `main`-only release pipeline that refuses to act unless real application code
+changed. It bumps the version when a `main` PR forgot to, and publishes a GitHub
+Release when the change lands.
+
+**Trigger.** `pull_request` events (`opened`, `synchronize`, `reopened`) whose
+base branch is `main`, and `push` events to `main` (i.e. merges). The
+`paths-ignore` filter skips the run entirely when only non-code files change
+(`**.md`, `**.txt`, `**.png`, `**.jpg`, `docs/**`, `.github/**`).
+
+**Guard (`guard` job).** Runs on both events and computes two facts used by the
+later jobs:
+
+- `code_changed` — a `git diff` against the base confirms that Kotlin/Java/Gradle
+  application code actually changed (any `*.kt`, `*.java`, `*.gradle.kts`,
+  `*.gradle`, or a path under a `src/` directory). If nothing matches, every bot
+  step is skipped — no version check, no bot PR, no release.
+- `version_updated` (pull requests only) — whether `versionCode` and
+  `versionName` in `app/build.gradle.kts` differ from `main`.
+
+**Auto-bump (`auto-bump` job).** On a `main` PR that changes code but leaves the
+version untouched — and was not opened by `github-actions[bot]` — it creates the
+`auto/bump-version-main` branch, increments `versionCode` by 1, bumps the patch
+component of `versionName`, and opens a companion PR to `main` titled
+`chore(release): bump version code [skip ci]`. If a bump PR is already open, it
+does nothing.
+
+**Release (`release` job).** On a merge to `main` with code changes it reads
+`versionName`, skips if the tag `v<versionName>` already exists, builds the
+signed release APK, and publishes a GitHub Release via
+`softprops/action-gh-release` with the tag `v<versionName>` and the APK
+attached. For the release notes it prefers the merged PR's title and body; if the
+tip commit is the bot's bump commit, it walks `git log` back to the last human
+commit and uses that contributor's PR/commit context instead.
+
+**Permissions.** `contents: write` and `pull-requests: write`; the `guard` job is
+restricted to `contents: read`.

@@ -25,6 +25,9 @@ adb shell settings put global window_animation_scale 0
 adb shell settings put global transition_animation_scale 0
 adb shell settings put global animator_duration_scale 0
 
+# Suppress system ANR/crash dialogs so they never cover the app under test.
+adb shell settings put global hide_error_dialogs 1
+
 APK="$REPO_ROOT/app/build/outputs/apk/debug/app-debug.apk"
 echo "Installing $APK"
 adb install -r -t "$APK"

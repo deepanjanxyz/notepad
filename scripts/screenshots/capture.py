@@ -10,6 +10,7 @@ import os
 import re
 import subprocess
 import time
+import traceback
 import xml.etree.ElementTree as ET
 
 PKG = "com.deepanjanxyz.notepad"
@@ -18,12 +19,15 @@ ACTIVITY = PKG + "/.MainActivity"
 ROOT = os.getcwd()
 SHOTS_DIR = os.path.join(ROOT, "screenshots")
 LOGS_DIR = os.path.join(ROOT, "notes-and-logs")
+DEBUG_DIR = os.path.join(LOGS_DIR, "debug")
 os.makedirs(SHOTS_DIR, exist_ok=True)
 os.makedirs(LOGS_DIR, exist_ok=True)
+os.makedirs(DEBUG_DIR, exist_ok=True)
 LOG_PATH = os.path.join(LOGS_DIR, "run.log")
 
 captures = []
 log_lines = []
+_dump_logged = False
 
 
 def log(msg):
@@ -39,17 +43,38 @@ def adb(*args, binary=False, check=False):
     return res.stdout.decode("utf-8", "replace")
 
 
+def adb_full(*args):
+    res = subprocess.run(["adb", *args], capture_output=True)
+    return (res.stdout.decode("utf-8", "replace"),
+            res.stderr.decode("utf-8", "replace"),
+            res.returncode)
+
+
 # ---------------------------------------------------------------- UI helpers
 
+def _clean(xml):
+    pos = [p for p in (xml.find("<?xml"), xml.find("<hierarchy")) if p >= 0]
+    return xml[min(pos):] if pos else xml
+
+
 def dump():
-    xml = ""
-    for _ in range(3):
-        adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
-        xml = adb("exec-out", "cat", "/sdcard/ui.xml")
-        if xml and "<hierarchy" in xml:
-            return xml
-        time.sleep(0.5)
-    return xml
+    global _dump_logged
+    tty_out, tty_err, tty_rc = adb_full("exec-out", "uiautomator", "dump", "/dev/tty")
+    candidate = _clean(tty_out)
+    if "<hierarchy" in candidate:
+        if not _dump_logged:
+            log("dump: tty strategy ok (len=%d)" % len(candidate))
+            _dump_logged = True
+        return candidate
+
+    out, err, rc = adb_full("shell", "uiautomator", "dump", "/sdcard/ui.xml")
+    file_xml = adb("exec-out", "cat", "/sdcard/ui.xml")
+    candidate = _clean(file_xml)
+    if not _dump_logged:
+        log("dump: tty failed rc=%s err=%r; file len=%d rc=%s err=%r"
+            % (tty_rc, tty_err.strip()[:160], len(candidate), rc, err.strip()[:160]))
+        _dump_logged = True
+    return candidate
 
 
 def parse(xml):
@@ -154,7 +179,6 @@ def long_press(node):
 
 
 def type_into(placeholder, text, timeout=20.0):
-    """Focus the field behind a placeholder label, then type into it."""
     found = wait_find(lambda x: find(x, text=placeholder), timeout)
     if not found:
         return False
@@ -178,13 +202,63 @@ def screen_size():
     return (int(m.group(1)), int(m.group(2))) if m else (1080, 2400)
 
 
+# ------------------------------------------------------------- diagnostics
+
+def log_nodes(tag, limit=45):
+    xml = dump()
+    nodes = parse(xml)
+    log("%s: dump_len=%d nodes=%d" % (tag, len(xml), len(nodes)))
+    for n in nodes[:limit]:
+        t = n.get("text", "")
+        d = n.get("content-desc", "")
+        c = n.get("class", "")
+        b = n.get("bounds", "")
+        if t or d or "EditText" in c:
+            log("   node class=%s text=%r desc=%r bounds=%s" % (c, t[:40], d[:40], b))
+
+
+def current_focus():
+    out = adb("shell", "dumpsys", "window", "windows")
+    for line in out.splitlines():
+        if "mCurrentFocus" in line:
+            return line.strip()
+    return "?"
+
+
+def debug_save(tag):
+    xml = dump()
+    with open(os.path.join(DEBUG_DIR, tag + ".xml"), "w") as fh:
+        fh.write(xml)
+    data = adb("exec-out", "screencap", "-p", binary=True)
+    with open(os.path.join(DEBUG_DIR, tag + ".png"), "wb") as fh:
+        fh.write(data)
+    log("debug saved %s (len=%d, png=%d)" % (tag, len(xml), len(data)))
+
+
 # ---------------------------------------------------------------- app flow
 
 def launch_app():
     adb("shell", "am", "force-stop", PKG)
     adb("shell", "am", "start", "-W", "-n", ACTIVITY)
-    wait_find(lambda x: find(x, desc="New Note") or find(x, text="All"), timeout=45)
+    time.sleep(3.0)
+    dismiss_dialogs()
+    log("pidof=%s" % adb("shell", "pidof", PKG).strip())
+    log("focus=%s" % current_focus())
+    found = wait_find(lambda x: find(x, desc="New Note") or find(x, text="All"), timeout=40)
+    log("launch: home markers found=%s" % bool(found))
     time.sleep(1.5)
+
+
+def dismiss_dialogs():
+    for _ in range(4):
+        xml = dump()
+        if "responding" in xml:
+            log("dismissing a system dialog")
+            if not tap_text("Wait", timeout=3):
+                tap_text("Close app", timeout=3)
+            time.sleep(1.2)
+        else:
+            return
 
 
 def wait_home():
@@ -194,10 +268,13 @@ def wait_home():
 
 def add_text_note(title, content):
     if not tap_desc("New Note"):
+        log("   add_text_note: FAB 'New Note' not found")
         return False
     if not tap_text("Text Note"):
+        log("   add_text_note: 'Text Note' option not found")
         return False
     if not type_into("Title", title):
+        log("   add_text_note: title placeholder not found")
         return False
     type_into("Note", content)
     tap_desc("Save and Close")
@@ -288,8 +365,7 @@ def trash_note(title):
 def tag_note(title, label):
     if not open_note(title):
         return False
-    ok = tap_any(desc="Add label", text="Add label")
-    if ok:
+    if tap_any(desc="Add label", text="Add label"):
         type_into("Create new label", label)
         tap_desc("Create label", timeout=10)
         time.sleep(0.6)
@@ -343,8 +419,8 @@ def safe(label, fn, *args):
         result = fn(*args)
         log("%s -> %s" % (label, result))
         return result
-    except Exception as exc:  # keep capturing the remaining screens
-        log("ERROR in %s: %s" % (label, exc))
+    except Exception:
+        log("ERROR in %s:\n%s" % (label, traceback.format_exc()))
         return False
 
 
@@ -450,6 +526,8 @@ def capture_light():
 
 def main():
     launch_app()
+    log_nodes("after-launch")
+    debug_save("after-launch")
 
     seeded = [
         ("Meeting Notes", "Q3 planning sync with the product and design leads. Agenda covers roadmap, hiring, and the launch window."),
@@ -463,7 +541,11 @@ def main():
         ("Client Feedback", "Summary of the latest review: clearer onboarding, faster search, and larger note previews."),
         ("Reading List", "Three books queued for the month, one finished each week."),
     ]
-    for title, content in seeded:
+    first_ok = safe("add note %s" % seeded[0][0], add_text_note, *seeded[0])
+    if not first_ok:
+        log_nodes("after-first-note-failure")
+        debug_save("after-first-note-failure")
+    for title, content in seeded[1:]:
         safe("add note %s" % title, add_text_note, title, content)
 
     safe("add checklist Grocery List", add_checklist_note, "Grocery List",
@@ -486,20 +568,20 @@ def main():
 
     try:
         capture_dark()
-    except Exception as exc:
-        log("ERROR during dark captures: %s" % exc)
+    except Exception:
+        log("ERROR during dark captures:\n%s" % traceback.format_exc())
 
     try:
         capture_light()
-    except Exception as exc:
-        log("ERROR during light captures: %s" % exc)
+    except Exception:
+        log("ERROR during light captures:\n%s" % traceback.format_exc())
 
 
 if __name__ == "__main__":
     try:
         main()
-    except Exception as exc:
-        log("FATAL: %s" % exc)
+    except Exception:
+        log("FATAL:\n%s" % traceback.format_exc())
     finally:
         write_readme()
         log("done: %d screenshots" % len(captures))

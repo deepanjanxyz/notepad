@@ -1,0 +1,90 @@
+name: Universal PR Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['*']
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  pr-check:
+    name: Build, test and report
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Set up Android SDK (platform 37)
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Build and run unit tests
+        id: build
+        run: ./gradlew assembleDebug testDebugUnitTest --no-daemon 2>&1 | tee build-output.log
+
+      - name: Add thumbs up reaction on success
+        if: success()
+        uses: actions/github-script@v9
+        with:
+          script: |
+            await github.rest.reactions.createForIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              content: '+1'
+            })
+
+      - name: Extract error snippet
+        id: errors
+        if: failure()
+        run: |
+          LOG=build-output.log
+          if [ ! -f "$LOG" ]; then
+            echo "No build log was produced." > error-snippet.txt
+          else
+            grep -iE 'error|exception|failed|failure|what went wrong' "$LOG" | tail -n 40 > error-snippet.txt || true
+            [ -s error-snippet.txt ] || tail -n 40 "$LOG" > error-snippet.txt
+          fi
+          {
+            echo 'snippet<<EOF'
+            cat error-snippet.txt
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Post failure comment
+        if: failure()
+        uses: peter-evans/create-or-update-comment@v5
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            The PR check failed for this pull request.
+
+            **Error snippet**
+
+            ```
+            ${{ steps.errors.outputs.snippet }}
+            ```
+
+            **Action run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Fail the job
+        if: failure()
+        run: exit 1

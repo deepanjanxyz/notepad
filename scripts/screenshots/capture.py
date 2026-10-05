@@ -3,7 +3,8 @@
 
 The driver only uses adb: it locates real UI elements from `uiautomator dump`
 output (by text or content description) and acts on their bounds, so nothing
-relies on hard-coded screen coordinates.
+relies on hard-coded screen coordinates. Notes are located through the app's
+own search field rather than by scrolling the list.
 """
 
 import os
@@ -30,6 +31,7 @@ log_lines = []
 _dump_logged = False
 
 SHEET_MARKERS = ("SELECT LABELS", "CHOOSE COLOR", "Create Note", "Create new label")
+SEARCH_HINT = "Search notes, titles, thoughts..."
 
 
 def log(msg):
@@ -67,14 +69,14 @@ def _clean(xml):
 
 def dump():
     global _dump_logged
-    tty_out, tty_err, tty_rc = adb_full("exec-out", "uiautomator", "dump", "/dev/tty")
+    tty_out, _, tty_rc = adb_full("exec-out", "uiautomator", "dump", "/dev/tty")
     candidate = _clean(tty_out)
     if "<hierarchy" in candidate:
         if not _dump_logged:
             log("dump: ok via tty (len=%d)" % len(candidate))
             _dump_logged = True
         return candidate
-    out, err, rc = adb_full("shell", "uiautomator", "dump", "/sdcard/ui.xml")
+    adb_full("shell", "uiautomator", "dump", "/sdcard/ui.xml")
     candidate = _clean(adb("exec-out", "cat", "/sdcard/ui.xml"))
     if not _dump_logged:
         log("dump: tty failed rc=%s; file len=%d" % (tty_rc, len(candidate)))
@@ -163,31 +165,12 @@ def screen_size():
     return (int(m.group(1)), int(m.group(2))) if m else (1080, 2400)
 
 
-def swipe_up(frac=0.28):
-    w, h = screen_size()
-    adb("shell", "input", "swipe", str(w // 2), str(int(h * 0.70)),
-        str(w // 2), str(int(h * (0.70 - frac))), "400")
-    time.sleep(0.6)
-
-
 def scroll_top():
     w, h = screen_size()
     for _ in range(8):
         adb("shell", "input", "swipe", str(w // 2), str(int(h * 0.30)),
             str(w // 2), str(int(h * 0.80)), "250")
         time.sleep(0.2)
-
-
-def locate(text, max_swipes=6):
-    """Return a freshly-measured node for `text`, scrolling the list if needed."""
-    for _ in range(max_swipes + 1):
-        found = find(dump(), text=text)
-        if found:
-            time.sleep(0.4)
-            fresh = find(dump(), text=text)
-            return (fresh or found)[0]
-        swipe_up()
-    return None
 
 
 def hide_ime():
@@ -220,6 +203,12 @@ def long_press(node):
     return True
 
 
+def edit_fields(xml):
+    nodes = [n for n in parse(xml) if "EditText" in n.get("class", "") and bounds(n)]
+    nodes.sort(key=lambda n: bounds(n)[1])
+    return nodes
+
+
 def type_into(placeholder, text, timeout=20.0):
     found = wait_find(lambda x: find(x, text=placeholder), timeout)
     if not found:
@@ -227,6 +216,15 @@ def type_into(placeholder, text, timeout=20.0):
     tap_node(found[0])
     type_text(text)
     return True
+
+
+def type_into_field(index, text):
+    nodes = edit_fields(dump())
+    if index < len(nodes):
+        tap_node(nodes[index])
+        type_text(text)
+        return True
+    return False
 
 
 def screenshot(name, description):
@@ -288,6 +286,16 @@ def close_drawer(max_presses=4):
     return False
 
 
+def clear_search():
+    hide_ime()
+    for _ in range(3):
+        if find(dump(), desc="Clear search text"):
+            tap_desc("Clear search text", timeout=3)
+            time.sleep(0.5)
+        else:
+            return
+
+
 def open_drawer():
     return tap_desc("Open navigation menu", timeout=5) or tap_desc("Open drawer", timeout=5)
 
@@ -295,9 +303,21 @@ def open_drawer():
 def nav_to(name):
     if not ensure_home():
         return False
-    open_drawer()
-    node = locate(name, max_swipes=3)
-    return tap_node(node) if node else False
+    clear_search()
+    if not open_drawer():
+        return False
+    time.sleep(0.6)
+    found = wait_find(lambda x: find(x, text=name), timeout=5)
+    if not found:
+        w, h = screen_size()
+        for _ in range(3):
+            adb("shell", "input", "swipe", str(w // 2), str(int(h * 0.70)),
+                str(w // 2), str(int(h * 0.40)), "600")
+            time.sleep(0.5)
+            found = find(dump(), text=name)
+            if found:
+                break
+    return tap_node(found[0]) if found else False
 
 
 def dismiss_dialogs():
@@ -309,6 +329,18 @@ def dismiss_dialogs():
             time.sleep(1.2)
         else:
             return
+
+
+def search_open(title):
+    """Filter the note list to `title` using the search field and return its card."""
+    ensure_home()
+    clear_search()
+    if not type_into(SEARCH_HINT, title):
+        return None
+    time.sleep(1.0)
+    hide_ime()
+    found = wait_find(lambda x: find(x, text=title), timeout=8)
+    return found[0] if found else None
 
 
 # ---------------------------------------------------------------- app flow
@@ -360,8 +392,6 @@ def add_drawing_note(title):
     if not tap_text("Drawing Note"):
         return False
     wait_find(lambda x: find(x, desc="Back") and find(x, text="Title"), timeout=20)
-    type_into("Title", title)
-    hide_ime()
     w, h = screen_size()
     for x1, y1, x2, y2 in [
         (int(w * 0.25), int(h * 0.42), int(w * 0.75), int(h * 0.42)),
@@ -370,6 +400,9 @@ def add_drawing_note(title):
     ]:
         adb("shell", "input", "swipe", str(x1), str(y1), str(x2), str(y2), "350")
         time.sleep(0.3)
+    type_into_field(0, title)
+    hide_ime()
+    time.sleep(0.8)
     tap_desc("Back")
     wait_find(lambda x: find(x, desc="Save and Close"), timeout=15)
     tap_desc("Save and Close")
@@ -377,38 +410,41 @@ def add_drawing_note(title):
 
 
 def open_editor(title):
-    if not ensure_home():
-        return False
-    node = locate(title)
+    node = search_open(title)
     if not node:
-        log("   open_editor: '%s' not found on home" % title)
+        log("   open_editor: '%s' not found via search" % title)
+        clear_search()
         return False
     tap_node(node)
-    if wait_find(lambda x: find(x, desc="Save and Close"), timeout=8):
-        return True
-    log("   open_editor: editor did not open for '%s'" % title)
-    return ensure_home()
+    ok = wait_find(lambda x: find(x, desc="Save and Close"), timeout=8)
+    if not ok:
+        log("   open_editor: editor did not open for '%s'" % title)
+    return ok
 
 
 def select_note(title):
-    if not ensure_home():
-        return False
-    node = locate(title)
+    node = search_open(title)
     if not node:
-        log("   select_note: '%s' not found on home" % title)
+        log("   select_note: '%s' not found via search" % title)
+        clear_search()
         return False
     long_press(node)
-    if wait_find(lambda x: find(x, text="Selected", exact=False), timeout=8):
-        return True
-    log("   select_note: selection mode did not engage for '%s'" % title)
-    return False
+    ok = wait_find(lambda x: find(x, text="Selected", exact=False), timeout=8)
+    if not ok:
+        log("   select_note: selection did not engage for '%s'" % title)
+    return ok
+
+
+def finish_home():
+    ensure_home()
+    clear_search()
 
 
 def pin_note(title):
     if not select_note(title):
         return False
     ok = tap_desc("Pin selected notes", timeout=8) or tap_desc("Unpin selected notes", timeout=4)
-    ensure_home()
+    finish_home()
     return ok
 
 
@@ -416,7 +452,7 @@ def archive_note(title):
     if not select_note(title):
         return False
     ok = tap_desc("Archive selected", timeout=8)
-    ensure_home()
+    finish_home()
     return ok
 
 
@@ -424,7 +460,7 @@ def trash_note(title):
     if not select_note(title):
         return False
     ok = tap_desc("Move to Trash", timeout=8)
-    ensure_home()
+    finish_home()
     return ok
 
 
@@ -437,7 +473,8 @@ def tag_note(title, label):
         time.sleep(0.6)
         close_overlays()
     tap_desc("Save and Close")
-    return ensure_home()
+    finish_home()
+    return True
 
 
 def write_readme():
@@ -481,7 +518,7 @@ def safe(label, fn, *args):
 
 
 def capture_dark():
-    ensure_home()
+    finish_home()
     scroll_top()
     screenshot("01-home-grid-dark.png",
                "Home screen, two column grid layout, dark theme, with pinned notes and labels.")
@@ -492,13 +529,13 @@ def capture_dark():
         tap_desc("Switch to Grid View", timeout=10)
         time.sleep(0.8)
 
-    if type_into("Search notes, titles, thoughts...", "project"):
+    if type_into(SEARCH_HINT, "project"):
         time.sleep(1.0)
         hide_ime()
         screenshot("03-search-results-dark.png",
                    "Search results filtering notes by the keyword project, dark theme.")
-        tap_desc("Clear search text", timeout=8)
-        time.sleep(0.8)
+        clear_search()
+        time.sleep(0.5)
 
     if open_drawer():
         time.sleep(1.0)
@@ -520,35 +557,35 @@ def capture_dark():
                        "Color picker bottom sheet with the note color options.")
             close_overlays()
         tap_desc("Save and Close")
-        ensure_home()
+        finish_home()
 
     if open_editor("Grocery List"):
         screenshot("08-checklist-editor-dark.png",
                    "Checklist editor showing the list items and the add item row.")
         tap_desc("Save and Close")
-        ensure_home()
+        finish_home()
 
-    if open_editor("Sketch"):
+    if open_editor("Untitled Note"):
         screenshot("09-drawing-note-dark.png",
                    "Free hand drawing note with the pen toolbar and canvas.")
         press_back()
         wait_find(lambda x: find(x, desc="Save and Close"), timeout=15)
         tap_desc("Save and Close")
-        ensure_home()
+        finish_home()
 
     if nav_to("Archive"):
         time.sleep(1.2)
         screenshot("10-archive-dark.png",
                    "Archive screen listing archived notes, dark theme.")
         nav_to("Notes")
-        ensure_home()
+        finish_home()
 
     if nav_to("Trash"):
         time.sleep(1.2)
         screenshot("11-trash-dark.png",
                    "Trash screen with restore and delete options on each note, dark theme.")
         nav_to("Notes")
-        ensure_home()
+        finish_home()
 
     if nav_to("Settings"):
         time.sleep(1.2)
@@ -564,7 +601,7 @@ def capture_light():
     screenshot("13-settings-light.png", "Settings screen in light theme.")
 
     tap_desc("Back", timeout=10)
-    ensure_home()
+    finish_home()
     scroll_top()
     screenshot("14-home-grid-light.png", "Home screen, two column grid layout, light theme.")
 
@@ -578,13 +615,13 @@ def capture_light():
         time.sleep(1.2)
         screenshot("16-archive-light.png", "Archive screen in light theme.")
         nav_to("Notes")
-        ensure_home()
+        finish_home()
 
     if nav_to("Trash"):
         time.sleep(1.2)
         screenshot("17-trash-light.png", "Trash screen in light theme.")
         nav_to("Notes")
-        ensure_home()
+        finish_home()
 
 
 def main():
@@ -624,7 +661,7 @@ def main():
     safe("tag Project Roadmap", tag_note, "Project Roadmap", "Work")
     safe("tag Travel Itinerary", tag_note, "Travel Itinerary", "Travel")
 
-    ensure_home()
+    finish_home()
     scroll_top()
     debug_save("before-captures")
 

@@ -571,8 +571,23 @@ def handle_notification_permission(timeout=8):
     return False
 
 
+def open_note_by_title(title):
+    """Open a note that is already visible on the home screen (e.g. a pinned note)."""
+    ensure_home()
+    clear_search()
+    for _ in range(3):
+        found = wait_find(lambda x: find(x, text=title), timeout=6)
+        if not found:
+            return False
+        tap_node(found[0])
+        if wait_find(lambda x: find(x, desc="Save and Close"), timeout=5):
+            return True
+    log("   open_note_by_title: editor did not open for '%s'" % title)
+    return False
+
+
 def reminder_flow():
-    if not open_editor("Workout Plan"):
+    if not open_note_by_title("Weekly Goals"):
         return False
     if not tap_desc("Add reminder", timeout=10):
         log("   reminder: 'Add reminder' button not found")

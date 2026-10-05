@@ -190,6 +190,16 @@ def press_back():
     time.sleep(0.8)
 
 
+def ime_shown():
+    return "mInputShown=true" in adb("shell", "dumpsys", "input_method")
+
+
+def hide_ime():
+    if ime_shown():
+        adb("shell", "input", "keyevent", "4")
+        time.sleep(0.5)
+
+
 def long_press(node):
     c = center(node)
     if not c:
@@ -338,16 +348,36 @@ def open_editor(title):
         log("   open_editor: search field not found")
         return False
     time.sleep(1.0)
+    hide_ime()
     found = wait_find(lambda x: find(x, text=title), timeout=8)
     if not found:
         log("   open_editor: '%s' not in search results" % title)
         clear_search()
         return False
     tap_node(found[0])
-    ok = wait_find(lambda x: find(x, desc="Save and Close"), timeout=8)
+    ok = wait_find(lambda x: find(x, desc="Save and Close"), timeout=10)
     if not ok:
         log("   open_editor: editor did not open for '%s'" % title)
     return ok
+
+
+def open_drawing(title):
+    """Open a drawing note through search and confirm the drawing canvas loaded."""
+    ensure_home()
+    clear_search()
+    if not find(dump(), text=SEARCH_HINT):
+        relaunch_to_home()
+    if not type_into(SEARCH_HINT, title):
+        return False
+    time.sleep(1.0)
+    hide_ime()
+    found = wait_find(lambda x: find(x, text=title), timeout=8)
+    if not found:
+        log("   open_drawing: '%s' not in search results" % title)
+        clear_search()
+        return False
+    tap_node(found[0])
+    return bool(wait_find(lambda x: find(x, desc="Canvas Background & Grid"), timeout=10))
 
 
 # ---------------------------------------------------------------- app flow
@@ -499,6 +529,7 @@ def capture_dark():
 
     if type_into(SEARCH_HINT, "project"):
         time.sleep(1.0)
+        hide_ime()
         screenshot("03-search-results-dark.png",
                    "Search results filtering notes by the keyword project, dark theme.")
         clear_search()
@@ -533,7 +564,7 @@ def capture_dark():
         tap_desc("Save and Close")
         ensure_home()
 
-    if open_editor("Sketch") or open_editor("Untitled Note"):
+    if open_drawing("Sketch"):
         screenshot("09-drawing-note-dark.png",
                    "Free hand drawing note with the pen toolbar and canvas.")
         press_back()

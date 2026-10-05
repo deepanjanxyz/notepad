@@ -1,21 +1,25 @@
 package com.deepanjanxyz.notepad.ui.viewmodel
 
 import android.app.Application
-import android.content.Context
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.deepanjanxyz.notepad.NotepadApplication
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.domain.usecase.label.LabelUseCases
 import com.deepanjanxyz.notepad.domain.usecase.note.NoteUseCases
+import com.deepanjanxyz.notepad.domain.usecase.settings.SettingsUseCases
 import com.deepanjanxyz.notepad.worker.NoteReminderScheduler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.IOException
 
 sealed interface Screen {
     data object Home : Screen
@@ -42,19 +46,42 @@ data class NotesUiState(
 
 class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val prefs = application.getSharedPreferences("notepad_prefs", Context.MODE_PRIVATE)
     private val noteUseCases: NoteUseCases = (application as NotepadApplication).container.noteUseCases
     private val labelUseCases: LabelUseCases = (application as NotepadApplication).container.labelUseCases
+    private val settingsUseCases: SettingsUseCases = (application as NotepadApplication).container.settingsUseCases
 
-    private val _uiState = MutableStateFlow(
-        NotesUiState(
-            lockEnabled = prefs.getBoolean("pref_lock", false),
-            isLocked = prefs.getBoolean("pref_lock", false),
-            themeMode = prefs.getString("pref_theme", "dark") ?: "dark",
-            isGridLayout = prefs.getBoolean("pref_grid_layout", true)
-        )
-    )
+    private val _uiState = MutableStateFlow(NotesUiState())
     val uiState: StateFlow<NotesUiState> = _uiState.asStateFlow()
+
+    private companion object {
+        const val TAG = "NotesViewModel"
+    }
+
+    init {
+        observeSettings()
+    }
+
+    /**
+     * Mirrors the persisted settings into the UI state. The lock flag is applied
+     * only on the first emission so that unlocking during a session is not undone
+     * by later settings changes (e.g. switching the theme).
+     */
+    private fun observeSettings() {
+        viewModelScope.launch {
+            var isFirstEmission = true
+            settingsUseCases.getSettings().collect { settings ->
+                _uiState.update { current ->
+                    current.copy(
+                        themeMode = settings.themeMode,
+                        isGridLayout = settings.isGridLayout,
+                        lockEnabled = settings.lockEnabled,
+                        isLocked = if (isFirstEmission) settings.lockEnabled else current.isLocked
+                    )
+                }
+                isFirstEmission = false
+            }
+        }
+    }
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
@@ -146,8 +173,21 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleLayoutView() {
         val newLayout = !_uiState.value.isGridLayout
-        prefs.edit().putBoolean("pref_grid_layout", newLayout).apply()
-        _uiState.value = _uiState.value.copy(isGridLayout = newLayout)
+        // Update synchronously so two quick toggles don't both read the same value.
+        _uiState.update { it.copy(isGridLayout = newLayout) }
+        persistSetting(
+            label = "layout",
+            onFailure = {
+                // Restore the persisted value, but only if no newer toggle has
+                // superseded this optimistic one in the meantime.
+                if (_uiState.value.isGridLayout == newLayout) {
+                    val persisted = settingsUseCases.getSettings().first().isGridLayout
+                    _uiState.update { it.copy(isGridLayout = persisted) }
+                }
+            }
+        ) {
+            settingsUseCases.saveSettings.setGridLayout(newLayout)
+        }
     }
 
     fun setEditLabelsDialogVisible(visible: Boolean) {
@@ -200,16 +240,40 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setLockEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean("pref_lock", enabled).apply()
-        _uiState.value = _uiState.value.copy(
-            lockEnabled = enabled,
-            isLocked = enabled
-        )
+        // Reflect the change only once it is persisted, so a failed write is never
+        // reported to the user as saved.
+        persistSetting(
+            label = "lock",
+            onSuccess = { _uiState.update { it.copy(lockEnabled = enabled, isLocked = enabled) } }
+        ) {
+            settingsUseCases.saveSettings.setLockEnabled(enabled)
+        }
     }
 
     fun setTheme(theme: String) {
-        prefs.edit().putString("pref_theme", theme).apply()
-        _uiState.value = _uiState.value.copy(themeMode = theme)
+        persistSetting("theme") { settingsUseCases.saveSettings.setThemeMode(theme) }
+    }
+
+    /**
+     * Persists a settings change, logging (instead of crashing on) a failed write.
+     * [onSuccess] runs only after the value has been durably stored, and
+     * [onFailure] runs after a write that could not be persisted.
+     */
+    private fun persistSetting(
+        label: String,
+        onSuccess: () -> Unit = {},
+        onFailure: suspend () -> Unit = {},
+        block: suspend () -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                block()
+                onSuccess()
+            } catch (e: IOException) {
+                Log.w(TAG, "Failed to persist $label setting", e)
+                onFailure()
+            }
+        }
     }
 
     fun toggleSelection(noteId: Long) {

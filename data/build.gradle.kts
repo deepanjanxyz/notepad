@@ -18,6 +18,12 @@ android {
 
 }
 
+// Export the Room schema so migrations can be authored for every version bump
+// instead of relying on destructive fallback.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     implementation(project(":domain"))
     implementation("androidx.core:core-ktx:1.19.0")

@@ -14,6 +14,11 @@ jobs:
   build:
     name: Debug & Release build
     runs-on: ubuntu-latest
+    env:
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -33,17 +38,13 @@ jobs:
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
 
       - name: Decode release keystore
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/keystore.jks
+        run: echo "$KEYSTORE_BASE64" | base64 -d > app/keystore.jks
 
       - name: Make gradlew executable
         run: chmod +x gradlew
 
       - name: Assemble debug and release
         run: ./gradlew assembleDebug assembleRelease --no-daemon --parallel
-        env:
-          NOTEPAD_STORE_PASSWORD: ${{ secrets.NOTEPAD_STORE_PASSWORD }}
-          NOTEPAD_KEY_ALIAS: ${{ secrets.NOTEPAD_KEY_ALIAS }}
-          NOTEPAD_KEY_PASSWORD: ${{ secrets.NOTEPAD_KEY_PASSWORD }}
 
   unit-tests:
     name: Unit tests

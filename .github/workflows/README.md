@@ -24,12 +24,9 @@ single responsibility, so it is easy to see what runs, when, and why.
 | Secret | Used by | Purpose |
 |---|---|---|
 | `KEYSTORE_BASE64` | `android.yml`, `universal-pr-check.yml` | Base64-encoded release keystore. |
-| `KEYSTORE_PASSWORD` | `android.yml` | Keystore password. |
-| `KEY_ALIAS` | `android.yml` | Key alias inside the keystore. |
-| `KEY_PASSWORD` | `android.yml` | Key password. |
-| `NOTEPAD_STORE_PASSWORD` | `universal-pr-check.yml` | Release keystore password for the Gradle signing config. |
-| `NOTEPAD_KEY_ALIAS` | `universal-pr-check.yml` | Release key alias for the Gradle signing config. |
-| `NOTEPAD_KEY_PASSWORD` | `universal-pr-check.yml` | Release key password for the Gradle signing config. |
+| `KEYSTORE_PASSWORD` | `android.yml`, `universal-pr-check.yml` | Release keystore password. |
+| `KEY_ALIAS` | `android.yml`, `universal-pr-check.yml` | Release key alias. |
+| `KEY_PASSWORD` | `android.yml`, `universal-pr-check.yml` | Release key password. |
 | `GITLAB_TOKEN` | `mirror.yml` | Push access to the GitLab mirror. |
 | `CODEBERG_TOKEN` | `mirror.yml` | Push access to the Codeberg mirror. |
 
@@ -48,7 +45,7 @@ does not run on plain `push`.
 
 | Job | Command / action | Notes |
 |---|---|---|
-| Debug & Release build | `./gradlew assembleDebug assembleRelease --no-daemon --parallel` | Decodes the release keystore from `KEYSTORE_BASE64` and wires the `NOTEPAD_*` signing secrets so the release variant is signed, not just assembled. |
+| Debug & Release build | `./gradlew assembleDebug assembleRelease --no-daemon --parallel` | Decodes the release keystore from `KEYSTORE_BASE64` and exposes `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` to Gradle so the release variant is signed, not just assembled. |
 | Unit tests | `./gradlew testDebugUnitTest --no-daemon --parallel` | |
 | Android lint | `./gradlew lintDebug --no-daemon` | Counts lint warnings so the report can flag non-blocking issues. |
 | Static analysis (detekt) | `./gradlew detekt --no-daemon` | Runs only when detekt is configured in the project; skipped otherwise. |

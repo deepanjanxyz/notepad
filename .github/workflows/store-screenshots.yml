@@ -41,10 +41,13 @@ jobs:
 
       - name: Install Android SDK platform 37
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
+          SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMGR="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMGR" || SDKMGR="$(command -v sdkmanager)"
+          yes | "$SDKMGR" --licenses > /dev/null || true
+          "$SDKMGR" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
           # AGP resolves compileSdk 37 as "android-37" while sdkmanager installs it as "android-37.0".
-          ln -sfn "$ANDROID_HOME/platforms/android-37.0" "$ANDROID_HOME/platforms/android-37"
+          ln -sfn "$SDK/platforms/android-37.0" "$SDK/platforms/android-37"
 
       - name: Make gradlew executable
         run: chmod +x gradlew

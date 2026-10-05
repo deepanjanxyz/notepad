@@ -69,7 +69,7 @@ jobs:
           fi
 
   auto-bump:
-    name: Auto-bump version and open companion PR
+    name: Bump version on the PR branch
     needs: guard
     if: >-
       github.event_name == 'pull_request'
@@ -82,39 +82,50 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: write
-      pull-requests: write
     steps:
-      - name: Checkout main
+      - name: Checkout PR head branch
         uses: actions/checkout@v7
         with:
-          ref: main
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
-      - name: Validate version format
-        id: semver
+      - name: Pre-flight app name & version verification
+        id: preflight
         run: |
+          app_name=$(grep -oE 'rootProject.name[[:space:]]*=[[:space:]]*"[^"]*"' settings.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
           vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
-          if echo "$vn" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "valid=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "valid=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::versionName '$vn' is not strict semver (X.Y.Z); skipping the arithmetic version bump."
-          fi
-
-      - name: Create companion bump PR
-        if: steps.semver.outputs.valid == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          branch="auto/bump-version-pr-${{ github.event.pull_request.number }}"
-
-          if gh pr list --base main --head "$branch" --state open --json number --jq '.[0].number' | grep -q .; then
-            echo "A version bump PR for this pull request is already open; nothing to do."
-            exit 0
-          fi
-
           vc=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+')
-          vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
+
+          echo "App name:     ${app_name:-<missing>}"
+          echo "Version name: ${vn:-<missing>}"
+          echo "Version code: ${vc:-<missing>}"
+
+          if [ -z "$app_name" ]; then
+            echo "🔴 Pre-flight failed: app name could not be resolved."
+            exit 1
+          fi
+          if [ -z "$vn" ] || ! echo "$vn" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "🔴 Pre-flight failed: versionName '$vn' is missing or not strict SemVer (X.Y.Z)."
+            exit 1
+          fi
+          if [ -z "$vc" ] || ! echo "$vc" | grep -qE '^[1-9][0-9]*$'; then
+            echo "🔴 Pre-flight failed: versionCode '$vc' is missing or not a positive integer."
+            exit 1
+          fi
+
+          {
+            echo "app_name=$app_name"
+            echo "version_name=$vn"
+            echo "version_code=$vc"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Bump version on the PR branch
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          vn="${{ steps.preflight.outputs.version_name }}"
+          vc="${{ steps.preflight.outputs.version_code }}"
           new_vc=$((vc + 1))
           IFS='.' read -r major minor patch <<< "$vn"
           new_vn="$major.$minor.$((patch + 1))"
@@ -122,17 +133,15 @@ jobs:
           sed -i "s/versionCode[[:space:]]*=[[:space:]]*[0-9]\+/versionCode = $new_vc/" app/build.gradle.kts
           sed -i "s/versionName[[:space:]]*=[[:space:]]*\"[^\"]*\"/versionName = \"$new_vn\"/" app/build.gradle.kts
 
+          if git diff --quiet -- app/build.gradle.kts; then
+            echo "🔴 Bump failed: app/build.gradle.kts did not change."
+            exit 1
+          fi
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$branch"
-          git commit -am "chore(release): bump version code [skip ci]"
-          git push origin "$branch"
-
-          gh pr create \
-            --base main \
-            --head "$branch" \
-            --title "chore(release): bump version code [skip ci]" \
-            --body "Automated companion PR: bumps \`versionCode\` to \`$new_vc\` and \`versionName\` to \`$new_vn\` for the change in #${{ github.event.pull_request.number }}. Merge this to trigger the release."
+          git commit -am "chore(release): bump version [skip ci]"
+          git push origin "HEAD:$HEAD_REF"
 
   release:
     name: Release on merge to main
@@ -164,11 +173,17 @@ jobs:
       - name: Set up Android SDK (platform 37)
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
 
-      - name: Read version
+      - name: Read app metadata
         id: version
         run: |
+          app_name=$(grep -oE 'rootProject.name[[:space:]]*=[[:space:]]*"[^"]*"' settings.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
           vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
-          echo "version=$vn" >> "$GITHUB_OUTPUT"
+          vc=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+')
+          {
+            echo "app_name=$app_name"
+            echo "version=$vn"
+            echo "version_code=$vc"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Validate version
         run: |
@@ -177,7 +192,7 @@ jobs:
             echo "🔴 Release failed: versionName '$version' is not strict SemVer (X.Y.Z)."
             exit 1
           fi
-          code=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+')
+          code="${{ steps.version.outputs.version_code }}"
           if ! echo "$code" | grep -qE '^[1-9][0-9]*$'; then
             echo "🔴 Release failed: versionCode '$code' is missing or not a positive integer."
             exit 1
@@ -227,11 +242,60 @@ jobs:
           echo "$KEYSTORE_BASE64" | base64 -d > app/keystore.jks
           ./gradlew assembleRelease --no-daemon
 
+      - name: Rename release APKs
+        run: |
+          app_name="${{ steps.version.outputs.app_name }}"
+          vn="${{ steps.version.outputs.version }}"
+          vc="${{ steps.version.outputs.version_code }}"
+          out="app/build/outputs/apk/release"
+
+          shopt -s nullglob
+          apks=("$out"/*.apk)
+          if [ "${#apks[@]}" -eq 0 ]; then
+            echo "🔴 No release APK was produced to rename."
+            exit 1
+          fi
+
+          for i in "${!apks[@]}"; do
+            suffix=""
+            if [ "$i" -gt 0 ]; then
+              suffix="-$((i + 1))"
+            fi
+            mv "${apks[$i]}" "$out/${app_name}-v${vn}-${vc}${suffix}.apk"
+          done
+
+          ls -l "$out"/*.apk
+
+      - name: Verify APK signatures
+        run: |
+          build_tools="$ANDROID_HOME/build-tools/36.0.0"
+          shopt -s nullglob
+          apks=(app/build/outputs/apk/release/*.apk)
+          if [ "${#apks[@]}" -eq 0 ]; then
+            echo "🔴 No APK found to verify."
+            exit 1
+          fi
+          for apk in "${apks[@]}"; do
+            echo "Verifying $apk"
+            "$build_tools/apksigner" verify --verbose "$apk"
+          done
+
+      - name: Append SHA-256 checksums
+        run: |
+          {
+            echo ""
+            echo "### SHA-256 checksums"
+            echo ""
+            echo '```'
+            (cd app/build/outputs/apk/release && sha256sum ./*.apk)
+            echo '```'
+          } >> /tmp/release-notes.md
+
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "v${{ steps.version.outputs.version }}" \
+            app/build/outputs/apk/release/*.apk \
             --title "v${{ steps.version.outputs.version }}" \
-            --notes-file /tmp/release-notes.md \
-            app/build/outputs/apk/release/*.apk
+            --notes-file /tmp/release-notes.md

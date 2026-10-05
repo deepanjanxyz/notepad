@@ -295,12 +295,22 @@ def open_drawer():
     return tap_desc("Open navigation menu", timeout=5) or tap_desc("Open drawer", timeout=5)
 
 
+def relaunch_to_home():
+    adb("shell", "am", "force-stop", PKG)
+    adb("shell", "am", "start", "-W", "-n", ACTIVITY)
+    time.sleep(2.5)
+    dismiss_dialogs()
+    return bool(wait_find(lambda x: at_home(x), timeout=30))
+
+
 def nav_to(name):
     if not ensure_home():
-        return False
+        relaunch_to_home()
     clear_search()
     if not open_drawer():
-        return False
+        relaunch_to_home()
+        if not open_drawer():
+            return False
     time.sleep(0.6)
     found = wait_find(lambda x: find(x, text=name), timeout=5)
     return tap_node(found[0]) if found else False
@@ -321,6 +331,9 @@ def open_editor(title):
     """Open a note through the app's search field (no list scrolling needed)."""
     ensure_home()
     clear_search()
+    if not find(dump(), text=SEARCH_HINT):
+        log("   open_editor: search field missing; relaunching")
+        relaunch_to_home()
     if not type_into(SEARCH_HINT, title):
         log("   open_editor: search field not found")
         return False
@@ -496,6 +509,7 @@ def capture_dark():
         screenshot("04-navigation-drawer-dark.png",
                    "Navigation drawer with notes, labels, archive, trash, and settings.")
         close_drawer()
+        relaunch_to_home()
 
     if open_editor("Meeting Notes"):
         screenshot("05-note-editor-dark.png",
@@ -554,8 +568,7 @@ def capture_light():
     time.sleep(1.5)
     screenshot("13-settings-light.png", "Settings screen in light theme.")
 
-    tap_desc("Back", timeout=10)
-    ensure_home()
+    relaunch_to_home()
     clear_search()
     scroll_top()
     screenshot("14-home-grid-light.png", "Home screen, two column grid layout, light theme.")

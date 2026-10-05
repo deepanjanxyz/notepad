@@ -49,9 +49,9 @@ android {
     val releaseKeystore = projectDir.resolve("keystore.jks")
     val expectedKeystore = projectDir.canonicalFile.resolve("keystore.jks")
     val keystoreIsValid = releaseKeystore.isFile && releaseKeystore.canonicalFile == expectedKeystore
-    val releaseStorePass = findConfig("NOTEPAD_STORE_PASSWORD")
-    val releaseAlias = findConfig("NOTEPAD_KEY_ALIAS")
-    val releaseKeyPass = findConfig("NOTEPAD_KEY_PASSWORD")
+    val releaseStorePass = findConfig("KEYSTORE_PASSWORD")
+    val releaseAlias = findConfig("KEY_ALIAS")
+    val releaseKeyPass = findConfig("KEY_PASSWORD")
     val hasReleaseSigning = keystoreIsValid && releaseStorePass != null &&
         releaseAlias != null && releaseKeyPass != null
 
@@ -90,9 +90,9 @@ android {
         if (!hasReleaseSigning && allTasks.any { it.name.endsWith("Release") }) {
             val missing = buildList {
                 if (!keystoreIsValid) add("a valid app/keystore.jks")
-                if (releaseStorePass == null) add("NOTEPAD_STORE_PASSWORD")
-                if (releaseAlias == null) add("NOTEPAD_KEY_ALIAS")
-                if (releaseKeyPass == null) add("NOTEPAD_KEY_PASSWORD")
+                if (releaseStorePass == null) add("KEYSTORE_PASSWORD")
+                if (releaseAlias == null) add("KEY_ALIAS")
+                if (releaseKeyPass == null) add("KEY_PASSWORD")
             }
             throw GradleException("Release signing is not configured; missing ${missing.joinToString()}")
         }

@@ -1,0 +1,263 @@
+name: Universal PR Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [dev]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  build:
+    name: Debug & Release build
+    runs-on: ubuntu-latest
+    env:
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Set up Android SDK (platform 37)
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
+
+      - name: Decode release keystore
+        run: echo "$KEYSTORE_BASE64" | base64 -d > app/keystore.jks
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Assemble debug and release
+        run: ./gradlew assembleDebug assembleRelease --no-daemon --parallel
+
+  unit-tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Set up Android SDK (platform 37)
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest --no-daemon --parallel
+
+  lint:
+    name: Android lint
+    runs-on: ubuntu-latest
+    outputs:
+      warnings: ${{ steps.count.outputs.warnings }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Set up Android SDK (platform 37)
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Run lint
+        run: ./gradlew lintDebug --no-daemon
+
+      - name: Count lint warnings
+        id: count
+        if: always()
+        run: |
+          report=$(find . -name 'lint-results-debug.xml' -print -quit)
+          if [ -n "$report" ]; then
+            count=$(grep -c 'severity="Warning"' "$report" || true)
+          else
+            count=0
+          fi
+          echo "warnings=$count" >> "$GITHUB_OUTPUT"
+
+  detekt:
+    name: Static analysis (detekt)
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.detect.outputs.configured }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Set up Android SDK (platform 37)
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Detect detekt task
+        id: detect
+        run: |
+          if grep -rqE 'detekt' --include='*.gradle.kts' --include='*.gradle' --include='*.toml' . ; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run detekt
+        if: steps.detect.outputs.configured == 'true'
+        run: ./gradlew detekt --no-daemon
+
+  secrets-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  report:
+    name: PR status report
+    runs-on: ubuntu-latest
+    needs: [build, unit-tests, lint, detekt, secrets-scan]
+    if: always()
+    steps:
+      - name: Build report body
+        id: body
+        env:
+          BUILD: ${{ needs.build.result }}
+          TESTS: ${{ needs.unit-tests.result }}
+          LINT: ${{ needs.lint.result }}
+          LINT_WARNINGS: ${{ needs.lint.outputs.warnings }}
+          DETEKT: ${{ needs.detekt.result }}
+          DETEKT_CONFIGURED: ${{ needs.detekt.outputs.configured }}
+          SECRETS: ${{ needs.secrets-scan.result }}
+        run: |
+          if [ "$BUILD" = "success" ]; then
+            build_icon="🟢"; build_summary="Debug and signed release APKs assembled"
+          else
+            build_icon="🔴"; build_summary="Debug or release build failed"
+          fi
+
+          if [ "$TESTS" = "success" ]; then
+            tests_icon="🟢"; tests_summary="All unit tests passed"
+          else
+            tests_icon="🔴"; tests_summary="Unit tests failed"
+          fi
+
+          if [ "$LINT" != "success" ]; then
+            lint_icon="🔴"; lint_summary="Lint found blocking errors"
+          elif [ "${LINT_WARNINGS:-0}" -gt 0 ]; then
+            lint_icon="🟡"; lint_summary="${LINT_WARNINGS} lint warning(s)"
+          else
+            lint_icon="🟢"; lint_summary="No lint issues"
+          fi
+
+          if [ "$DETEKT_CONFIGURED" = "false" ]; then
+            detekt_icon="⚪"; detekt_summary="Not configured"
+          elif [ "$DETEKT" = "success" ]; then
+            detekt_icon="🟢"; detekt_summary="Static analysis clean"
+          else
+            detekt_icon="🔴"; detekt_summary="Static analysis found issues"
+          fi
+
+          if [ "$SECRETS" = "success" ]; then
+            secrets_icon="🟢"; secrets_summary="No hardcoded secrets detected"
+          else
+            secrets_icon="🔴"; secrets_summary="Potential secret detected"
+          fi
+
+          {
+            echo "body<<EOF"
+            echo "## Pull request check summary"
+            echo ""
+            echo "| Test & Inspection Suite | Status | Summary |"
+            echo "| :--- | :---: | :--- |"
+            echo "| **Debug & Release Build** | $build_icon | $build_summary |"
+            echo "| **Unit Tests** | $tests_icon | $tests_summary |"
+            echo "| **Android Lint Analysis** | $lint_icon | $lint_summary |"
+            echo "| **Static Code Analysis (Detekt)** | $detekt_icon | $detekt_summary |"
+            echo "| **Security & Secret Scan** | $secrets_icon | $secrets_summary |"
+            echo ""
+            echo "[View full run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Find existing report comment
+        uses: peter-evans/find-comment@v4
+        id: find
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: 'Pull request check summary'
+
+      - name: Post or update report comment
+        uses: peter-evans/create-or-update-comment@v5
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-id: ${{ steps.find.outputs.comment-id }}
+          edit-mode: replace
+          body: ${{ steps.body.outputs.body }}
+
+      - name: Add thumbs up reaction on full success
+        if: needs.build.result == 'success' && needs.unit-tests.result == 'success' && needs.lint.result == 'success' && needs.detekt.result == 'success' && needs.secrets-scan.result == 'success'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            await github.rest.reactions.createForIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              content: '+1'
+            })

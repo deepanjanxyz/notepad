@@ -21,16 +21,17 @@ on:
       - 'docs/**'
       - '.github/**'
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   guard:
     name: Guard - application source check
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     outputs:
       code_changed: ${{ steps.diff.outputs.code_changed }}
       version_updated: ${{ steps.version.outputs.version_updated }}
@@ -60,7 +61,7 @@ jobs:
           echo "Changed files:"
           echo "$files"
 
-          if echo "$files" | grep -qE '\.(kt|java|kts|gradle)$|(^|/)src/'; then
+          if echo "$files" | grep -qE '^app/src/main/|\.gradle\.kts$|gradle\.properties$'; then
             echo "code_changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "code_changed=false" >> "$GITHUB_OUTPUT"
@@ -100,7 +101,19 @@ jobs:
           ref: main
           fetch-depth: 0
 
+      - name: Validate version format
+        id: semver
+        run: |
+          vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
+          if echo "$vn" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "valid=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::versionName '$vn' is not strict semver (X.Y.Z); skipping the arithmetic version bump."
+          fi
+
       - name: Create companion bump PR
+        if: steps.semver.outputs.valid == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -113,7 +126,6 @@ jobs:
           vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
           new_vc=$((vc + 1))
           IFS='.' read -r major minor patch <<< "$vn"
-          major=${major:-0}; minor=${minor:-0}; patch=${patch:-0}
           new_vn="$major.$minor.$((patch + 1))"
 
           sed -i "s/versionCode[[:space:]]*=[[:space:]]*[0-9]\+/versionCode = $new_vc/" app/build.gradle.kts
@@ -168,17 +180,14 @@ jobs:
           echo "version=$vn" >> "$GITHUB_OUTPUT"
 
       - name: Check for existing tag
-        id: tag
         run: |
           if git ls-remote --tags origin "refs/tags/v${{ steps.version.outputs.version }}" | grep -q .; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "🔴 Release failed: Tag v${{ steps.version.outputs.version }} already exists on remote!"
+            exit 1
           fi
 
       - name: Resolve release context
         id: context
-        if: steps.tag.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -213,13 +222,11 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Build signed release APK
-        if: steps.tag.outputs.exists == 'false'
         run: |
           echo "$KEYSTORE_BASE64" | base64 -d > app/keystore.jks
           ./gradlew assembleRelease --no-daemon
 
       - name: Create GitHub release
-        if: steps.tag.outputs.exists == 'false'
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.version.outputs.version }}

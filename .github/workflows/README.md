@@ -88,30 +88,41 @@ base branch is `main`, and `push` events to `main` (i.e. merges). The
 `paths-ignore` filter skips the run entirely when only non-code files change
 (`**.md`, `**.txt`, `**.png`, `**.jpg`, `docs/**`, `.github/**`).
 
+**Concurrency.** A workflow-level group `release-${{ github.ref }}` with
+`cancel-in-progress: false` serialises runs for the same ref, so two releases can
+never race each other.
+
 **Guard (`guard` job).** Runs on both events and computes two facts used by the
 later jobs:
 
-- `code_changed` — a `git diff` against the base confirms that Kotlin/Java/Gradle
-  application code actually changed (any `*.kt`, `*.java`, `*.gradle.kts`,
-  `*.gradle`, or a path under a `src/` directory). If nothing matches, every bot
-  step is skipped — no version check, no bot PR, no release.
+- `code_changed` — a `git diff` against the base confirms that application code
+  actually changed. Only paths under `app/src/main/`, or the root Gradle
+  configuration files (`*.gradle.kts`, `gradle.properties`), count. Changes under
+  `app/src/test/` and `app/src/androidTest/` (and docs/images) do not. If nothing
+  matches, every bot step is skipped — no version check, no bot PR, no release.
 - `version_updated` (pull requests only) — whether `versionCode` and
   `versionName` in `app/build.gradle.kts` differ from `main`.
 
 **Auto-bump (`auto-bump` job).** On a `main` PR that changes code but leaves the
-version untouched — and was not opened by `github-actions[bot]` — it creates the
-`auto/bump-version-main` branch, increments `versionCode` by 1, bumps the patch
-component of `versionName`, and opens a companion PR to `main` titled
-`chore(release): bump version code [skip ci]`. If a bump PR is already open, it
-does nothing.
+version untouched — and was not opened by `github-actions[bot]` — it first
+validates that `versionName` is strict semantic versioning
+(`^[0-9]+\.[0-9]+\.[0-9]+$`). If it is not (e.g. an alpha/beta suffix), the
+arithmetic bump is skipped with a warning instead of risking a malformed version.
+Otherwise it creates the `auto/bump-version-main` branch, increments `versionCode`
+by 1, bumps the patch component of `versionName`, and opens a companion PR to
+`main` titled `chore(release): bump version code [skip ci]`. If a bump PR is
+already open, it does nothing.
 
 **Release (`release` job).** On a merge to `main` with code changes it reads
-`versionName`, skips if the tag `v<versionName>` already exists, builds the
-signed release APK, and publishes a GitHub Release via
-`softprops/action-gh-release` with the tag `v<versionName>` and the APK
-attached. For the release notes it prefers the merged PR's title and body; if the
-tip commit is the bot's bump commit, it walks `git log` back to the last human
+`versionName` and checks for an existing `v<versionName>` tag. If the tag already
+exists the job **fails hard** (`exit 1`) rather than silently skipping, so a
+missing release can never be mistaken for a successful one. Otherwise it resolves
+the release context, builds the signed release APK, and publishes a GitHub
+Release via `softprops/action-gh-release` with the tag `v<versionName>` and the
+APK attached. For the release notes it prefers the merged PR's title and body; if
+the tip commit is the bot's bump commit, it walks `git log` back to the last human
 commit and uses that contributor's PR/commit context instead.
 
-**Permissions.** `contents: write` and `pull-requests: write`; the `guard` job is
-restricted to `contents: read`.
+**Permissions.** Least privilege: the workflow default is `contents: read`. Only
+the `auto-bump` job is elevated to `contents: write` + `pull-requests: write`, and
+only the `release` job to `contents: write`.

@@ -55,4 +55,12 @@ local `assembleRelease` will not be signed unless you provide your own.
 ## Releases
 
 Releases are cut automatically. When a pull request from `dev` into `main`
-merges, the release workflow reads the latest `vê`ˆÑ…œ°‘•É¥Ù•ÌÑ¡”¹•áĞ)Ù•ÉÍ¥½¸°‰Õ¥±‘Ì…¹Í¥¹ÌÑ¡”A-Ì°…¹ÁÕ‰±¥Í¡•ÌÑ¡”É•±•…Í”İ¥Ñ ¹½Ñ•Ì‘É…İ¸)™É½´Ñ¡”…ÑÕ…°‘¥™˜¸½¹ÑÉ¥‰ÕÑ½ÉÌ‘¼¹½Ğ¹••Ñ¼‰ÕµÀÙ•ÉÍ¥½¹½‘•€½È)Ù•ÉÍ¥½¹9…µ•€¸((ŒŒI•Á½ÉÑ¥¹œ‰ÕÌ…¹É•ÅÕ•ÍÑ¥¹œ™•…ÑÕÉ•Ì()UÍ”Ñ¡”¥ÍÍÕ”Ñ•µÁ±…Ñ•Ì¸½È…¹åÑ¡¥¹œÍ•ÕÉ¥ÑäµÉ•±…Ñ•°Á±•…Í”½Á•¸„ÁÉ¥Ù…Ñ”)É•Á½ÉĞÉ…Ñ¡•ÈÑ¡…¸„ÁÕ‰±¥Œ¥ÍÍÕ”¸(
+merges, the release workflow reads the latest `v*` tag, derives the next
+version, builds and signs the APKs, and publishes the release with notes drawn
+from the actual diff. Contributors do not need to bump `versionCode` or
+`versionName`.
+
+## Reporting bugs and requesting features
+
+Use the issue templates. For anything security-related, please open a private
+report rather than a public issue.

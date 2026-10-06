@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.ui.viewmodel.NotesUiState
+import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,14 +99,16 @@ fun SettingsScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(
-                        onClick = onNavigateBack,
-                        modifier = Modifier.testTag("settings_back_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
+                    ActionTooltip("Back") {
+                        IconButton(
+                            onClick = onNavigateBack,
+                            modifier = Modifier.testTag("settings_back_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

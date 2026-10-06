@@ -80,6 +80,7 @@ import com.deepanjanxyz.notepad.ui.components.FloatingSearchBar
 import com.deepanjanxyz.notepad.ui.components.NoteCard
 import com.deepanjanxyz.notepad.ui.theme.NoteColorOptions
 import com.deepanjanxyz.notepad.ui.viewmodel.NotesUiState
+import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -128,64 +129,74 @@ fun HomeScreen(
                         )
                     },
                     navigationIcon = {
-                        IconButton(
-                            onClick = onClearSelection,
-                            modifier = Modifier.testTag("close_selection_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Cancel selection"
-                            )
+                        ActionTooltip("Cancel selection") {
+                            IconButton(
+                                onClick = onClearSelection,
+                                modifier = Modifier.testTag("close_selection_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Cancel selection"
+                                )
+                            }
                         }
                     },
                     actions = {
                         // Select/Deselect All
-                        IconButton(
-                            onClick = {
-                                if (isAllSelected) onClearSelection() else onSelectAll()
-                            },
-                            modifier = Modifier.testTag("select_all_button")
-                        ) {
-                            Icon(
-                                imageVector = if (isAllSelected) Icons.Default.Deselect else Icons.Default.SelectAll,
-                                contentDescription = if (isAllSelected) "Deselect all" else "Select all"
-                            )
+                        ActionTooltip(if (isAllSelected) "Deselect all" else "Select all") {
+                            IconButton(
+                                onClick = {
+                                    if (isAllSelected) onClearSelection() else onSelectAll()
+                                },
+                                modifier = Modifier.testTag("select_all_button")
+                            ) {
+                                Icon(
+                                    imageVector = if (isAllSelected) Icons.Default.Deselect else Icons.Default.SelectAll,
+                                    contentDescription = if (isAllSelected) "Deselect all" else "Select all"
+                                )
+                            }
                         }
 
                         // Pin/Unpin Action Button
-                        IconButton(
-                            onClick = onTogglePinSelected,
-                            modifier = Modifier.testTag("pin_selected_button")
-                        ) {
-                            Icon(
-                                imageVector = if (anyUnpinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
-                                contentDescription = if (anyUnpinned) "Pin selected notes" else "Unpin selected notes",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                        ActionTooltip(if (anyUnpinned) "Pin selected notes" else "Unpin selected notes") {
+                            IconButton(
+                                onClick = onTogglePinSelected,
+                                modifier = Modifier.testTag("pin_selected_button")
+                            ) {
+                                Icon(
+                                    imageVector = if (anyUnpinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                                    contentDescription = if (anyUnpinned) "Pin selected notes" else "Unpin selected notes",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
 
                         // Archive Action Button
-                        IconButton(
-                            onClick = onMoveSelectedToArchive,
-                            modifier = Modifier.testTag("archive_selected_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Archive,
-                                contentDescription = "Archive selected",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                        ActionTooltip("Archive selected") {
+                            IconButton(
+                                onClick = onMoveSelectedToArchive,
+                                modifier = Modifier.testTag("archive_selected_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Archive,
+                                    contentDescription = "Archive selected",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
 
                         // Delete (Trash) Action Button
-                        IconButton(
-                            onClick = onMoveSelectedToTrash,
-                            modifier = Modifier.testTag("delete_selected_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = "Move to Trash",
-                                tint = MaterialTheme.colorScheme.error
-                            )
+                        ActionTooltip("Move to Trash") {
+                            IconButton(
+                                onClick = onMoveSelectedToTrash,
+                                modifier = Modifier.testTag("delete_selected_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Move to Trash",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(

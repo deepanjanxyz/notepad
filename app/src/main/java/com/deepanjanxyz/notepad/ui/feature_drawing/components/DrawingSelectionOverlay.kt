@@ -28,6 +28,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 
 fun DrawScope.drawSelectionBoundingBox(b: Rect) {
     val blueColor = Color(0xFF2196F3)
@@ -107,38 +108,44 @@ fun FloatingSelectionBar(
                 text = "$selectedCount selected",
                 style = TextStyle(color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
             )
-            IconButton(
-                onClick = onDuplicate,
-                modifier = Modifier.size(36.dp).testTag("drawing_duplicate_selected_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ContentCopy,
-                    contentDescription = "Duplicate selected",
-                    tint = Color(0xFF2196F3),
-                    modifier = Modifier.size(18.dp)
-                )
+            ActionTooltip("Duplicate selected") {
+                IconButton(
+                    onClick = onDuplicate,
+                    modifier = Modifier.size(36.dp).testTag("drawing_duplicate_selected_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = "Duplicate selected",
+                        tint = Color(0xFF2196F3),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
-            IconButton(
-                onClick = onDelete,
-                modifier = Modifier.size(36.dp).testTag("drawing_delete_selected_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete selected",
-                    tint = Color(0xFFEF5350),
-                    modifier = Modifier.size(18.dp)
-                )
+            ActionTooltip("Delete selected") {
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(36.dp).testTag("drawing_delete_selected_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete selected",
+                        tint = Color(0xFFEF5350),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
-            IconButton(
-                onClick = onClearSelection,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Deselect",
-                    tint = Color(0xFF8E9099),
-                    modifier = Modifier.size(18.dp)
-                )
+            ActionTooltip("Deselect") {
+                IconButton(
+                    onClick = onClearSelection,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Deselect",
+                        tint = Color(0xFF8E9099),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }

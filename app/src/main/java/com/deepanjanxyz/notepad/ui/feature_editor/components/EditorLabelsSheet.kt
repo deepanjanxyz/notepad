@@ -44,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -187,21 +188,23 @@ fun EditorLabelsSheet(
                     }),
                     trailingIcon = {
                         if (newLabelInput.isNotBlank()) {
-                            IconButton(
-                                onClick = {
-                                    if (cleanInput.isNotBlank() && !isDuplicate) {
-                                        onCreateLabel(cleanInput)
-                                        newLabelInput = ""
-                                    }
-                                },
-                                enabled = !isDuplicate,
-                                modifier = Modifier.testTag("add_new_label_button")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = "Create label",
-                                    tint = if (!isDuplicate) amberAccent else Color(0xFF757579)
-                                )
+                            ActionTooltip("Create label") {
+                                IconButton(
+                                    onClick = {
+                                        if (cleanInput.isNotBlank() && !isDuplicate) {
+                                            onCreateLabel(cleanInput)
+                                            newLabelInput = ""
+                                        }
+                                    },
+                                    enabled = !isDuplicate,
+                                    modifier = Modifier.testTag("add_new_label_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = "Create label",
+                                        tint = if (!isDuplicate) amberAccent else Color(0xFF757579)
+                                    )
+                                }
                             }
                         }
                     },

@@ -431,43 +431,49 @@ fun NoteCard(
                         if (isInTrash) {
                             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                                 if (onRestore != null) {
-                                    IconButton(
-                                        onClick = onRestore,
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.RestoreFromTrash,
-                                            contentDescription = "Restore",
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(18.dp)
-                                        )
+                                    ActionTooltip("Restore") {
+                                        IconButton(
+                                            onClick = onRestore,
+                                            modifier = Modifier.size(28.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.RestoreFromTrash,
+                                                contentDescription = "Restore",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
                                     }
                                 }
                                 if (onDeleteForever != null) {
-                                    IconButton(
-                                        onClick = onDeleteForever,
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.DeleteForever,
-                                            contentDescription = "Delete forever",
-                                            tint = MaterialTheme.colorScheme.error,
-                                            modifier = Modifier.size(18.dp)
-                                        )
+                                    ActionTooltip("Delete forever") {
+                                        IconButton(
+                                            onClick = onDeleteForever,
+                                            modifier = Modifier.size(28.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.DeleteForever,
+                                                contentDescription = "Delete forever",
+                                                tint = MaterialTheme.colorScheme.error,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
                                     }
                                 }
                             }
                         } else if (isInArchive && onUnarchive != null) {
-                            IconButton(
-                                onClick = onUnarchive,
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Unarchive,
-                                    contentDescription = "Unarchive",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
-                                )
+                            ActionTooltip("Unarchive") {
+                                IconButton(
+                                    onClick = onUnarchive,
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Unarchive,
+                                        contentDescription = "Unarchive",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                             }
                         }
                     }

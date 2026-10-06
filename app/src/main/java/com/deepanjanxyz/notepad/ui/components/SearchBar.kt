@@ -67,29 +67,33 @@ fun FloatingSearchBar(
         ) {
             // Leading Icon: If query is active, show back arrow to clear search, otherwise drawer menu toggle
             if (query.isNotEmpty()) {
-                IconButton(
-                    onClick = {
-                        onQueryChange("")
-                        focusManager.clearFocus()
-                    },
-                    modifier = Modifier.testTag("search_back_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Clear search",
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
+                ActionTooltip("Clear search") {
+                    IconButton(
+                        onClick = {
+                            onQueryChange("")
+                            focusManager.clearFocus()
+                        },
+                        modifier = Modifier.testTag("search_back_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Clear search",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
             } else {
-                IconButton(
-                    onClick = onOpenDrawer,
-                    modifier = Modifier.testTag("drawer_menu_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Menu,
-                        contentDescription = "Open navigation menu",
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
+                ActionTooltip("Open navigation menu") {
+                    IconButton(
+                        onClick = onOpenDrawer,
+                        modifier = Modifier.testTag("drawer_menu_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Menu,
+                            contentDescription = "Open navigation menu",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
             }
 
@@ -147,30 +151,34 @@ fun FloatingSearchBar(
 
             // Clear search text button if active
             if (query.isNotEmpty()) {
-                IconButton(
-                    onClick = {
-                        onQueryChange("")
-                    },
-                    modifier = Modifier.testTag("clear_search_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Clear,
-                        contentDescription = "Clear search text",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                ActionTooltip("Clear search text") {
+                    IconButton(
+                        onClick = {
+                            onQueryChange("")
+                        },
+                        modifier = Modifier.testTag("clear_search_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Clear,
+                            contentDescription = "Clear search text",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
             // Trailing Icon: Layout View Switcher button (Grid / Staggered Grid vs Single Column List)
-            IconButton(
-                onClick = onToggleLayout,
-                modifier = Modifier.testTag("layout_toggle_button")
-            ) {
-                Icon(
-                    imageVector = if (isGridLayout) Icons.AutoMirrored.Filled.ViewList else Icons.Default.GridView,
-                    contentDescription = if (isGridLayout) "Switch to Single Column List" else "Switch to Grid View",
-                    tint = MaterialTheme.colorScheme.primary
-                )
+            ActionTooltip(if (isGridLayout) "Switch to Single Column List" else "Switch to Grid View") {
+                IconButton(
+                    onClick = onToggleLayout,
+                    modifier = Modifier.testTag("layout_toggle_button")
+                ) {
+                    Icon(
+                        imageVector = if (isGridLayout) Icons.AutoMirrored.Filled.ViewList else Icons.Default.GridView,
+                        contentDescription = if (isGridLayout) "Switch to Single Column List" else "Switch to Grid View",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }

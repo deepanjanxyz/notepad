@@ -1,0 +1,10 @@
+Elite Memo Pro has been rebuilt from the ground up in Kotlin, with a modern Compose interface and a new modular architecture.
+
+- Write text notes, checklists and freehand drawings
+- Organize notes with labels, colors and pins
+- Search and filter notes, in grid or list layout
+- Archive and Trash, with restore or permanent delete
+- Set reminders and get notified on time
+- Light, dark or system theme, plus an optional app lock
+
+Thank you for using Elite Memo Pro!

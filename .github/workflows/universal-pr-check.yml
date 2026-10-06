@@ -38,13 +38,24 @@ jobs:
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
 
       - name: Decode release keystore
-        run: echo "$KEYSTORE_BASE64" | base64 -d > app/keystore.jks
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > app/keystore.jks
+          else
+            echo "No release keystore secret is available; skipping. This is expected for pull requests opened from a fork."
+          fi
 
       - name: Make gradlew executable
         run: chmod +x gradlew
 
       - name: Assemble debug and release
-        run: ./gradlew assembleDebug assembleRelease --no-daemon --parallel
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
+            ./gradlew assembleDebug assembleRelease --no-daemon --parallel
+          else
+            echo "Release signing secrets are unavailable (for example on a pull request from a fork); building the debug variant only."
+            ./gradlew assembleDebug --no-daemon --parallel
+          fi
 
   unit-tests:
     name: Unit tests
@@ -235,6 +246,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Find existing report comment
+        if: github.event.pull_request.head.repo.fork == false
         uses: peter-evans/find-comment@v4
         id: find
         with:
@@ -243,6 +255,7 @@ jobs:
           body-includes: 'Pull request check summary'
 
       - name: Post or update report comment
+        if: github.event.pull_request.head.repo.fork == false
         uses: peter-evans/create-or-update-comment@v5
         with:
           issue-number: ${{ github.event.pull_request.number }}
@@ -251,7 +264,7 @@ jobs:
           body: ${{ steps.body.outputs.body }}
 
       - name: Add thumbs up reaction on full success
-        if: needs.build.result == 'success' && needs.unit-tests.result == 'success' && needs.lint.result == 'success' && needs.detekt.result == 'success' && needs.secrets-scan.result == 'success'
+        if: github.event.pull_request.head.repo.fork == false && needs.build.result == 'success' && needs.unit-tests.result == 'success' && needs.lint.result == 'success' && needs.detekt.result == 'success' && needs.secrets-scan.result == 'success'
         uses: actions/github-script@v9
         with:
           script: |

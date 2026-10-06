@@ -9,7 +9,7 @@ Google Play / F-Droid store listing for Elite Memo Pro, in fastlane's `metadata/
 | `<locale>/title.txt` | App name shown on the store |
 | `<locale>/short_description.txt` | Short store blurb |
 | `<locale>/full_description.txt` | Full listing description |
-| `<locale>/changelogs/<versionCode>.txt` | "What's new" text; `default.txt` is the fallback |
+| `<locale>/changelogs/<versionCode>.txt` | "What's new" text for that version code |
 | `<locale>/images/` | Icon, feature graphic and phone screenshots |
 
 ## What changed in v1.0.11
@@ -42,7 +42,7 @@ Each new locale adds a localized `title.txt` and `short_description.txt`:
 - **title.txt** — unchanged: `Elite Memo Pro`.
 - **short_description.txt** — `Private, biometric-protected Markdown notepad.` -> `Write, organize, and draw notes with labels, checklists, and reminders.`
 - **full_description.txt** — rewritten to describe the v1.0.11 feature set: text notes and checklists, freehand drawing (pen, marker, highlighter, selection, eraser, canvas backgrounds), labels, colours and pins, search and filtering, grid/list layouts, archive and Trash, reminders, light/dark/system appearance, an optional app lock, and local Room storage.
-- **changelogs/** — the per-version files `4.txt`, `5.txt`, `6.txt`, `7.txt` and `10.txt` were removed and replaced by a single `default.txt`.
+- **changelogs/** — the per-version files `4.txt`, `5.txt`, `6.txt`, `7.txt` and `10.txt` were removed. A fallback `default.txt` was added, then replaced by a versioned `11.txt` for the current version code.
 
 ### 3. Images
 

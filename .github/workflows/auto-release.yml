@@ -20,7 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       code_changed: ${{ steps.diff.outputs.code_changed }}
-      version_updated: ${{ steps.version.outputs.version_updated }}
+      version_state: ${{ steps.version.outputs.version_state }}
+      needs_bump: ${{ steps.version.outputs.needs_bump }}
+      expected_vc: ${{ steps.version.outputs.expected_vc }}
+      expected_vn: ${{ steps.version.outputs.expected_vn }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -53,28 +56,75 @@ jobs:
             echo "code_changed=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Compare version against main
+      - name: Compare version against the latest release tag
         id: version
         if: github.event_name == 'pull_request'
         run: |
-          git show "${{ github.event.pull_request.base.sha }}:app/build.gradle.kts" > /tmp/base_build.gradle.kts 2>/dev/null || true
-          head_vc=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+')
-          head_vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
-          base_vc=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' /tmp/base_build.gradle.kts | grep -oE '[0-9]+' || true)
-          base_vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' /tmp/base_build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"' || true)
-          if [ "$head_vc" != "$base_vc" ] || [ "$head_vn" != "$base_vn" ]; then
-            echo "version_updated=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "version_updated=false" >> "$GITHUB_OUTPUT"
+          latest_tag=$(git tag --list 'v*' --sort=-v:refname | head -n1)
+          if [ -z "$latest_tag" ]; then
+            echo "No v* release tag found; there is no version baseline to compare against."
+            echo "version_state=none" >> "$GITHUB_OUTPUT"
+            echo "needs_bump=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Latest release tag: $latest_tag"
+
+          git show "$latest_tag:app/build.gradle.kts" > /tmp/tag_build.gradle.kts 2>/dev/null || true
+          tag_vc=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' /tmp/tag_build.gradle.kts | grep -oE '[0-9]+' || true)
+          tag_vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' /tmp/tag_build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"' || true)
+          head_vc=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+' || true)
+          head_vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"' || true)
+
+          if [ -z "$tag_vc" ] || [ -z "$tag_vn" ]; then
+            echo "🔴 Could not read versionCode/versionName at $latest_tag."
+            exit 1
+          fi
+          if [ -z "$head_vc" ] || [ -z "$head_vn" ]; then
+            echo "🔴 Could not read versionCode/versionName from the pull request."
+            exit 1
           fi
 
+          # The next release is always exactly one step after the latest tag:
+          # versionCode + 1, and the patch component of versionName + 1.
+          expected_vc=$((tag_vc + 1))
+          IFS='.' read -r tag_major tag_minor tag_patch <<< "$tag_vn"
+          expected_vn="$tag_major.$tag_minor.$((tag_patch + 1))"
+
+          echo "Tag version:      $tag_vn ($tag_vc)"
+          echo "Expected version: $expected_vn ($expected_vc)"
+          echo "Current version:  $head_vn ($head_vc)"
+
+          if [ "$head_vc" = "$expected_vc" ] && [ "$head_vn" = "$expected_vn" ]; then
+            state="next"
+          elif [ "$head_vc" = "$tag_vc" ] && [ "$head_vn" = "$tag_vn" ]; then
+            state="same_as_tag"
+          elif [ "$head_vc" -gt "$expected_vc" ]; then
+            state="ahead"
+          else
+            state="other"
+          fi
+
+          if [ "$state" = "next" ]; then
+            echo "The pull request already carries the next version after $latest_tag; no bump needed."
+            needs_bump=false
+          else
+            echo "The version must be corrected to $expected_vn ($expected_vc); a bump pull request will be opened."
+            needs_bump=true
+          fi
+
+          {
+            echo "version_state=$state"
+            echo "needs_bump=$needs_bump"
+            echo "expected_vc=$expected_vc"
+            echo "expected_vn=$expected_vn"
+          } >> "$GITHUB_OUTPUT"
   auto-bump:
-    name: Bump version on the PR branch
+    name: Open version-bump pull request
     needs: guard
     if: >-
       github.event_name == 'pull_request'
       && needs.guard.outputs.code_changed == 'true'
-      && needs.guard.outputs.version_updated == 'false'
+      && needs.guard.outputs.needs_bump == 'true'
       && github.event.pull_request.user.login != 'github-actions[bot]'
     runs-on: ubuntu-latest
     concurrency:
@@ -82,66 +132,60 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: write
+      pull-requests: write
     steps:
-      - name: Checkout PR head branch
+      - name: Checkout main
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
-      - name: Pre-flight app name & version verification
-        id: preflight
-        run: |
-          app_name=$(grep -oE 'rootProject.name[[:space:]]*=[[:space:]]*"[^"]*"' settings.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
-          vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
-          vc=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+')
-
-          echo "App name:     ${app_name:-<missing>}"
-          echo "Version name: ${vn:-<missing>}"
-          echo "Version code: ${vc:-<missing>}"
-
-          if [ -z "$app_name" ]; then
-            echo "🔴 Pre-flight failed: app name could not be resolved."
-            exit 1
-          fi
-          if [ -z "$vn" ] || ! echo "$vn" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "🔴 Pre-flight failed: versionName '$vn' is missing or not strict SemVer (X.Y.Z)."
-            exit 1
-          fi
-          if [ -z "$vc" ] || ! echo "$vc" | grep -qE '^[1-9][0-9]*$'; then
-            echo "🔴 Pre-flight failed: versionCode '$vc' is missing or not a positive integer."
-            exit 1
-          fi
-
-          {
-            echo "app_name=$app_name"
-            echo "version_name=$vn"
-            echo "version_code=$vc"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Bump version on the PR branch
+      - name: Check for an existing version-bump pull request
+        id: existing
         env:
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          vn="${{ steps.preflight.outputs.version_name }}"
-          vc="${{ steps.preflight.outputs.version_code }}"
-          new_vc=$((vc + 1))
-          IFS='.' read -r major minor patch <<< "$vn"
-          new_vn="$major.$minor.$((patch + 1))"
+          open_prs=$(gh pr list --repo "${{ github.repository }}" --base main --state open \
+            --json headRefName \
+            --jq '[.[] | select(.headRefName | startswith("auto/bump-version-"))] | length')
+          remote_branches=$(git ls-remote --heads origin | grep -c 'refs/heads/auto/bump-version-' || true)
+          echo "Open version-bump pull requests: $open_prs"
+          echo "Remote version-bump branches:    $remote_branches"
+          if [ "$open_prs" -gt 0 ] || [ "$remote_branches" -gt 0 ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
 
-          sed -i "s/versionCode[[:space:]]*=[[:space:]]*[0-9]\+/versionCode = $new_vc/" app/build.gradle.kts
-          sed -i "s/versionName[[:space:]]*=[[:space:]]*\"[^\"]*\"/versionName = \"$new_vn\"/" app/build.gradle.kts
+      - name: Open version-bump pull request
+        if: steps.existing.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_VC: ${{ needs.guard.outputs.expected_vc }}
+          EXPECTED_VN: ${{ needs.guard.outputs.expected_vn }}
+          BRANCH: auto/bump-version-${{ needs.guard.outputs.expected_vc }}
+        run: |
+          sed -i "s/versionCode[[:space:]]*=[[:space:]]*[0-9]\+/versionCode = $EXPECTED_VC/" app/build.gradle.kts
+          sed -i "s/versionName[[:space:]]*=[[:space:]]*\"[^\"]*\"/versionName = \"$EXPECTED_VN\"/" app/build.gradle.kts
 
           if git diff --quiet -- app/build.gradle.kts; then
-            echo "🔴 Bump failed: app/build.gradle.kts did not change."
-            exit 1
+            echo "app/build.gradle.kts is already at $EXPECTED_VN ($EXPECTED_VC); nothing to do."
+            exit 0
           fi
 
+          git checkout -b "$BRANCH"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -am "chore(release): bump version [skip ci]"
-          git push origin "HEAD:$HEAD_REF"
+          git commit -am "chore(release): set version to ${EXPECTED_VN} (${EXPECTED_VC})"
+          git push -u origin "$BRANCH"
+
+          gh pr create \
+            --repo "${{ github.repository }}" \
+            --base main \
+            --head "$BRANCH" \
+            --title "chore(release): set version to ${EXPECTED_VN} (${EXPECTED_VC})" \
+            --body "Sets \`versionCode\` and \`versionName\` in \`app/build.gradle.kts\` to the next release after the latest \`v*\` tag. Merge this to publish \`v${EXPECTED_VN}\`; the release workflow runs on the merge to \`main\`."
 
   release:
     name: Release on merge to main

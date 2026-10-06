@@ -1,0 +1,513 @@
+name: PR Review Commands
+
+# Slash-command review automation. Commands are honoured only on pull requests
+# whose base branch is `main`, and the actor is always read from the GitHub
+# event (github.event.comment.user.login), never from the comment text.
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-review-commands-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Authorize command
+    runs-on: ubuntu-latest
+    outputs:
+      valid: ${{ steps.parse.outputs.valid }}
+      command: ${{ steps.parse.outputs.command }}
+      target_user: ${{ steps.parse.outputs.target_user }}
+      pr_number: ${{ steps.parse.outputs.pr_number }}
+      base_branch: ${{ steps.parse.outputs.base_branch }}
+      head_sha: ${{ steps.parse.outputs.head_sha }}
+      reason: ${{ steps.parse.outputs.reason }}
+    steps:
+      - name: Checkout configuration
+        uses: actions/checkout@v7
+
+      - name: Read reviewer configuration
+        id: config
+        run: |
+          python3 - "$GITHUB_OUTPUT" <<'PY'
+          import json
+          import sys
+
+          import yaml
+
+          try:
+              with open(".github/pr-reviewers.yml") as fh:
+                  data = yaml.safe_load(fh) or {}
+          except FileNotFoundError:
+              data = {}
+
+          owner = str(data.get("owner", "deepanjanxyz")).strip() or "deepanjanxyz"
+          reviewers = [str(u).strip() for u in (data.get("authorized_reviewers") or []) if str(u).strip()]
+          if owner not in reviewers:
+              reviewers.append(owner)
+
+          with open(sys.argv[1], "a") as out:
+              out.write("owner=" + owner + "\n")
+              out.write("reviewers=" + json.dumps(reviewers) + "\n")
+          PY
+
+      - name: Parse and authorize
+        id: parse
+        uses: actions/github-script@v9
+        env:
+          CONFIG_OWNER: ${{ steps.config.outputs.owner }}
+          CONFIG_REVIEWERS: ${{ steps.config.outputs.reviewers }}
+        with:
+          script: |
+            const owner = (process.env.CONFIG_OWNER || '').trim();
+            let reviewers = [];
+            try {
+              reviewers = JSON.parse(process.env.CONFIG_REVIEWERS || '[]');
+            } catch (e) {
+              reviewers = [];
+            }
+            const lower = (value) => String(value || '').toLowerCase();
+            const set = (key, value) => core.setOutput(key, String(value ?? ''));
+
+            set('valid', 'false');
+            set('command', 'none');
+            set('target_user', '');
+            set('pr_number', '');
+            set('base_branch', '');
+            set('head_sha', '');
+            set('reason', '');
+
+            const actor = context.payload.comment?.user?.login || '';
+            if (!actor || actor === 'github-actions[bot]') {
+              set('reason', 'ignored: bot or missing actor');
+              return;
+            }
+
+            if (!(context.payload.issue && context.payload.issue.pull_request)) {
+              set('reason', 'ignored: comment is not on a pull request');
+              return;
+            }
+
+            const firstLine = String(context.payload.comment?.body || '').split(/\r?\n/, 1)[0].trim();
+            const match = firstLine.match(/^\/([A-Za-z][A-Za-z-]*)(?:\s+([A-Za-z0-9-]+))?$/);
+            if (!match) {
+              set('reason', 'ignored: no recognized command');
+              return;
+            }
+
+            const commandMap = {
+              'add-approve-user': 'add_approve_user',
+              'add-reviewer': 'add_approve_user',
+              'remove-approve-user': 'remove_approve_user',
+              'test': 'test',
+              'review': 'review',
+              'force-review': 'force_review',
+            };
+            const command = commandMap[match[1].toLowerCase()];
+            if (!command) {
+              set('reason', 'ignored: unknown command');
+              return;
+            }
+            const arg = match[2] || '';
+
+            const prNumber = context.issue.number;
+            set('pr_number', prNumber);
+
+            const { owner: repoOwner, repo } = context.repo;
+            let pr;
+            try {
+              pr = await github.rest.pulls.get({ owner: repoOwner, repo, pull_number: prNumber });
+            } catch (e) {
+              set('reason', 'ignored: could not load pull request');
+              return;
+            }
+
+            const base = pr.data.base.ref;
+            set('base_branch', base);
+            set('head_sha', pr.data.head.sha);
+            set('command', command);
+
+            if (base !== 'main') {
+              set('reason', `ignored: pull request targets '${base}', not 'main'`);
+              return;
+            }
+
+            const isOwner = lower(actor) === lower(owner);
+
+            if (command === 'add_approve_user' || command === 'remove_approve_user') {
+              if (!isOwner) {
+                set('reason', 'ignored: owner-only command');
+                return;
+              }
+              if (!/^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/.test(arg)) {
+                set('reason', 'ignored: invalid username argument');
+                return;
+              }
+              set('target_user', arg);
+              set('valid', 'true');
+              return;
+            }
+
+            if (command === 'force_review') {
+              if (!isOwner) {
+                set('reason', 'ignored: owner-only command');
+                return;
+              }
+              set('valid', 'true');
+              return;
+            }
+
+            if (!reviewers.map(lower).includes(lower(actor))) {
+              set('reason', 'ignored: commenter is not an authorized reviewer');
+              return;
+            }
+            set('valid', 'true');
+
+  tests:
+    name: Build and unit tests
+    needs: gate
+    if: needs.gate.outputs.valid == 'true' && (needs.gate.outputs.command == 'test' || needs.gate.outputs.command == 'review')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      tests_rc: ${{ steps.run.outputs.tests_rc }}
+      build_rc: ${{ steps.run.outputs.build_rc }}
+    steps:
+      - name: Checkout pull request head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.gate.outputs.head_sha }}
+          persist-credentials: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Set up Android SDK (platform 37)
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Run unit tests and debug build
+        id: run
+        run: |
+          set +e
+          ./gradlew test --stacktrace
+          tests_rc=$?
+          ./gradlew assembleDebug --stacktrace
+          build_rc=$?
+          set -e
+          echo "tests_rc=$tests_rc" >> "$GITHUB_OUTPUT"
+          echo "build_rc=$build_rc" >> "$GITHUB_OUTPUT"
+          echo "unit tests exit code: $tests_rc"
+          echo "debug build exit code: $build_rc"
+
+  ai:
+    name: AI analysis (Copilot)
+    needs: [gate, tests]
+    if: needs.gate.outputs.valid == 'true' && needs.gate.outputs.command == 'review'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      ran: ${{ steps.copilot.outputs.ran }}
+      report: ${{ steps.copilot.outputs.report }}
+    steps:
+      - name: Checkout pull request head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.gate.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Run Copilot analysis
+        id: copilot
+        env:
+          COPILOT_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+        run: |
+          set -uo pipefail
+          if [ -z "${COPILOT_TOKEN:-}" ]; then
+            printf 'ran=false\n' >> "$GITHUB_OUTPUT"
+            printf 'report<<COPILOT_EOF\nAI analysis was not performed: no GitHub-native AI credential (COPILOT_TOKEN) is configured for this repository.\nCOPILOT_EOF\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          npm install -g @github/copilot >/dev/null 2>&1 || true
+          if ! command -v copilot >/dev/null 2>&1; then
+            printf 'ran=false\n' >> "$GITHUB_OUTPUT"
+            printf 'report<<COPILOT_EOF\nAI analysis was skipped: the Copilot CLI could not be installed on the runner.\nCOPILOT_EOF\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git fetch --no-tags --depth=50 origin main >/dev/null 2>&1 || true
+          diff="$(git diff origin/main...HEAD 2>/dev/null | head -c 150000 || true)"
+          prompt="Review this Android/Kotlin pull request. Identify obvious bugs, regressions, failing tests, build problems, unsafe changes, broken integrations and logic errors. End with a line 'Verdict: BLOCKING' or 'Verdict: NON-BLOCKING'. Here is the diff:${diff}"
+
+          if out="$(GH_TOKEN="$COPILOT_TOKEN" copilot -p "$prompt" 2>&1)"; then
+            printf 'ran=true\n' >> "$GITHUB_OUTPUT"
+            printf 'report<<COPILOT_EOF\n%s\nCOPILOT_EOF\n' "$(printf '%s' "$out" | head -c 12000)" >> "$GITHUB_OUTPUT"
+          else
+            printf 'ran=false\n' >> "$GITHUB_OUTPUT"
+            printf 'report<<COPILOT_EOF\nCopilot CLI did not complete successfully. Output:\n%s\nCOPILOT_EOF\n' "$(printf '%s' "$out" | head -c 4000)" >> "$GITHUB_OUTPUT"
+          fi
+
+  review:
+    name: Submit review
+    needs: [gate, tests, ai]
+    if: >-
+      always()
+      && needs.gate.outputs.valid == 'true'
+      && (needs.gate.outputs.command == 'review' || needs.gate.outputs.command == 'force_review')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Evaluate and submit review
+        uses: actions/github-script@v9
+        env:
+          COMMAND: ${{ needs.gate.outputs.command }}
+          PR_NUMBER: ${{ needs.gate.outputs.pr_number }}
+          TESTS_RC: ${{ needs.tests.outputs.tests_rc }}
+          BUILD_RC: ${{ needs.tests.outputs.build_rc }}
+          AI_RAN: ${{ needs.ai.outputs.ran }}
+          AI_REPORT: ${{ needs.ai.outputs.report }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const prNumber = Number(process.env.PR_NUMBER);
+            const command = process.env.COMMAND;
+            const forced = command === 'force_review';
+            const actor = context.payload.comment.user.login;
+
+            const testsOk = process.env.TESTS_RC === '0' && process.env.BUILD_RC === '0';
+            const aiRan = process.env.AI_RAN === 'true';
+            const aiReport = process.env.AI_REPORT || '';
+            const aiBlocking = aiRan && /BLOCKING/i.test(aiReport) && !/NON-BLOCKING/i.test(aiReport);
+
+            let event;
+            if (forced) {
+              event = 'APPROVE';
+            } else if (!testsOk) {
+              event = 'REQUEST_CHANGES';
+            } else if (!aiRan || aiBlocking) {
+              event = 'COMMENT';
+            } else {
+              event = 'APPROVE';
+            }
+
+            const body = [];
+            body.push('## Automated review');
+            body.push('');
+            body.push(`Requested by @${actor} via \`/${forced ? 'force-review' : 'review'}\`.`);
+            body.push('');
+            body.push('### Tests performed');
+            if (forced) {
+              body.push('- Not run: `/force-review` bypasses the test-based decision.');
+            } else {
+              body.push('- `./gradlew test --stacktrace`');
+              body.push('- `./gradlew assembleDebug --stacktrace`');
+            }
+            body.push('');
+            body.push('### Test results');
+            if (forced) {
+              body.push('- Not run.');
+            } else {
+              body.push(`- Unit tests exit code: \`${process.env.TESTS_RC}\` (0 = pass)`);
+              body.push(`- Debug build exit code: \`${process.env.BUILD_RC}\` (0 = pass)`);
+            }
+            body.push('');
+            body.push('### AI analysis');
+            if (forced) {
+              body.push('_Not run: force mode bypasses AI analysis._');
+            } else if (aiRan) {
+              body.push(aiReport);
+            } else {
+              body.push(`_AI analysis did not run._ ${aiReport}`);
+            }
+            body.push('');
+            body.push('### Blocking problems');
+            if (forced) {
+              body.push('Not evaluated: force mode bypasses the test-based decision.');
+            } else if (!testsOk) {
+              body.push('Yes - the build or unit tests failed.');
+            } else if (aiBlocking) {
+              body.push('Yes - the AI analysis reported a blocking problem.');
+            } else if (!aiRan) {
+              body.push('Not determined: AI analysis did not run, so the automated checks are incomplete.');
+            } else {
+              body.push('None detected.');
+            }
+            if (forced) {
+              body.push('');
+              body.push(`> Force review requested by @${actor}. The automated approval action was requested explicitly by the repository owner. No independent human review is implied.`);
+            }
+
+            await github.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: body.join('\n') });
+
+            let outcome;
+            try {
+              await github.rest.pulls.createReview({
+                owner,
+                repo,
+                pull_number: prNumber,
+                event,
+                body: `Automated \`${event}\` review from the PR review workflow.`,
+              });
+              outcome = `Submitted a GitHub review with event \`${event}\`.`;
+            } catch (e) {
+              outcome = [
+                `Could not submit a GitHub review (\`${event}\`): ${e.message}`,
+                '',
+                'This usually means a required repository setting is missing:',
+                '- **Settings -> Actions -> General -> Workflow permissions**: "Allow GitHub Actions to create and approve pull requests" must be enabled for the workflow token to approve.',
+                '- **Branch protection / rulesets**: a required-reviewer rule may forbid approval by the workflow identity.',
+                '- **Token permissions**: this workflow requests `pull-requests: write`; approvals additionally require the setting above.',
+                '',
+                'Enabling the Actions approval setting lets the workflow submit approvals on pull requests. It also lets any workflow in this repository do so, so keep workflow files protected.',
+              ].join('\n');
+            }
+
+            await github.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: outcome });
+
+  manage:
+    name: Update reviewer allowlist
+    needs: gate
+    if: needs.gate.outputs.valid == 'true' && (needs.gate.outputs.command == 'add_approve_user' || needs.gate.outputs.command == 'remove_approve_user')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify the account exists
+        id: verify
+        uses: actions/github-script@v9
+        env:
+          TARGET_USER: ${{ needs.gate.outputs.target_user }}
+        with:
+          script: |
+            const user = process.env.TARGET_USER;
+            core.setOutput('exists', 'false');
+            core.setOutput('login', user);
+            try {
+              const res = await github.rest.users.getByUsername({ username: user });
+              core.setOutput('exists', 'true');
+              core.setOutput('login', res.data.login);
+            } catch (e) {
+              core.setOutput('exists', 'false');
+            }
+
+      - name: Update the allowlist file
+        id: update
+        if: steps.verify.outputs.exists == 'true'
+        env:
+          TARGET_USER: ${{ steps.verify.outputs.login }}
+          COMMAND: ${{ needs.gate.outputs.command }}
+        run: |
+          python3 - "$GITHUB_OUTPUT" <<'PY'
+          import os
+          import sys
+
+          import yaml
+
+          target = os.environ["TARGET_USER"]
+          command = os.environ["COMMAND"]
+          path = ".github/pr-reviewers.yml"
+
+          with open(path) as fh:
+              data = yaml.safe_load(fh) or {}
+
+          owner = str(data.get("owner", "deepanjanxyz")).strip() or "deepanjanxyz"
+          reviewers = [str(u).strip() for u in (data.get("authorized_reviewers") or []) if str(u).strip()]
+          changed = False
+
+          if command == "add_approve_user":
+              if target not in reviewers:
+                  reviewers.append(target)
+                  changed = True
+          else:
+              if target in reviewers and target != owner:
+                  reviewers.remove(target)
+                  changed = True
+
+          data["owner"] = owner
+          data["authorized_reviewers"] = reviewers
+
+          with open(path, "w") as fh:
+              yaml.safe_dump(data, fh, default_flow_style=False, sort_keys=False)
+
+          with open(sys.argv[1], "a") as out:
+              out.write("changed=" + ("true" if changed else "false") + "\n")
+          PY
+
+      - name: Commit and push
+        id: push
+        if: steps.verify.outputs.exists == 'true' && steps.update.outputs.changed == 'true'
+        env:
+          TARGET_USER: ${{ steps.verify.outputs.login }}
+          COMMAND: ${{ needs.gate.outputs.command }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/pr-reviewers.yml
+          if [ "$COMMAND" = "add_approve_user" ]; then verb="add"; else verb="remove"; fi
+          git commit -m "chore(reviewers): ${verb} ${TARGET_USER} [skip ci]"
+          set +e
+          git push origin "HEAD:${DEFAULT_BRANCH}"
+          push_rc=$?
+          set -e
+          echo "push_rc=$push_rc" >> "$GITHUB_OUTPUT"
+
+      - name: Post audit comment
+        if: always()
+        uses: actions/github-script@v9
+        env:
+          TARGET_USER: ${{ steps.verify.outputs.login }}
+          EXISTS: ${{ steps.verify.outputs.exists }}
+          COMMAND: ${{ needs.gate.outputs.command }}
+          CHANGED: ${{ steps.update.outputs.changed }}
+          PUSH_RC: ${{ steps.push.outputs.push_rc }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const prNumber = context.issue.number;
+            const actor = context.payload.comment.user.login;
+            const target = process.env.TARGET_USER;
+            const verb = process.env.COMMAND === 'add_approve_user' ? 'added to' : 'removed from';
+            let message;
+
+            if (process.env.EXISTS !== 'true') {
+              message = `Reviewer authorization was not changed: GitHub account \`${target}\` does not exist.`;
+            } else if (process.env.CHANGED !== 'true') {
+              const state = process.env.COMMAND === 'add_approve_user' ? 'already authorized' : 'not present in the allowlist';
+              message = `Reviewer authorization unchanged: \`${target}\` is ${state}.`;
+            } else if (process.env.PUSH_RC === '0') {
+              message = `Reviewer authorization updated by @${actor}: \`${target}\` was ${verb} the automated-review allowlist.`;
+            } else {
+              message = [
+                `Reviewer authorization could not be persisted for \`${target}\`: pushing \`.github/pr-reviewers.yml\` to \`${process.env.DEFAULT_BRANCH}\` failed.`,
+                '',
+                'The default branch is likely protected. Allow the workflow to push (or grant the required ruleset bypass) so the allowlist can be updated.',
+              ].join('\n');
+            }
+
+            await github.rest.issues.createComment({ owner, repo, issue_number: prNumber, body: message });

@@ -134,9 +134,15 @@ jobs:
             exit 1
           fi
 
-          git show "$latest_tag:app/build.gradle.kts" > /tmp/tag_build.gradle.kts 2>/dev/null || true
-          tag_vc=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' /tmp/tag_build.gradle.kts | grep -oE '[0-9]+' || true)
-          tag_vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' /tmp/tag_build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"' || true)
+          # The tag name is the source of truth for versionName; the stamped
+          # versionCode is only recorded in the released APK file names.
+          tag_vn="${latest_tag#v}"
+          tag_vc=$(gh release view "$latest_tag" --json assets --jq '.assets[].name' 2>/dev/null \
+            | sed -nE "s/.*-v${tag_vn//./\\.}-([0-9]+)-[^-]+\.apk$/\1/p" | sort -n | tail -n1 || true)
+          main_vc=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+' || true)
+          if [ -n "$main_vc" ] && { [ -z "$tag_vc" ] || [ "$main_vc" -gt "$tag_vc" ]; }; then
+            tag_vc="$main_vc"
+          fi
           if [ -z "$tag_vc" ] || [ -z "$tag_vn" ]; then
             echo "🔴 Release failed: could not read the version at $latest_tag."
             exit 1

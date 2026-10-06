@@ -20,173 +20,80 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       code_changed: ${{ steps.diff.outputs.code_changed }}
-      version_state: ${{ steps.version.outputs.version_state }}
-      needs_bump: ${{ steps.version.outputs.needs_bump }}
-      expected_vc: ${{ steps.version.outputs.expected_vc }}
-      expected_vn: ${{ steps.version.outputs.expected_vn }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Verify application source changed
+      - name: Deep-check whether a shipping file changed
         id: diff
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             base="${{ github.event.pull_request.base.sha }}"
-            head="${{ github.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
           else
             base="${{ github.event.before }}"
             head="${{ github.sha }}"
           fi
 
           if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
-            files=$(git diff --name-only HEAD^ HEAD 2>/dev/null || git show --pretty="" --name-only HEAD)
-          else
-            files=$(git diff --name-only "$base" "$head")
+            base=$(git rev-parse "$head^" 2>/dev/null || echo "")
           fi
 
-          echo "Changed files:"
-          echo "$files"
+          if [ -z "$base" ]; then
+            echo "No base commit to compare against; treating this as a change."
+            echo "code_changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
-          if echo "$files" | grep -qE '^app/src/main/|\.gradle\.kts$|gradle\.properties$'; then
+          # A file that ships in the APK or affects how it is built.
+          is_shipping() {
+            case "$1" in
+              app/*) return 0 ;;
+              *.gradle.kts|*.gradle|gradle.properties|settings.gradle.kts|gradle/libs.versions.toml|gradle/wrapper/*) return 0 ;;
+            esac
+            return 1
+          }
+
+          changed=$(git diff --name-only "$base" "$head" || true)
+          echo "Changed files:"
+          echo "$changed"
+          echo
+
+          substantive=""
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            if ! is_shipping "$file"; then
+              continue
+            fi
+
+            # Ignore edits that only move whitespace or blank lines around.
+            if git diff --quiet -w --ignore-blank-lines "$base" "$head" -- "$file"; then
+              echo "skip (whitespace/formatting only): $file"
+              continue
+            fi
+
+            # Ignore edits that only touch comment lines.
+            edits=$(git diff -w --ignore-blank-lines "$base" "$head" -- "$file" | grep -E '^[+-]' | grep -vE '^(\+\+\+|---)' || true)
+            code=$(printf '%s\n' "$edits" | grep -vE '^[+-][[:space:]]*(//|/\*|\*|<!--|-->)' || true)
+            if [ -z "$code" ]; then
+              echo "skip (comments only): $file"
+              continue
+            fi
+
+            echo "counts as a change: $file"
+            substantive="$substantive$file"$'\n'
+          done <<< "$changed"
+
+          echo
+          if [ -n "$substantive" ]; then
+            echo "A shipping file changed; a release will be built."
             echo "code_changed=true" >> "$GITHUB_OUTPUT"
           else
+            echo "No shipping file changed; nothing to release."
             echo "code_changed=false" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Compare version against the latest release tag
-        id: version
-        if: github.event_name == 'pull_request'
-        run: |
-          latest_tag=$(git tag --list 'v*' --sort=-v:refname | head -n1)
-          if [ -z "$latest_tag" ]; then
-            echo "No v* release tag found; there is no version baseline to compare against."
-            echo "version_state=none" >> "$GITHUB_OUTPUT"
-            echo "needs_bump=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "Latest release tag: $latest_tag"
-
-          git show "$latest_tag:app/build.gradle.kts" > /tmp/tag_build.gradle.kts 2>/dev/null || true
-          tag_vc=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' /tmp/tag_build.gradle.kts | grep -oE '[0-9]+' || true)
-          tag_vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' /tmp/tag_build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"' || true)
-          head_vc=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+' || true)
-          head_vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"' || true)
-
-          if [ -z "$tag_vc" ] || [ -z "$tag_vn" ]; then
-            echo "🔴 Could not read versionCode/versionName at $latest_tag."
-            exit 1
-          fi
-          if [ -z "$head_vc" ] || [ -z "$head_vn" ]; then
-            echo "🔴 Could not read versionCode/versionName from the pull request."
-            exit 1
-          fi
-
-          # The next release is always exactly one step after the latest tag:
-          # versionCode + 1, and the patch component of versionName + 1.
-          expected_vc=$((tag_vc + 1))
-          IFS='.' read -r tag_major tag_minor tag_patch <<< "$tag_vn"
-          expected_vn="$tag_major.$tag_minor.$((tag_patch + 1))"
-
-          echo "Tag version:      $tag_vn ($tag_vc)"
-          echo "Expected version: $expected_vn ($expected_vc)"
-          echo "Current version:  $head_vn ($head_vc)"
-
-          if [ "$head_vc" = "$expected_vc" ] && [ "$head_vn" = "$expected_vn" ]; then
-            state="next"
-          elif [ "$head_vc" = "$tag_vc" ] && [ "$head_vn" = "$tag_vn" ]; then
-            state="same_as_tag"
-          elif [ "$head_vc" -gt "$expected_vc" ]; then
-            state="ahead"
-          else
-            state="other"
-          fi
-
-          if [ "$state" = "next" ]; then
-            echo "The pull request already carries the next version after $latest_tag; no bump needed."
-            needs_bump=false
-          else
-            echo "The version must be corrected to $expected_vn ($expected_vc); a bump pull request will be opened."
-            needs_bump=true
-          fi
-
-          {
-            echo "version_state=$state"
-            echo "needs_bump=$needs_bump"
-            echo "expected_vc=$expected_vc"
-            echo "expected_vn=$expected_vn"
-          } >> "$GITHUB_OUTPUT"
-  auto-bump:
-    name: Open version-bump pull request
-    needs: guard
-    if: >-
-      github.event_name == 'pull_request'
-      && needs.guard.outputs.code_changed == 'true'
-      && needs.guard.outputs.needs_bump == 'true'
-      && github.event.pull_request.user.login != 'github-actions[bot]'
-    runs-on: ubuntu-latest
-    concurrency:
-      group: auto-bump-main
-      cancel-in-progress: false
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - name: Checkout main
-        uses: actions/checkout@v7
-        with:
-          ref: main
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
-
-      - name: Check for an existing version-bump pull request
-        id: existing
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          open_prs=$(gh pr list --repo "${{ github.repository }}" --base main --state open \
-            --json headRefName \
-            --jq '[.[] | select(.headRefName | startswith("auto/bump-version-"))] | length')
-          remote_branches=$(git ls-remote --heads origin | grep -c 'refs/heads/auto/bump-version-' || true)
-          echo "Open version-bump pull requests: $open_prs"
-          echo "Remote version-bump branches:    $remote_branches"
-          if [ "$open_prs" -gt 0 ] || [ "$remote_branches" -gt 0 ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Open version-bump pull request
-        if: steps.existing.outputs.skip == 'false'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          EXPECTED_VC: ${{ needs.guard.outputs.expected_vc }}
-          EXPECTED_VN: ${{ needs.guard.outputs.expected_vn }}
-          BRANCH: auto/bump-version-${{ needs.guard.outputs.expected_vc }}
-        run: |
-          sed -i "s/versionCode[[:space:]]*=[[:space:]]*[0-9]\+/versionCode = $EXPECTED_VC/" app/build.gradle.kts
-          sed -i "s/versionName[[:space:]]*=[[:space:]]*\"[^\"]*\"/versionName = \"$EXPECTED_VN\"/" app/build.gradle.kts
-
-          if git diff --quiet -- app/build.gradle.kts; then
-            echo "app/build.gradle.kts is already at $EXPECTED_VN ($EXPECTED_VC); nothing to do."
-            exit 0
-          fi
-
-          git checkout -b "$BRANCH"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -am "chore(release): set version to ${EXPECTED_VN} (${EXPECTED_VC})"
-          git push -u origin "$BRANCH"
-
-          gh pr create \
-            --repo "${{ github.repository }}" \
-            --base main \
-            --head "$BRANCH" \
-            --title "chore(release): set version to ${EXPECTED_VN} (${EXPECTED_VC})" \
-            --body "Sets \`versionCode\` and \`versionName\` in \`app/build.gradle.kts\` to the next release after the latest \`v*\` tag. Merge this to publish \`v${EXPECTED_VN}\`; the release workflow runs on the merge to \`main\`."
-
   release:
     name: Release on merge to main
     needs: guard
@@ -212,18 +119,53 @@ jobs:
       - name: Set up Android SDK (platform 37)
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
 
-      - name: Read app metadata
+      - name: Resolve the next version from the latest release tag
         id: version
         run: |
           app_name=$(grep -oE 'rootProject.name[[:space:]]*=[[:space:]]*"[^"]*"' settings.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
-          vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
-          vc=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+')
+          if [ -z "$app_name" ]; then
+            echo "🔴 Release failed: app name could not be resolved."
+            exit 1
+          fi
+
+          latest_tag=$(git tag --list 'v*' --sort=-v:refname | head -n1)
+          if [ -z "$latest_tag" ]; then
+            echo "🔴 Release failed: no v* release tag to derive the next version from."
+            exit 1
+          fi
+
+          # The tag name is the source of truth for versionName; the stamped
+          # versionCode is only recorded in the released APK file names.
+          tag_vn="${latest_tag#v}"
+          tag_vc=$(gh release view "$latest_tag" --json assets --jq '.assets[].name' 2>/dev/null \
+            | sed -nE "s/.*-v${tag_vn//./\\.}-([0-9]+)-[^-]+\.apk$/\1/p" | sort -n | tail -n1 || true)
+          main_vc=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+' || true)
+          if [ -n "$main_vc" ] && { [ -z "$tag_vc" ] || [ "$main_vc" -gt "$tag_vc" ]; }; then
+            tag_vc="$main_vc"
+          fi
+          if [ -z "$tag_vc" ] || [ -z "$tag_vn" ]; then
+            echo "🔴 Release failed: could not read the version at $latest_tag."
+            exit 1
+          fi
+
+          # The next release is always exactly one step after the latest tag.
+          vc=$((tag_vc + 1))
+          IFS='.' read -r major minor patch <<< "$tag_vn"
+          vn="$major.$minor.$((patch + 1))"
+
+          # Stamp it into the build so the APK and the tag agree.
+          sed -i "s/versionCode[[:space:]]*=[[:space:]]*[0-9]\+/versionCode = $vc/" app/build.gradle.kts
+          sed -i "s/versionName[[:space:]]*=[[:space:]]*\"[^\"]*\"/versionName = \"$vn\"/" app/build.gradle.kts
+
+          echo "Previous tag: $latest_tag ($tag_vn / $tag_vc)"
+          echo "This release: v$vn ($vc)"
+
           {
             echo "app_name=$app_name"
             echo "version=$vn"
             echo "version_code=$vc"
+            echo "prev_tag=$latest_tag"
           } >> "$GITHUB_OUTPUT"
-
       - name: Validate version
         run: |
           version="${{ steps.version.outputs.version }}"

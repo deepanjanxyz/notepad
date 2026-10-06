@@ -150,11 +150,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    env:
-      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -205,9 +200,8 @@ jobs:
             exit 1
           fi
 
-      - name: Resolve release context
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve release range
+        id: context
         run: |
           target=$(git rev-parse HEAD)
           last_author=$(git log -1 --format='%an')
@@ -221,23 +215,177 @@ jobs:
             done < <(git log --format='%H%x09%an' -n 100)
           fi
 
-          subject=$(git log -1 --format='%s' "$target")
-          body=$(git log -1 --format='%b' "$target")
-          pr_num=$(gh api "repos/${{ github.repository }}/commits/$target/pulls" --jq '.[0].number' 2>/dev/null || true)
-          if [ -n "$pr_num" ] && [ "$pr_num" != "null" ]; then
-            subject=$(gh api "repos/${{ github.repository }}/pulls/$pr_num" --jq '.title')
-            body=$(gh api "repos/${{ github.repository }}/pulls/$pr_num" --jq '.body')
+          prev_tag=$(git describe --tags --abbrev=0 --match 'v*' "$target^" 2>/dev/null || true)
+          if [ -n "$prev_tag" ]; then
+            base="$prev_tag"
+          else
+            base=$(git rev-list --max-parents=0 "$target" | tail -n1)
           fi
 
+          git log --oneline --no-merges "$base..$target" > /tmp/commits.txt || true
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "prev_tag=$prev_tag" >> "$GITHUB_OUTPUT"
+          echo "Comparing ${prev_tag:-the initial commit} -> $target"
+
+      - name: Build diff-derived changelog
+        env:
+          BASE: ${{ steps.context.outputs.base }}
+          TARGET: ${{ steps.context.outputs.target }}
+        run: |
+          python3 - "$BASE" "$TARGET" <<'PY'
+          import os
+          import subprocess
+          import sys
+          from collections import OrderedDict
+
+          base, target = sys.argv[1], sys.argv[2]
+
+
+          def git(*args):
+              return subprocess.run(["git", *args], capture_output=True, text=True).stdout
+
+
+          categories = OrderedDict([
+              ("App source", lambda p: p.startswith("app/src/main/java/") or p.startswith("app/src/main/kotlin/")),
+              ("Tests", lambda p: "/src/test/" in p or "/src/androidTest/" in p),
+              ("Resources", lambda p: p.startswith("app/src/main/res/")),
+              ("Manifest", lambda p: p.endswith("AndroidManifest.xml")),
+              ("Build and dependencies", lambda p: p.endswith((".gradle.kts", ".gradle", ".toml")) or p.endswith("gradle.properties")),
+              ("CI and workflows", lambda p: p.startswith(".github/")),
+              ("Documentation", lambda p: p.lower().endswith((".md", ".txt"))),
+              ("Other", lambda p: True),
+          ])
+
+
+          def category_of(path):
+              for name, matches in categories.items():
+                  if matches(path):
+                      return name
+              return "Other"
+
+
+          files = OrderedDict((name, []) for name in categories)
+          added = OrderedDict((name, 0) for name in categories)
+          deleted = OrderedDict((name, 0) for name in categories)
+
+          for line in git("diff", "--numstat", base, target).splitlines():
+              parts = line.split("\t")
+              if len(parts) != 3:
+                  continue
+              add, rem, path = parts
+              name = category_of(path)
+              files[name].append(path)
+              added[name] += int(add) if add.isdigit() else 0
+              deleted[name] += int(rem) if rem.isdigit() else 0
+
+          new_files, removed_files = [], []
+          for line in git("diff", "--name-status", base, target).splitlines():
+              parts = line.split("\t")
+              if len(parts) < 2:
+                  continue
+              status, path = parts[0], parts[-1]
+              if status.startswith("A"):
+                  new_files.append(path)
+              elif status.startswith("D"):
+                  removed_files.append(path)
+
+          total_files = sum(len(v) for v in files.values())
+          total_add = sum(added.values())
+          total_del = sum(deleted.values())
+          commits = git("rev-list", "--count", base + ".." + target).strip() or "0"
+
+          out = ["### Changes in this release", ""]
+          out.append("**%d files changed** (+%d / -%d) across %s commit(s)." % (total_files, total_add, total_del, commits))
+          out += ["", "| Area | Files | Added | Removed |", "| :--- | ---: | ---: | ---: |"]
+          for name in categories:
+              if files[name]:
+                  out.append("| %s | %d | +%d | -%d |" % (name, len(files[name]), added[name], deleted[name]))
+          out.append("")
+
+          if new_files:
+              out += ["#### New files", ""] + ["- `%s`" % p for p in new_files] + [""]
+          if removed_files:
+              out += ["#### Removed files", ""] + ["- `%s`" % p for p in removed_files] + [""]
+          if files["Build and dependencies"]:
+              out += ["#### Build and dependency files touched", ""] + ["- `%s`" % p for p in files["Build and dependencies"]] + [""]
+
+          with open("/tmp/changelog.md", "w") as fh:
+              fh.write("\n".join(out) + "\n")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
+              fh.write("files=%d\n" % total_files)
+              fh.write("added=%d\n" % total_add)
+              fh.write("deleted=%d\n" % total_del)
+          PY
+
+      - name: Analyse the diff with Copilot
+        id: ai
+        env:
+          COPILOT_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+          BASE: ${{ steps.context.outputs.base }}
+          TARGET: ${{ steps.context.outputs.target }}
+        run: |
+          set -uo pipefail
+          echo "ran=false" >> "$GITHUB_OUTPUT"
+          : > /tmp/ai-summary.md
+          if [ -z "${COPILOT_TOKEN:-}" ]; then
+            echo "No COPILOT_TOKEN configured; release notes will use the diff changelog only."
+            exit 0
+          fi
+          npm install -g @github/copilot >/dev/null 2>&1 || true
+          if ! command -v copilot >/dev/null 2>&1; then
+            echo "Copilot CLI unavailable on this runner; release notes will use the diff changelog only."
+            exit 0
+          fi
+
+          diff="$(git diff "$BASE" "$TARGET" | head -c 100000 || true)"
+          prompt="Analyse this release diff for the Android app 'notepad'. Describe what actually changed and its impact, based only on the diff: new features, behaviour changes, bug fixes, refactors, and build or dependency changes. Do not repeat the diff line by line. Be concise and factual. Diff:${diff}"
+
+          if out="$(GH_TOKEN="$COPILOT_TOKEN" copilot -p "$prompt" 2>&1)"; then
+            printf '%s\n' "$out" > /tmp/ai-summary.md
+            echo "ran=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Copilot analysis failed; release notes will use the diff changelog only."
+          fi
+
+      - name: Compose release notes
+        env:
+          AI_RAN: ${{ steps.ai.outputs.ran }}
+          PREV_TAG: ${{ steps.context.outputs.prev_tag }}
+          BASE: ${{ steps.context.outputs.base }}
+          TARGET: ${{ steps.context.outputs.target }}
+        run: |
           {
-            echo "## $subject"
+            if [ "$AI_RAN" = "true" ]; then
+              echo "## Summary"
+              echo ""
+              cat /tmp/ai-summary.md
+              echo ""
+            fi
+            cat /tmp/changelog.md
             echo ""
-            echo "$body"
+            if [ -s /tmp/commits.txt ]; then
+              echo "### Commits"
+              echo ""
+              sed 's/^/- /' /tmp/commits.txt
+              echo ""
+            fi
+            if [ -n "$PREV_TAG" ]; then
+              echo "Changes since \`$PREV_TAG\`. Released from commit \`$TARGET\`."
+            else
+              echo "First release. Released from commit \`$TARGET\`."
+            fi
             echo ""
-            echo "Released from commit \`$target\`."
+            echo "[Full diff](https://github.com/${{ github.repository }}/compare/$BASE...$TARGET)"
           } > /tmp/release-notes.md
 
       - name: Build signed release APK
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           echo "$KEYSTORE_BASE64" | base64 -d > app/keystore.jks
           ./gradlew assembleRelease --no-daemon

@@ -1,0 +1,3 @@
+- Updated Gradle wrapper to 8.5
+- Fixed executable permissions
+- Improved project configuration and release process

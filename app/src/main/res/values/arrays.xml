@@ -10,14 +10,4 @@
         <item>dark</item>
         <item>system</item>
     </string-array>
-    <string-array name="font_size_entries">
-        <item>Small</item>
-        <item>Medium</item>
-        <item>Large</item>
-    </string-array>
-    <string-array name="font_size_values">
-        <item>small</item>
-        <item>medium</item>
-        <item>large</item>
-    </string-array>
 </resources>

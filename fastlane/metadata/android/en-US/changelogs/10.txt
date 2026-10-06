@@ -1,0 +1,11 @@
+Bug-fix release.
+
+- Fix crash on Android 10 and below when unlocking with biometrics: the prompt was missing the mandatory negative button
+- Fix App Lock leaving a blank, stuck screen after backgrounding the app while the unlock prompt was showing
+- Deleting selected notes no longer clears the active search while the search box still shows the query
+- Saving an empty note now shows an honest "Empty note discarded" message instead of "Saved"
+- A failed database write is reported as "Could not save note" instead of a false "Saved"
+- Settings now show the currently selected theme in the summary
+- Removed unused font-size resources
+- Updated to compile and target the latest stable Android 17 (API level 37);
+  toolchain upgraded to Android Gradle plugin 9.4.0 and Gradle 9.6.0

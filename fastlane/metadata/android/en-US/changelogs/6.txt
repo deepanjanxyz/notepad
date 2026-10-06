@@ -1,0 +1,2 @@
+- Fixed critical app-lock, auto-save, note persistence, search refresh, and database issues
+- Improved authentication reliability and Android compatibility

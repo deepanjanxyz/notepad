@@ -1,5 +1,4 @@
 name: Multi-Platform Smart Auto Mirroring
-
 on:
   push:
     branches:
@@ -7,12 +6,8 @@ on:
     tags:
       - '**'
 
-permissions:
-  contents: read
-
 jobs:
   smart-mirror:
-    name: Mirror to GitLab and Codeberg
     runs-on: ubuntu-latest
 
     steps:

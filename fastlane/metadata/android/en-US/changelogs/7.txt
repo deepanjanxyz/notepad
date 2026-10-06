@@ -1,0 +1,7 @@
+Bug-fix release.
+
+- Search is no longer reset when returning from the editor or background
+- Notes without a title now show the first line of the content instead of a blank heading
+- Searching for '%' or '_' now matches literally
+- Smaller APK: removed unused PDF/Markdown libraries and dead resources
+- APKs now embed the source revision (vcsInfo) for reproducible builds

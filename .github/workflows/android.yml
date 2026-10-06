@@ -36,24 +36,32 @@ jobs:
       - name: Decode keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/my-release-key.jks
 
-      - name: Sign APK
+      - name: Sign APKs
         run: |
-          APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" ! -name "*-signed.apk" | head -n 1)
-          BUILD_TOOLS_DIR=$ANDROID_HOME/build-tools/36.0.0
-          $BUILD_TOOLS_DIR/apksigner sign \
-            --ks app/my-release-key.jks \
-            --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
-            --ks-key-alias ${{ secrets.KEY_ALIAS }} \
-            --key-pass pass:${{ secrets.KEY_PASSWORD }} \
-            --out app/build/outputs/apk/release/app-release-signed.apk \
-            "$APK_PATH"
+          BUILD_TOOLS_DIR="$ANDROID_HOME/build-tools/36.0.0"
+          shopt -s nullglob
+          apks=(app/build/outputs/apk/release/*.apk)
+          if [ "${#apks[@]}" -eq 0 ]; then
+            echo "🔴 No release APK found to sign."
+            exit 1
+          fi
+          for apk in "${apks[@]}"; do
+            name=$(basename "$apk")
+            "$BUILD_TOOLS_DIR/apksigner" sign \
+              --ks app/my-release-key.jks \
+              --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
+              --ks-key-alias ${{ secrets.KEY_ALIAS }} \
+              --key-pass pass:${{ secrets.KEY_PASSWORD }} \
+              --out "app/build/outputs/apk/release/${name%.apk}-signed.apk" \
+              "$apk"
+          done
 
       - name: Remove keystore file
         if: always()
         run: rm -f app/my-release-key.jks
 
-      - name: Upload signed APK artifact
+      - name: Upload signed APK artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: release-apk
-          path: app/build/outputs/apk/release/app-release-signed.apk
+          name: release-apks
+          path: app/build/outputs/apk/release/*-signed.apk

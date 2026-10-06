@@ -84,6 +84,17 @@ android {
         }
     }
 
+    // One APK per ABI present in the app's native libraries, plus a universal
+    // APK so a single download still works on any device.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+            isUniversalApk = true
+        }
+    }
+
     // Keep debug builds independent from release secrets, but never silently
     // produce an unsigned release artifact when release signing is unavailable.
     gradle.taskGraph.whenReady {

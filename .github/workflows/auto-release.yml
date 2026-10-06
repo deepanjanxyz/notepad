@@ -404,12 +404,14 @@ jobs:
             exit 1
           fi
 
-          for i in "${!apks[@]}"; do
-            suffix=""
-            if [ "$i" -gt 0 ]; then
-              suffix="-$((i + 1))"
+          for apk in "${apks[@]}"; do
+            name=$(basename "$apk")
+            abi="${name#app-}"
+            abi="${abi%-release.apk}"
+            if [ "$abi" = "$name" ] || [ -z "$abi" ] || [ "$abi" = "release" ]; then
+              abi="universal"
             fi
-            mv "${apks[$i]}" "$out/${app_name}-v${vn}-${vc}${suffix}.apk"
+            mv "$apk" "$out/${app_name}-v${vn}-${vc}-${abi}.apk"
           done
 
           ls -l "$out"/*.apk

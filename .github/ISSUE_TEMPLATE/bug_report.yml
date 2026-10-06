@@ -1,0 +1,82 @@
+name: Bug report
+description: Report a problem so it can be reproduced and fixed.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug description
+      description: Describe the problem clearly and explain what happened.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the steps that trigger the problem.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Describe what you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Describe what actually happened.
+    validations:
+      required: true
+
+  - type: input
+    id: app_version
+    attributes:
+      label: App version
+      description: The version shown in the app or on the release page.
+      placeholder: "e.g. 1.0.11"
+    validations:
+      required: true
+
+  - type: input
+    id: android_version
+    attributes:
+      label: Android version
+      placeholder: "e.g. Android 14"
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      placeholder: "e.g. Pixel 6"
+    validations:
+      required: false
+
+  - type: input
+    id: cpu_architecture
+    attributes:
+      label: CPU architecture
+      description: The ABI of the APK you installed.
+      placeholder: "arm64-v8a, armeabi-v7a, x86 or x86_64"
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional information
+      description: Add relevant screenshots, videos, logs, or anything else that may help reproduce or diagnose the issue.
+    validations:
+      required: false

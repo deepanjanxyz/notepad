@@ -1,0 +1,28 @@
+name: Custom issue
+description: Ask a question or report something that is not a bug or a feature request.
+title: ""
+labels: ["question"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe your question, problem, or suggestion clearly.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Provide any relevant background or information.
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional information
+      description: Add screenshots, logs, links, or other details that may help us understand the issue.
+    validations:
+      required: false

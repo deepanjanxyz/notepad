@@ -39,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deepanjanxyz.notepad.domain.model.CanvasGridType
+import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 
 @Composable
 fun DrawingTopBar(
@@ -65,15 +66,17 @@ fun DrawingTopBar(
             .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(
-            onClick = onNavigateBack,
-            modifier = Modifier.testTag("drawing_back_button")
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
-                tint = MaterialTheme.colorScheme.onSurface
-            )
+        ActionTooltip("Back") {
+            IconButton(
+                onClick = onNavigateBack,
+                modifier = Modifier.testTag("drawing_back_button")
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
         }
 
         Box(
@@ -107,51 +110,59 @@ fun DrawingTopBar(
             )
         }
 
-        IconButton(
-            onClick = onOpenBackgroundDialog,
-            modifier = Modifier.testTag("drawing_background_button")
-        ) {
-            Icon(
-                imageVector = Icons.Default.ColorLens,
-                contentDescription = "Canvas Background & Grid",
-                tint = MaterialTheme.colorScheme.onSurface
-            )
+        ActionTooltip("Canvas Background & Grid") {
+            IconButton(
+                onClick = onOpenBackgroundDialog,
+                modifier = Modifier.testTag("drawing_background_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ColorLens,
+                    contentDescription = "Canvas Background & Grid",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
         }
 
-        IconButton(
-            onClick = onUndo,
-            enabled = canUndo,
-            modifier = Modifier.testTag("drawing_undo_button")
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.Undo,
-                contentDescription = "Undo",
-                tint = if (canUndo) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f)
-            )
+        ActionTooltip("Undo") {
+            IconButton(
+                onClick = onUndo,
+                enabled = canUndo,
+                modifier = Modifier.testTag("drawing_undo_button")
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Undo,
+                    contentDescription = "Undo",
+                    tint = if (canUndo) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f)
+                )
+            }
         }
 
-        IconButton(
-            onClick = onRedo,
-            enabled = canRedo,
-            modifier = Modifier.testTag("drawing_redo_button")
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.Redo,
-                contentDescription = "Redo",
-                tint = if (canRedo) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f)
-            )
+        ActionTooltip("Redo") {
+            IconButton(
+                onClick = onRedo,
+                enabled = canRedo,
+                modifier = Modifier.testTag("drawing_redo_button")
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Redo,
+                    contentDescription = "Redo",
+                    tint = if (canRedo) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f)
+                )
+            }
         }
 
         Box {
-            IconButton(
-                onClick = { showMenu = true },
-                modifier = Modifier.testTag("drawing_more_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More options",
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
+            ActionTooltip("More options") {
+                IconButton(
+                    onClick = { showMenu = true },
+                    modifier = Modifier.testTag("drawing_more_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "More options",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
 
             DropdownMenu(

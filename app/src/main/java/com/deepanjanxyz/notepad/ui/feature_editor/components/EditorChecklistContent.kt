@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deepanjanxyz.notepad.domain.model.ChecklistItem
+import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 
 @Composable
 fun EditorChecklistContent(
@@ -84,18 +85,20 @@ fun EditorChecklistContent(
                         .padding(horizontal = 14.dp)
                         .testTag("checklist_text_${item.id}")
                 )
-                IconButton(
-                    onClick = { onItemDelete(item.id) },
-                    modifier = Modifier
-                        .size(36.dp)
-                        .testTag("remove_item_${item.id}")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Remove item",
-                        tint = Color(0xFF6E7179),
-                        modifier = Modifier.size(18.dp)
-                    )
+                ActionTooltip("Remove item") {
+                    IconButton(
+                        onClick = { onItemDelete(item.id) },
+                        modifier = Modifier
+                            .size(36.dp)
+                            .testTag("remove_item_${item.id}")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Remove item",
+                            tint = Color(0xFF6E7179),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
         }
@@ -146,18 +149,20 @@ fun EditorChecklistContent(
                     .padding(horizontal = 14.dp)
                     .testTag("new_checklist_item_input")
             )
-            IconButton(
-                onClick = onAddNewItem,
-                modifier = Modifier
-                    .size(36.dp)
-                    .testTag("add_checklist_item_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add list item",
-                    tint = amberAccent,
-                    modifier = Modifier.size(22.dp)
-                )
+            ActionTooltip("Add list item") {
+                IconButton(
+                    onClick = onAddNewItem,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .testTag("add_checklist_item_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add list item",
+                        tint = amberAccent,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
         }
 
@@ -215,18 +220,20 @@ fun EditorChecklistContent(
                             .padding(horizontal = 14.dp)
                             .testTag("completed_checklist_text_${item.id}")
                     )
-                    IconButton(
-                        onClick = { onItemDelete(item.id) },
-                        modifier = Modifier
-                            .size(36.dp)
-                            .testTag("remove_completed_item_${item.id}")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Remove item",
-                            tint = Color(0xFF6E7179),
-                            modifier = Modifier.size(18.dp)
-                        )
+                    ActionTooltip("Remove item") {
+                        IconButton(
+                            onClick = { onItemDelete(item.id) },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .testTag("remove_completed_item_${item.id}")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Remove item",
+                                tint = Color(0xFF6E7179),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
             }

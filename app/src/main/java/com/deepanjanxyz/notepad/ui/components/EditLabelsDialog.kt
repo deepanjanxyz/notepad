@@ -167,21 +167,23 @@ fun EditLabelsDialog(
                     placeholder = { Text("Create new label") },
                     isError = isDuplicate,
                     trailingIcon = {
-                        IconButton(
-                            onClick = {
-                                if (cleanedNew.isNotBlank() && !isDuplicate) {
-                                    onAddLabel(cleanedNew)
-                                    newLabelText = ""
-                                }
-                            },
-                            enabled = newLabelText.isNotBlank() && !isDuplicate,
-                            modifier = Modifier.testTag("add_label_plus_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Add label",
-                                tint = if (newLabelText.isNotBlank() && !isDuplicate) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                            )
+                        ActionTooltip("Add label") {
+                            IconButton(
+                                onClick = {
+                                    if (cleanedNew.isNotBlank() && !isDuplicate) {
+                                        onAddLabel(cleanedNew)
+                                        newLabelText = ""
+                                    }
+                                },
+                                enabled = newLabelText.isNotBlank() && !isDuplicate,
+                                modifier = Modifier.testTag("add_label_plus_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Add label",
+                                    tint = if (newLabelText.isNotBlank() && !isDuplicate) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                                )
+                            }
                         }
                     },
                     supportingText = {
@@ -318,18 +320,20 @@ private fun LabelListItem(
 
             // Trailing 3-dot overflow menu with Rename and Delete
             Box {
-                IconButton(
-                    onClick = { menuExpanded = true },
-                    modifier = Modifier
-                        .size(32.dp)
-                        .testTag("label_overflow_menu_$label")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Label options",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
+                ActionTooltip("Label options") {
+                    IconButton(
+                        onClick = { menuExpanded = true },
+                        modifier = Modifier
+                            .size(32.dp)
+                            .testTag("label_overflow_menu_$label")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Label options",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
 
                 DropdownMenu(

@@ -53,6 +53,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.ui.components.NoteCard
+import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -137,40 +138,48 @@ fun TrashScreen(
                         Text("${selectedNoteIds.size} Selected")
                     },
                     navigationIcon = {
-                        IconButton(onClick = { selectedNoteIds = emptySet() }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear selection")
+                        ActionTooltip("Clear selection") {
+                            IconButton(onClick = { selectedNoteIds = emptySet() }) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear selection")
+                            }
                         }
                     },
                     actions = {
-                        IconButton(
-                            onClick = {
-                                selectedNoteIds = trashNotes.map { it.id }.toSet()
+                        ActionTooltip("Select all") {
+                            IconButton(
+                                onClick = {
+                                    selectedNoteIds = trashNotes.map { it.id }.toSet()
+                                }
+                            ) {
+                                Icon(Icons.Default.SelectAll, contentDescription = "Select all")
                             }
-                        ) {
-                            Icon(Icons.Default.SelectAll, contentDescription = "Select all")
                         }
-                        IconButton(
-                            onClick = {
-                                onRestoreSelected()
-                                selectedNoteIds = emptySet()
-                            },
-                            modifier = Modifier.testTag("restore_selected_button")
-                        ) {
-                            Icon(
-                                Icons.Default.RestoreFromTrash,
-                                contentDescription = "Restore selected",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                        ActionTooltip("Restore selected") {
+                            IconButton(
+                                onClick = {
+                                    onRestoreSelected()
+                                    selectedNoteIds = emptySet()
+                                },
+                                modifier = Modifier.testTag("restore_selected_button")
+                            ) {
+                                Icon(
+                                    Icons.Default.RestoreFromTrash,
+                                    contentDescription = "Restore selected",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
-                        IconButton(
-                            onClick = { showDeleteConfirm = true },
-                            modifier = Modifier.testTag("delete_selected_trash_button")
-                        ) {
-                            Icon(
-                                Icons.Default.DeleteForever,
-                                contentDescription = "Permanently delete selected",
-                                tint = MaterialTheme.colorScheme.error
-                            )
+                        ActionTooltip("Permanently delete selected") {
+                            IconButton(
+                                onClick = { showDeleteConfirm = true },
+                                modifier = Modifier.testTag("delete_selected_trash_button")
+                            ) {
+                                Icon(
+                                    Icons.Default.DeleteForever,
+                                    contentDescription = "Permanently delete selected",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -180,14 +189,16 @@ fun TrashScreen(
             } else {
                 TopAppBar(
                     navigationIcon = {
-                        IconButton(
-                            onClick = onOpenDrawer,
-                            modifier = Modifier.testTag("trash_drawer_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Menu,
-                                contentDescription = "Open navigation menu"
-                            )
+                        ActionTooltip("Open navigation menu") {
+                            IconButton(
+                                onClick = onOpenDrawer,
+                                modifier = Modifier.testTag("trash_drawer_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Menu,
+                                    contentDescription = "Open navigation menu"
+                                )
+                            }
                         }
                     },
                     title = {

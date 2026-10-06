@@ -49,6 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.ui.components.NoteCard
+import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,41 +79,49 @@ fun ArchiveScreen(
                 TopAppBar(
                     title = { Text("${selectedNoteIds.size} Selected") },
                     navigationIcon = {
-                        IconButton(onClick = { selectedNoteIds = emptySet() }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear selection")
+                        ActionTooltip("Clear selection") {
+                            IconButton(onClick = { selectedNoteIds = emptySet() }) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear selection")
+                            }
                         }
                     },
                     actions = {
-                        IconButton(onClick = { selectedNoteIds = notes.map { it.id }.toSet() }) {
-                            Icon(Icons.Default.SelectAll, contentDescription = "Select all")
+                        ActionTooltip("Select all") {
+                            IconButton(onClick = { selectedNoteIds = notes.map { it.id }.toSet() }) {
+                                Icon(Icons.Default.SelectAll, contentDescription = "Select all")
+                            }
                         }
-                        IconButton(
-                            onClick = {
-                                val idsToRestore = selectedNoteIds.toList()
-                                onRestoreSelected(idsToRestore)
-                                selectedNoteIds = emptySet()
-                            },
-                            modifier = Modifier.testTag("unarchive_selected_button")
-                        ) {
-                            Icon(
-                                Icons.Default.Unarchive,
-                                contentDescription = "Unarchive selected",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                        ActionTooltip("Unarchive selected") {
+                            IconButton(
+                                onClick = {
+                                    val idsToRestore = selectedNoteIds.toList()
+                                    onRestoreSelected(idsToRestore)
+                                    selectedNoteIds = emptySet()
+                                },
+                                modifier = Modifier.testTag("unarchive_selected_button")
+                            ) {
+                                Icon(
+                                    Icons.Default.Unarchive,
+                                    contentDescription = "Unarchive selected",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
-                        IconButton(
-                            onClick = {
-                                val idsToMoveToTrash = selectedNoteIds.toList()
-                                onMoveSelectedToTrash(idsToMoveToTrash)
-                                selectedNoteIds = emptySet()
-                            },
-                            modifier = Modifier.testTag("delete_selected_archive_button")
-                        ) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = "Move selected to trash",
-                                tint = MaterialTheme.colorScheme.error
-                            )
+                        ActionTooltip("Move selected to trash") {
+                            IconButton(
+                                onClick = {
+                                    val idsToMoveToTrash = selectedNoteIds.toList()
+                                    onMoveSelectedToTrash(idsToMoveToTrash)
+                                    selectedNoteIds = emptySet()
+                                },
+                                modifier = Modifier.testTag("delete_selected_archive_button")
+                            ) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "Move selected to trash",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -143,11 +152,13 @@ fun ArchiveScreen(
                         }
                     },
                     navigationIcon = {
-                        IconButton(
-                            onClick = onOpenDrawer,
-                            modifier = Modifier.testTag("archive_drawer_menu_button")
-                        ) {
-                            Icon(Icons.Default.Menu, contentDescription = "Open drawer")
+                        ActionTooltip("Open drawer") {
+                            IconButton(
+                                onClick = onOpenDrawer,
+                                modifier = Modifier.testTag("archive_drawer_menu_button")
+                            ) {
+                                Icon(Icons.Default.Menu, contentDescription = "Open drawer")
+                            }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(

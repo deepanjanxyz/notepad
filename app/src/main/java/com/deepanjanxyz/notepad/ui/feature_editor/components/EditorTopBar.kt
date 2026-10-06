@@ -32,6 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 
 @Composable
 fun EditorTopBar(
@@ -60,15 +61,17 @@ fun EditorTopBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Back Button
-        IconButton(
-            onClick = onNavigateBack,
-            modifier = Modifier.testTag("editor_back_button")
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
-                tint = textPrimary
-            )
+        ActionTooltip("Back") {
+            IconButton(
+                onClick = onNavigateBack,
+                modifier = Modifier.testTag("editor_back_button")
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = textPrimary
+                )
+            }
         }
 
         // Right Action Icons
@@ -77,75 +80,87 @@ fun EditorTopBar(
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             // Pin / Unpin
-            IconButton(
-                onClick = onTogglePin,
-                modifier = Modifier.testTag("toggle_pin_button")
-            ) {
-                Icon(
-                    imageVector = if (isPinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
-                    contentDescription = if (isPinned) "Unpin Note" else "Pin Note",
-                    tint = if (isPinned) amberAccent else textPrimary
-                )
+            ActionTooltip(if (isPinned) "Unpin Note" else "Pin Note") {
+                IconButton(
+                    onClick = onTogglePin,
+                    modifier = Modifier.testTag("toggle_pin_button")
+                ) {
+                    Icon(
+                        imageVector = if (isPinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                        contentDescription = if (isPinned) "Unpin Note" else "Pin Note",
+                        tint = if (isPinned) amberAccent else textPrimary
+                    )
+                }
             }
 
             // Reminder Button
-            IconButton(
-                onClick = onOpenReminder,
-                modifier = Modifier.testTag("toggle_reminder_button")
-            ) {
-                Icon(
-                    imageVector = if (hasReminder) Icons.Filled.NotificationsActive else Icons.Outlined.Notifications,
-                    contentDescription = if (hasReminder) "Edit reminder" else "Add reminder",
-                    tint = if (hasReminder) amberAccent else textPrimary
-                )
+            ActionTooltip(if (hasReminder) "Edit reminder" else "Add reminder") {
+                IconButton(
+                    onClick = onOpenReminder,
+                    modifier = Modifier.testTag("toggle_reminder_button")
+                ) {
+                    Icon(
+                        imageVector = if (hasReminder) Icons.Filled.NotificationsActive else Icons.Outlined.Notifications,
+                        contentDescription = if (hasReminder) "Edit reminder" else "Add reminder",
+                        tint = if (hasReminder) amberAccent else textPrimary
+                    )
+                }
             }
 
             // Checklist / Bullet list toggle
-            IconButton(
-                onClick = onToggleChecklist,
-                modifier = Modifier.testTag("toggle_checklist_button")
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.FormatListBulleted,
-                    contentDescription = "Checklist format",
-                    tint = if (isChecklistMode) amberAccent else textPrimary
-                )
+            ActionTooltip("Checklist format") {
+                IconButton(
+                    onClick = onToggleChecklist,
+                    modifier = Modifier.testTag("toggle_checklist_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.FormatListBulleted,
+                        contentDescription = "Checklist format",
+                        tint = if (isChecklistMode) amberAccent else textPrimary
+                    )
+                }
             }
 
             // Color Tint Palette
-            IconButton(
-                onClick = onOpenColorPicker,
-                modifier = Modifier.testTag("toggle_color_picker_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Palette,
-                    contentDescription = "Color palette",
-                    tint = if (hasColor) amberAccent else textPrimary
-                )
+            ActionTooltip("Color palette") {
+                IconButton(
+                    onClick = onOpenColorPicker,
+                    modifier = Modifier.testTag("toggle_color_picker_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Palette,
+                        contentDescription = "Color palette",
+                        tint = if (hasColor) amberAccent else textPrimary
+                    )
+                }
             }
 
             // Drawing Action
-            IconButton(
-                onClick = onOpenDrawing,
-                modifier = Modifier.testTag("open_drawing_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Brush,
-                    contentDescription = "Drawing",
-                    tint = if (hasDrawing) amberAccent else textPrimary
-                )
+            ActionTooltip("Drawing") {
+                IconButton(
+                    onClick = onOpenDrawing,
+                    modifier = Modifier.testTag("open_drawing_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Brush,
+                        contentDescription = "Drawing",
+                        tint = if (hasDrawing) amberAccent else textPrimary
+                    )
+                }
             }
 
             // Archive Action
-            IconButton(
-                onClick = onArchive,
-                modifier = Modifier.testTag("archive_note_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Archive,
-                    contentDescription = "Archive Note",
-                    tint = textPrimary
-                )
+            ActionTooltip("Archive Note") {
+                IconButton(
+                    onClick = onArchive,
+                    modifier = Modifier.testTag("archive_note_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Archive,
+                        contentDescription = "Archive Note",
+                        tint = textPrimary
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(4.dp))

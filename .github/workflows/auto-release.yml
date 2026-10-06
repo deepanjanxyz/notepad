@@ -60,8 +60,8 @@ jobs:
           git show "${{ github.event.pull_request.base.sha }}:app/build.gradle.kts" > /tmp/base_build.gradle.kts 2>/dev/null || true
           head_vc=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+')
           head_vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
-          base_vc=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' /tmp/base_build.gradle.kts | grep -oE '[0-9]+')
-          base_vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' /tmp/base_build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
+          base_vc=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' /tmp/base_build.gradle.kts | grep -oE '[0-9]+' || true)
+          base_vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' /tmp/base_build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"' || true)
           if [ "$head_vc" != "$base_vc" ] || [ "$head_vn" != "$base_vn" ]; then
             echo "version_updated=true" >> "$GITHUB_OUTPUT"
           else

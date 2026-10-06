@@ -3,7 +3,7 @@ name: Universal PR Check
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: [dev]
+    branches: [main]
 
 permissions:
   contents: read
@@ -11,8 +11,30 @@ permissions:
   issues: write
 
 jobs:
+  policy:
+    name: PR target policy
+    runs-on: ubuntu-latest
+    outputs:
+      valid: ${{ steps.check.outputs.valid }}
+    steps:
+      - name: Check the target branch
+        id: check
+        env:
+          BASE: ${{ github.event.pull_request.base.ref }}
+          HEAD: ${{ github.event.pull_request.head.ref }}
+        run: |
+          if [ "$BASE" = "main" ] && [ "$HEAD" = "dev" ]; then
+            echo "valid=true" >> "$GITHUB_OUTPUT"
+            echo "Target is dev -> main; running the full check suite."
+          else
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+            echo "Target is $HEAD -> $BASE, not dev -> main; skipping the check suite."
+          fi
+
   build:
     name: Debug & Release build
+    needs: policy
+    if: needs.policy.outputs.valid == 'true'
     runs-on: ubuntu-latest
     env:
       KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -59,6 +81,8 @@ jobs:
 
   unit-tests:
     name: Unit tests
+    needs: policy
+    if: needs.policy.outputs.valid == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -86,6 +110,8 @@ jobs:
 
   lint:
     name: Android lint
+    needs: policy
+    if: needs.policy.outputs.valid == 'true'
     runs-on: ubuntu-latest
     outputs:
       warnings: ${{ steps.count.outputs.warnings }}
@@ -127,6 +153,8 @@ jobs:
 
   detekt:
     name: Static analysis (detekt)
+    needs: policy
+    if: needs.policy.outputs.valid == 'true'
     runs-on: ubuntu-latest
     outputs:
       configured: ${{ steps.detect.outputs.configured }}
@@ -166,6 +194,8 @@ jobs:
 
   secrets-scan:
     name: Secret scan
+    needs: policy
+    if: needs.policy.outputs.valid == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -181,8 +211,8 @@ jobs:
   report:
     name: PR status report
     runs-on: ubuntu-latest
-    needs: [build, unit-tests, lint, detekt, secrets-scan]
-    if: always()
+    needs: [policy, build, unit-tests, lint, detekt, secrets-scan]
+    if: always() && needs.policy.outputs.valid == 'true'
     steps:
       - name: Build report body
         id: body

@@ -1,0 +1,66 @@
+name: PR Manager
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: pr-manager-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  enforce-target:
+    name: Enforce the PR target policy
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.pull_request.state == 'open'
+      && (github.event.pull_request.base.ref != 'main' || github.event.pull_request.head.ref != 'dev')
+    steps:
+      - name: Comment on the pull request and close it
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const { owner, repo } = context.repo;
+
+            // The policy is documented in CONTRIBUTING.md on the default branch.
+            const guide = `${context.serverUrl}/${owner}/${repo}/blob/${pr.base.repo.default_branch}/CONTRIBUTING.md`;
+
+            const body = [
+              '## This pull request was closed automatically',
+              '',
+              `Elite Memo Pro accepts exactly one pull request target: **\`dev\` → \`main\`**, the release pipeline.`,
+              `This pull request targets \`${pr.base.ref}\` from \`${pr.head.ref}\`, so it does not meet the policy and cannot be merged.`,
+              '',
+              '### What to do instead',
+              '',
+              '- Land your work on the `dev` branch.',
+              '- When `dev` is ready to ship, open a pull request **from `dev` into `main`**.',
+              '',
+              `Read [CONTRIBUTING.md](${guide}) before opening another pull request.`,
+              '',
+              '---',
+              '',
+              '*Closed by the [PR Manager](' + `${context.serverUrl}/${owner}/${repo}/actions/workflows/pr-manager.yml` + ') workflow.*',
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: pr.number,
+              body,
+            });
+
+            await github.rest.pulls.update({
+              owner,
+              repo,
+              pull_number: pr.number,
+              state: 'closed',
+            });
+
+            core.notice(`Closed #${pr.number}: ${pr.head.ref} → ${pr.base.ref} is not dev → main.`);

@@ -12,8 +12,8 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 
 }
@@ -26,14 +26,14 @@ ksp {
 
 dependencies {
     implementation(project(":domain"))
-    implementation("androidx.core:core-ktx:1.19.0")
-    implementation("androidx.datastore:datastore-preferences:1.2.0")
+    implementation("androidx.core:core-ktx:1.19.1")
+    implementation("androidx.datastore:datastore-preferences:1.2.1")
     implementation("androidx.room:room-runtime:2.8.5")
     implementation("androidx.room:room-ktx:2.8.5")
     ksp("androidx.room:room-compiler:2.8.5")
-    implementation("androidx.work:work-runtime-ktx:2.11.2")
-    implementation("io.github.jan-tennert.supabase:gotrue-kt:2.6.1")
-    implementation("io.github.jan-tennert.supabase:postgrest-kt:2.6.1")
-    implementation("io.ktor:ktor-client-android:2.3.12")
+    implementation("androidx.work:work-runtime-ktx:2.12.0")
+    implementation("io.github.jan-tennert.supabase:auth-kt:3.8.0")
+    implementation("io.github.jan-tennert.supabase:postgrest-kt:3.8.0")
+    implementation("io.ktor:ktor-client-android:3.6.0")
     testImplementation("junit:junit:4.13.2")
 }

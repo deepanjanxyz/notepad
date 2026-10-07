@@ -24,11 +24,11 @@ jobs:
           ref: ci/screenshots
           path: .ci
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
@@ -42,7 +42,7 @@ jobs:
       - name: Install Android SDK platform 37
         run: |
           SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-          SDKMGR="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          SDKMGR="$SDK/cmmline-tools/latest/bin/sdkmanager"
           test -x "$SDKMGR" || SDKMGR="$(command -v sdkmanager)"
           yes | "$SDKMGR" --licenses > /dev/null || true
           "$SDKMGR" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
@@ -68,7 +68,7 @@ jobs:
 
       - name: Upload screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: screenshots
           path: screenshots/
@@ -76,7 +76,7 @@ jobs:
 
       - name: Upload notes and logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: notes-and-logs
           path: notes-and-logs/

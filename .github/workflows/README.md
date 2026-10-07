@@ -10,8 +10,8 @@ single responsibility, so it is easy to see what runs, when, and why.
 | [`ci.yml`](./ci.yml) | CI | `push` / `pull_request` to `dev` and `main`, plus manual | Runs the unit tests and a debug build, then uploads the test reports. This is the build-verification gate. |
 | [`android.yml`](./android.yml) | Build and Sign APK | manual (`workflow_dispatch`) | Builds the unsigned release APK, decodes the keystore from secrets, signs the APK, and uploads it as the `release-apk` artifact. |
 | [`mirror.yml`](./mirror.yml) | Multi-Platform Smart Auto Mirroring | `push` of any branch or tag | Materializes every branch locally, then mirrors all branches and tags to GitLab and Codeberg (force-syncing when a normal push is rejected). |
-| [`universal-pr-check.yml`](./universal-pr-check.yml) | Universal PR Check | `pull_request` (opened, synchronize, reopened) to `dev` | Runs the build, unit tests, lint, detekt and a secret scan as parallel jobs on JDK 17, then posts a single status-table comment on the PR and blocks the merge if any check fails. |
-| [`auto-release.yml`](./auto-release.yml) | Auto Release | `pull_request` / `push` to `main` | Guards on real application-code changes, commits the version bump straight onto the source PR branch when a `main` PR skipped it, and on merge to `main` publishes a GitHub release tagged `v<versionName>` with the signed, renamed APK and traced release notes. |
+| [`universal-pr-check.yml`](./universal-pr-check.yml) | Universal PR Check | `pull_request` (opened, synchronize, reopened) to `dev` | Runs the build, unit tests, lint, detekt and a secret scan as parallel jobs on JDK 21, then posts a single status-table comment on the PR and blocks the merge if any check fails. |
+| [`auto-release.yml`](./auto-release.yml) | Auto Release | `pull_request` / `push` to `main` | Guards on real shipping-file changes with a deep diff check, derives the next version from the latest `v*` tag at release time, and on merge to `main` publishes a GitHub release tagged `v<versionName>` with the signed, renamed APKs and traced release notes. |
 
 ## In one line each
 
@@ -31,6 +31,7 @@ single responsibility, so it is easy to see what runs, when, and why.
 | `KEY_PASSWORD` | `android.yml`, `universal-pr-check.yml`, `auto-release.yml` | Release key password. |
 | `GITLAB_TOKEN` | `mirror.yml` | Push access to the GitLab mirror. |
 | `CODEBERG_TOKEN` | `mirror.yml` | Push access to the Codeberg mirror. |
+| `COPILOT_TOKEN` | `auto-release.yml` | Optional. Enables the Copilot summary in the release notes. |
 
 ## Universal PR Check (`universal-pr-check.yml`)
 
@@ -54,11 +55,11 @@ does not run on plain `push`.
 | Secret scan | `gitleaks/gitleaks-action@v3` | Scans the checkout for hardcoded secrets. |
 
 **Environment.** Every job runs on `ubuntu-latest`, checks out with full history
-(`fetch-depth: 0`), sets up Temurin **JDK 17**, and configures Gradle caching via
-`gradle/actions/setup-gradle`. The JDK is pinned to **17** on purpose: the project
-compiles against `sourceCompatibility`/`targetCompatibility` 17 and must not be
-silently upgraded to a newer JDK. The Android SDK platform the project builds
-against (`compileSdk`) is installed before the Gradle build.
+(`fetch-depth: 0`), sets up Temurin **JDK 21**, and configures Gradle caching via
+`gradle/actions/setup-gradle`. The JDK matches the project: every module compiles
+against `sourceCompatibility`/`targetCompatibility` `JavaVersion.VERSION_21`. The
+Android SDK platform the project builds against (`compileSdk`) is installed
+before the Gradle build.
 
 **Permissions.** `contents: read`, `pull-requests: write`, and `issues: write` —
 just enough to read the code and write feedback back onto the pull request.
@@ -80,67 +81,47 @@ check fails, its job fails and the merge button stays blocked until it is fixed.
 ## Auto Release (`auto-release.yml`)
 
 A `main`-only release pipeline that refuses to act unless real application code
-changed. It bumps the version straight onto the source PR branch when a `main` PR
-forgot to, and publishes a GitHub Release when the change lands.
+changed, and that owns the version number so contributors never touch it.
 
 **Trigger.** `pull_request` events (`opened`, `synchronize`, `reopened`) whose
 base branch is `main`, and `push` events to `main` (i.e. merges). The workflow
 runs on **every** such event — path filtering is done inside the `guard` job, not
 at the trigger, so a docs-only PR never leaves a required status check waiting
-forever. Non-code changes simply skip the bot jobs (see `code_changed` below).
+forever. Non-code changes simply skip the release job (see `code_changed` below).
 
-**Concurrency.** Two layers, both non-cancelling:
+**Concurrency.** `group: release-${{ github.ref }}` with
+`cancel-in-progress: false`, so runs for the same ref never overlap.
 
-- Workflow level: `group: release-${{ github.ref }}`, so runs for the same ref
-  never overlap.
-- The `auto-bump` job additionally pins a strict global group `auto-bump-main`
-  (`cancel-in-progress: false`), so bump runs never overlap.
+**Guard (`guard` job).** Runs on both events and computes the single fact the
+release job needs:
 
-**Guard (`guard` job).** Runs on both events and computes two facts used by the
-later jobs:
+- `code_changed` — a **deep check** of the real diff against the base. A file
+  counts only when it ships in the APK or affects how it is built: anything under
+  `app/`, plus `*.gradle.kts`, `*.gradle`, `gradle.properties`,
+  `settings.gradle.kts`, `gradle/libs.versions.toml` and `gradle/wrapper/*`. Even
+  then an edit is ignored when it only moves whitespace or blank lines, or
+  touches comment lines. A reformat or a comment tweak therefore does not cut a
+  release, while a one-line behaviour change does. When nothing qualifies, the
+  release job is skipped.
 
-- `code_changed` — a `git diff` against the base confirms that application code
-  actually changed. Only paths under `app/src/main/`, or the root Gradle
-  configuration files (`*.gradle.kts`, `gradle.properties`), count. Changes under
-  `app/src/test/` and `app/src/androidTest/` (and docs/images) do not. If nothing
-  matches, every bot step is skipped — no version check, no bump, no release.
-- `version_updated` (pull requests only) — whether `versionCode` and
-  `versionName` in `app/build.gradle.kts` differ from `main`.
+**Release (`release` job).** On a merge to `main` with code changes it:
 
-**Auto-bump (`auto-bump` job).** On a `main` PR that changes code but leaves the
-version untouched — and was not opened by `github-actions[bot]` — it:
-
-1. Checks out the PR's own head branch (`ref: github.event.pull_request.head.ref`,
-   authenticated with `GITHUB_TOKEN`).
-2. Runs a **pre-flight verification** that extracts the app name
-   (`rootProject.name` from `settings.gradle.kts`), `versionName` and
-   `versionCode` from `app/build.gradle.kts` and fails immediately if any is
-   missing or malformed (`versionName` must be strict `X.Y.Z`, `versionCode` a
-   positive integer).
-3. Increments `versionCode` by 1 and bumps the patch of `versionName`, commits
-   `chore(release): bump version [skip ci]` and pushes
-   `HEAD:${{ github.event.pull_request.head.ref }}` — a plain `git push`, never a
-   force-push. If the file did not actually change, the job fails.
-
-There is **no companion PR**: the code change and the version bump live on the
-same branch, so merging the PR brings both into `main` atomically with no
-out-of-sync merges and no cross-PR version collisions.
-
-**Release (`release` job).** On a merge to `main` with code changes it runs a
-strict pre-flight before doing anything else:
-
-1. Reads the app name, `versionName` and `versionCode`.
-2. `versionName` must match `^[0-9]+\.[0-9]+\.[0-9]+$`; otherwise the job fails
-   with `exit 1`.
-3. `versionCode` must be a positive integer (`^[1-9][0-9]*$`); if it is missing or
-   malformed, the job fails with `exit 1`.
-4. The `v<versionName>` tag must not already exist on the remote; if it does, the
-   job fails hard (`exit 1`) rather than silently skipping.
+1. Reads the app name and derives the next version from the latest `v*` tag —
+   `versionCode + 1` and the patch component of `versionName + 1`. The tag is the
+   source of truth, so the target is always `tag + 1`, never `current + 1`; the
+   workflow is idempotent and nothing keeps incrementing.
+2. Stamps that version into `app/build.gradle.kts` in the runner, so the APK and
+   the tag agree.
+3. Validates the result — `versionName` must match `^[0-9]+\.[0-9]+\.[0-9]+$`
+   and `versionCode` must be a positive integer (`^[1-9][0-9]*$`).
+4. Confirms the `v<versionName>` tag does not already exist on the remote, and
+   fails hard (`exit 1`) rather than silently skipping if it does.
 
 It then resolves the release context, builds the signed release APK, and:
 
-- **Renames** every produced APK to `<AppName>-v<VersionName>-<VersionCode>.apk`
-  (e.g. `EliteMemoPro-v2.1.0-11.apk`) — never a generic `app-release.apk`.
+- **Renames** every produced APK to `<AppName>-v<VersionName>-<VersionCode>-<abi>.apk`
+  (e.g. `EliteMemoPro-v1.0.12-12-arm64-v8a.apk`) — never a generic
+  `app-release.apk`.
 - **Verifies signatures** with the Android SDK `apksigner verify --verbose`,
   failing the job if any APK is unsigned or has an invalid signature.
 - **Appends SHA-256 checksums** for the renamed APKs into the release notes.
@@ -148,12 +129,11 @@ It then resolves the release context, builds the signed release APK, and:
 Finally it publishes the release with the native GitHub CLI
 (`gh release create "v<versionName>" … --notes-file /tmp/release-notes.md`,
 authenticated with `GH_TOKEN`) — no third-party release action. The release notes
-prefer the merged PR's title and body; if the tip commit is the bot's bump commit,
-it walks `git log` back to the last human commit and uses that contributor's
-PR/commit context instead.
+are built from the actual diff between the previous tag and the merge, with an
+optional Copilot summary when `COPILOT_TOKEN` is configured.
 
 **Permissions.** Least privilege: the workflow default is `contents: read`; only
-the `auto-bump` job and the `release` job are elevated to `contents: write`.
+the `release` job is elevated to `contents: write`.
 
 ## Store screenshots (`store-screenshots.yml`)
 

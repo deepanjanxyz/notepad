@@ -42,7 +42,7 @@ jobs:
       - name: Install Android SDK platform 37
         run: |
           SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-          SDKMGR="$SDK/cmmline-tools/latest/bin/sdkmanager"
+          SDKMGR="$SDK/cmdline-tools/latest/bin/sdkmanager"
           test -x "$SDKMGR" || SDKMGR="$(command -v sdkmanager)"
           yes | "$SDKMGR" --licenses > /dev/null || true
           "$SDKMGR" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null

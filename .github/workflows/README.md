@@ -106,15 +106,18 @@ release job needs:
 
 **Release (`release` job).** On a merge to `main` with code changes it:
 
-1. Reads the app name and derives the next version from the latest `v*` tag —
-   `versionCode + 1` and the patch component of `versionName + 1`. The tag is the
-   source of truth, so the target is always `tag + 1`, never `current + 1`; the
-   workflow is idempotent and nothing keeps incrementing.
-2. Stamps that version into `app/build.gradle.kts` in the runner, so the APK and
-   the tag agree.
-3. Validates the result — `versionName` must match `^[0-9]+\.[0-9]+\.[0-9]+$`
+1. Reads the app name and takes the latest `v*` tag as the source of truth: the
+   next `versionName` is the tag's version with its patch incremented
+   (`v1.0.11` → `1.0.12`).
+2. Derives the next `versionCode` as one above the highest already recorded — the
+   largest stamped into the previous release's APK names, or the value in
+   `app/build.gradle.kts` when that is higher. The target is never
+   `current + 1`, so nothing keeps incrementing and the workflow is idempotent.
+3. Stamps both into `app/build.gradle.kts` in the runner, so the APK and the tag
+   agree.
+4. Validates the result — `versionName` must match `^[0-9]+\.[0-9]+\.[0-9]+$`
    and `versionCode` must be a positive integer (`^[1-9][0-9]*$`).
-4. Confirms the `v<versionName>` tag does not already exist on the remote, and
+5. Confirms the `v<versionName>` tag does not already exist on the remote, and
    fails hard (`exit 1`) rather than silently skipping if it does.
 
 It then resolves the release context, builds the signed release APK, and:

@@ -8,7 +8,7 @@ single responsibility, so it is easy to see what runs, when, and why.
 | Workflow file | Name | Trigger | What it does |
 |---|---|---|---|
 | [`ci.yml`](./ci.yml) | CI | `push` / `pull_request` to `dev` and `main`, plus manual | Runs the unit tests and a debug build, then uploads the test reports. This is the build-verification gate. |
-| [`android.yml`](./android.yml) | Build and Sign APK | manual (`workflow_dispatch`) | Builds the unsigned release APK, decodes the keystore from secrets, signs the APK, and uploads it as the `release-apk` artifact. |
+| [`android.yml`](./android.yml) | Build and Sign APK | manual (`workflow_dispatch`) | Decodes the keystore from secrets, builds the **signed** release APK, verifies every APK signature, and uploads the signed APKs as the `release-apks` artifact. |
 | [`mirror.yml`](./mirror.yml) | Multi-Platform Smart Auto Mirroring | `push` of any branch or tag | Materializes every branch locally, then mirrors all branches and tags to GitLab and Codeberg (force-syncing when a normal push is rejected). |
 | [`universal-pr-check.yml`](./universal-pr-check.yml) | Universal PR Check | `pull_request` (opened, synchronize, reopened) to `dev` | Runs the build, unit tests, lint, detekt and a secret scan as parallel jobs on JDK 17, then posts a single status-table comment on the PR and blocks the merge if any check fails. |
 | [`auto-release.yml`](./auto-release.yml) | Auto Release | `pull_request` / `push` to `main` | Guards on real application-code changes, commits the version bump straight onto the source PR branch when a `main` PR skipped it, and on merge to `main` publishes a GitHub release tagged `v<versionName>` with the signed, renamed APK and traced release notes. |

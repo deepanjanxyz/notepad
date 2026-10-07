@@ -1,0 +1,16 @@
+# CODEOWNERS — Elite Memo Pro
+#
+# The `main` branch ruleset enables "Require review from Code Owners"
+# (require_code_owner_review: true). This file is the source of truth that rule
+# reads: with no CODEOWNERS file present, the rule has no owners to match and
+# therefore enforces nothing. Adding this file closes that gap.
+#
+# GitHub requests the listed owner(s) as reviewers on any pull request that
+# changes a matching path, and — on `main` — keeps the merge blocked until a
+# code owner has approved.
+#
+# The last matching pattern wins.
+# Docs: https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything in the repository.
+*                   @deepanjanxyz

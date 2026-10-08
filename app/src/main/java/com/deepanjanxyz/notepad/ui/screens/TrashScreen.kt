@@ -66,6 +66,7 @@ fun TrashScreen(
     onEmptyTrash: () -> Unit,
     onRestoreSelected: () -> Unit,
     onPermanentlyDeleteSelected: () -> Unit,
+    onNoteClick: (Note) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var selectedNoteIds by remember { mutableStateOf(setOf<Long>()) }
@@ -333,6 +334,8 @@ fun TrashScreen(
                                     } else {
                                         selectedNoteIds + note.id
                                     }
+                                } else {
+                                    onNoteClick(note)
                                 }
                             },
                             onLongClick = {

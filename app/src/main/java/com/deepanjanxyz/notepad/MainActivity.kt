@@ -90,6 +90,7 @@ class MainActivity : FragmentActivity() {
             val trashNotes by viewModel.trashNotes.collectAsStateWithLifecycle()
             val roomLabels by viewModel.roomLabels.collectAsStateWithLifecycle()
             val allTags by viewModel.allTags.collectAsStateWithLifecycle()
+            val backupNotes by viewModel.backupNotes.collectAsStateWithLifecycle()
 
             val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
             val scope = rememberCoroutineScope()
@@ -193,7 +194,9 @@ class MainActivity : FragmentActivity() {
                                                 onClearSelection = { viewModel.clearSelection() },
                                                 onSelectAll = { viewModel.selectAll(filteredNotes) },
                                                 onMoveSelectedToTrash = { viewModel.moveSelectedToTrash() },
-                                                onMoveSelectedToArchive = { viewModel.moveSelectedToArchive() }
+                                                onMoveSelectedToArchive = { viewModel.moveSelectedToArchive() },
+                                                onUndoMoveToTrash = { viewModel.undoMoveToTrash() },
+                                                onSortOptionChange = { viewModel.setSortOption(it) }
                                             )
                                         }
 
@@ -203,13 +206,14 @@ class MainActivity : FragmentActivity() {
                                                 availableTags = allTags,
                                                 onGetNote = { id -> viewModel.getNote(id) },
                                                 onSaveNote = { id, title, content, colorIndex, tags, isPinned, inArchive, reminderTime ->
-                                                    viewModel.saveNote(id, title, content, colorIndex, tags, isPinned, inArchive, reminderTime)
+                                                    viewModel.saveNote(id, title, content, colorIndex, tags, isPinned, inArchive, reminderTime).id
                                                 },
                                                 onAddLabel = { label -> viewModel.addLabel(label) },
                                                 onMoveToArchive = { id -> viewModel.moveToArchive(id) },
                                                 onMoveToTrash = { id -> viewModel.moveToTrash(id) },
-                                                onOpenDrawing = { noteId -> viewModel.navigateTo(Screen.Drawing(noteId)) },
-                                                onNavigateBack = { viewModel.navigateTo(Screen.Home) }
+                                                onClearReminder = { id -> viewModel.setNoteReminder(id, null) },
+                                                onOpenDrawing = { noteId -> viewModel.navigateTo(Screen.Drawing(noteId, screen.returnTo)) },
+                                                onNavigateBack = { viewModel.navigateTo(screen.returnTo) }
                                             )
                                         }
 
@@ -218,13 +222,13 @@ class MainActivity : FragmentActivity() {
                                                 noteId = screen.noteId,
                                                 onGetNote = { id -> viewModel.getNote(id) },
                                                 onSaveNote = { id, title, content, colorIndex, tags, isPinned, inArchive ->
-                                                    viewModel.saveNote(id, title, content, colorIndex, tags, isPinned, inArchive)
+                                                    viewModel.saveNote(id, title, content, colorIndex, tags, isPinned, inArchive).id
                                                 },
                                                 onNavigateBack = { savedId ->
                                                     if (savedId > 0L) {
-                                                        viewModel.navigateTo(Screen.Editor(savedId))
+                                                        viewModel.navigateTo(Screen.Editor(savedId, screen.returnTo))
                                                     } else {
-                                                        viewModel.navigateTo(Screen.Home)
+                                                        viewModel.navigateTo(screen.returnTo)
                                                     }
                                                 }
                                             )
@@ -247,9 +251,9 @@ class MainActivity : FragmentActivity() {
                                                 },
                                                 onNoteClick = { note ->
                                                     if (DrawingSerializer.isDrawing(note.content)) {
-                                                        viewModel.navigateTo(Screen.Drawing(note.id))
+                                                        viewModel.navigateTo(Screen.Drawing(note.id, Screen.Archive))
                                                     } else {
-                                                        viewModel.navigateTo(Screen.Editor(note.id))
+                                                        viewModel.navigateTo(Screen.Editor(note.id, Screen.Archive))
                                                     }
                                                 }
                                             )
@@ -266,7 +270,14 @@ class MainActivity : FragmentActivity() {
                                                 onPermanentlyDeleteNote = { viewModel.permanentlyDelete(it) },
                                                 onEmptyTrash = { viewModel.emptyTrash() },
                                                 onRestoreSelected = { viewModel.restoreSelectedTrashNotes() },
-                                                onPermanentlyDeleteSelected = { viewModel.permanentlyDeleteSelectedTrashNotes() }
+                                                onPermanentlyDeleteSelected = { viewModel.permanentlyDeleteSelectedTrashNotes() },
+                                                onNoteClick = { note ->
+                                                    if (DrawingSerializer.isDrawing(note.content)) {
+                                                        viewModel.navigateTo(Screen.Drawing(note.id, Screen.Trash))
+                                                    } else {
+                                                        viewModel.navigateTo(Screen.Editor(note.id, Screen.Trash))
+                                                    }
+                                                }
                                             )
                                         }
 
@@ -274,10 +285,12 @@ class MainActivity : FragmentActivity() {
                                             SettingsScreen(
                                                 uiState = uiState,
                                                 notes = rawActiveNotes,
+                                                backupNotes = backupNotes,
                                                 onThemeChange = { viewModel.setTheme(it) },
                                                 onLockToggle = { enabled ->
                                                     viewModel.setLockEnabled(enabled)
                                                 },
+                                                onImportNotes = { viewModel.importNotes(it) },
                                                 onNavigateBack = { viewModel.navigateTo(Screen.Home) }
                                             )
                                         }

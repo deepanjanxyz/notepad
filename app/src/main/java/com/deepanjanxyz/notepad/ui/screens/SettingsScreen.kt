@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -25,13 +27,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.SettingsBrightness
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,6 +46,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -62,19 +68,52 @@ import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.ui.viewmodel.NotesUiState
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
+import org.json.JSONArray
+import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     uiState: NotesUiState,
     notes: List<Note>,
+    backupNotes: List<Note>,
     onThemeChange: (String) -> Unit,
     onLockToggle: (Boolean) -> Unit,
+    onImportNotes: (List<Note>) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val versionName = getAppVersionName(context)
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                val json = buildBackupJson(backupNotes)
+                context.contentResolver.openOutputStream(uri)?.use { out ->
+                    out.write(json.toByteArray(Charsets.UTF_8))
+                }
+            }
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                val text = context.contentResolver.openInputStream(uri)?.use { input ->
+                    input.readBytes().toString(Charsets.UTF_8)
+                }.orEmpty()
+                val imported = parseBackupJson(text)
+                if (imported.isNotEmpty()) {
+                    onImportNotes(imported)
+                }
+            }
+        }
+    }
 
     BackHandler {
         onNavigateBack()
@@ -321,6 +360,78 @@ fun SettingsScreen(
                 }
             }
 
+            // Backup & Restore Card
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Backup,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.size(12.dp))
+                        Text(
+                            text = "Backup & Restore",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Export your notes to a JSON file, or restore them from a previous backup.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { exportLauncher.launch("elite-memo-backup.json") },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("export_notes_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Upload,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Export")
+                        }
+
+                        OutlinedButton(
+                            onClick = { importLauncher.launch(arrayOf("application/json", "text/plain")) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("import_notes_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Import")
+                        }
+                    }
+                }
+            }
+
             // About Card
             Card(
                 shape = RoundedCornerShape(20.dp),
@@ -424,3 +535,62 @@ private fun getAppVersionName(context: Context): String =
     requireNotNull(context.packageManager.getPackageInfo(context.packageName, 0).versionName) {
         "App versionName is missing"
     }
+
+/** Serializes the given notes into a portable JSON backup document. */
+private fun buildBackupJson(notes: List<Note>): String {
+    val array = JSONArray()
+    notes.forEach { note ->
+        val obj = JSONObject()
+        obj.put("title", note.title)
+        obj.put("content", note.content)
+        obj.put("date", note.date)
+        obj.put("colorIndex", note.colorIndex)
+        obj.put("isPinned", note.isPinned)
+        obj.put("inArchive", note.inArchive)
+        obj.put("reminderTime", note.reminderTime ?: JSONObject.NULL)
+        val tagArray = JSONArray()
+        note.tags.forEach { tagArray.put(it) }
+        obj.put("tags", tagArray)
+        array.put(obj)
+    }
+    val root = JSONObject()
+    root.put("app", "Elite Memo Pro")
+    root.put("version", 1)
+    root.put("notes", array)
+    return root.toString(2)
+}
+
+/** Parses a JSON backup document produced by [buildBackupJson]. */
+private fun parseBackupJson(text: String): List<Note> {
+    if (text.isBlank()) return emptyList()
+    return runCatching {
+        val root = JSONObject(text)
+        val array = root.optJSONArray("notes")
+        val result = mutableListOf<Note>()
+        if (array != null) {
+            for (i in 0 until array.length()) {
+                val obj = array.optJSONObject(i) ?: continue
+                val tagArray = obj.optJSONArray("tags")
+                val tags = if (tagArray == null) {
+                    emptyList()
+                } else {
+                    (0 until tagArray.length())
+                        .mapNotNull { index -> tagArray.optString(index).takeIf { it.isNotBlank() } }
+                }
+                result.add(
+                    Note(
+                        title = obj.optString("title"),
+                        content = obj.optString("content"),
+                        date = obj.optString("date"),
+                        colorIndex = obj.optInt("colorIndex"),
+                        isPinned = obj.optBoolean("isPinned"),
+                        inArchive = obj.optBoolean("inArchive"),
+                        tags = tags,
+                        reminderTime = if (obj.isNull("reminderTime")) null else obj.optLong("reminderTime")
+                    )
+                )
+            }
+        }
+        result.toList()
+    }.getOrDefault(emptyList())
+}

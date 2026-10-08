@@ -8,6 +8,7 @@ import com.deepanjanxyz.notepad.NotepadApplication
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.domain.usecase.label.LabelUseCases
 import com.deepanjanxyz.notepad.domain.usecase.note.NoteUseCases
+import com.deepanjanxyz.notepad.domain.usecase.note.SavedNote
 import com.deepanjanxyz.notepad.domain.usecase.settings.SettingsUseCases
 import com.deepanjanxyz.notepad.worker.NoteReminderScheduler
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,11 +24,20 @@ import java.io.IOException
 
 sealed interface Screen {
     data object Home : Screen
-    data class Editor(val noteId: Long = 0L) : Screen
-    data class Drawing(val noteId: Long = 0L) : Screen
+    data class Editor(val noteId: Long = 0L, val returnTo: Screen = Home) : Screen
+    data class Drawing(val noteId: Long = 0L, val returnTo: Screen = Home) : Screen
     data object Archive : Screen
     data object Trash : Screen
     data object Settings : Screen
+}
+
+/** Sort orders offered for the home note list. */
+enum class NoteSortOption(val label: String) {
+    LAST_MODIFIED("Last modified"),
+    DATE_CREATED("Date created"),
+    TITLE_ASC("Title A\u2013Z"),
+    TITLE_DESC("Title Z\u2013A"),
+    COLOR("Color")
 }
 
 data class NotesUiState(
@@ -41,7 +51,8 @@ data class NotesUiState(
     val searchQuery: String = "",
     val selectedColorFilter: Int? = null,
     val selectedTagFilter: String? = null,
-    val showEditLabelsDialog: Boolean = false
+    val showEditLabelsDialog: Boolean = false,
+    val sortOption: NoteSortOption = NoteSortOption.LAST_MODIFIED
 )
 
 class NotesViewModel(application: Application) : AndroidViewModel(application) {
@@ -92,6 +103,12 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     private val _selectedTagFilter = MutableStateFlow<String?>(null)
     val selectedTagFilter: StateFlow<String?> = _selectedTagFilter.asStateFlow()
 
+    private val _sortOption = MutableStateFlow(NoteSortOption.LAST_MODIFIED)
+
+    // Ids of the notes most recently moved to Trash, so the home screen's Undo
+    // action can restore exactly that batch.
+    private var lastTrashedIds: List<Long> = emptyList()
+
     // Room DB Labels Stream - starts completely clean
     val roomLabels: StateFlow<List<String>> = labelUseCases.getLabels()
         .stateIn(
@@ -124,19 +141,22 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
             initialValue = emptyList()
         )
 
-    // Filtered active notes combining query, color tag, and user-defined tag
+    // Filtered active notes combining query, color tag, user-defined tag, and
+    // the selected sort order.
     val filteredNotes: StateFlow<List<Note>> = combine(
         rawActiveNotes,
         _searchQuery,
         _selectedColorFilter,
-        _selectedTagFilter
-    ) { allNotes, query, colorFilter, tagFilter ->
-        noteUseCases.filterNotes(
+        _selectedTagFilter,
+        _sortOption
+    ) { allNotes, query, colorFilter, tagFilter, sortOption ->
+        val filtered = noteUseCases.filterNotes(
             notes = allNotes,
             query = query,
             colorFilter = colorFilter,
             tagFilter = tagFilter
         )
+        sortNotes(filtered, sortOption)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -156,6 +176,17 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         initialValue = emptyList()
     )
 
+    // Every note the user can back up: active notes plus archived notes.
+    // Trashed notes are intentionally excluded from a backup.
+    val backupNotes: StateFlow<List<Note>> = combine(
+        rawActiveNotes,
+        archiveNotes
+    ) { active, archived -> active + archived }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
         _uiState.value = _uiState.value.copy(searchQuery = query)
@@ -169,6 +200,11 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     fun onTagFilterChange(tag: String?) {
         _selectedTagFilter.value = tag
         _uiState.value = _uiState.value.copy(selectedTagFilter = tag)
+    }
+
+    fun setSortOption(option: NoteSortOption) {
+        _sortOption.value = option
+        _uiState.value = _uiState.value.copy(sortOption = option)
     }
 
     fun toggleLayoutView() {
@@ -340,12 +376,24 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     fun moveSelectedToTrash(selectedIds: List<Long>) {
         val idsToTrash = selectedIds.distinct()
+        if (idsToTrash.isEmpty()) return
+        lastTrashedIds = idsToTrash
         viewModelScope.launch {
             noteUseCases.trashNote(idsToTrash)
             idsToTrash.forEach { id ->
                 NoteReminderScheduler.cancelReminder(getApplication(), id)
             }
             clearSelection()
+        }
+    }
+
+    /** Restores the notes most recently moved to Trash, backing the Undo action. */
+    fun undoMoveToTrash() {
+        val ids = lastTrashedIds
+        if (ids.isEmpty()) return
+        lastTrashedIds = emptyList()
+        viewModelScope.launch {
+            noteUseCases.restoreNote(ids)
         }
     }
 
@@ -437,8 +485,8 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         isPinned: Boolean? = null,
         inArchive: Boolean? = null,
         reminderTime: Long? = null
-    ): Long {
-        val savedId = noteUseCases.saveNote(
+    ): SavedNote {
+        val saved = noteUseCases.saveNote(
             id = id,
             title = title,
             content = content,
@@ -448,17 +496,17 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
             inArchive = inArchive,
             reminderTime = reminderTime
         )
-        val effectiveReminder = reminderTime ?: noteUseCases.getNoteById(savedId)?.reminderTime
+        val effectiveReminder = saved.reminderTime
         if (effectiveReminder != null && effectiveReminder > System.currentTimeMillis()) {
             NoteReminderScheduler.scheduleReminder(
                 context = getApplication(),
-                noteId = savedId,
+                noteId = saved.id,
                 noteTitle = title,
                 noteContent = content,
                 triggerAtMillis = effectiveReminder
             )
         }
-        return savedId
+        return saved
     }
 
     fun setNoteReminder(noteId: Long, reminderTime: Long?, title: String = "", content: String = "") {
@@ -477,6 +525,36 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
                 NoteReminderScheduler.cancelReminder(context, noteId)
             }
         }
+    }
+
+    /** Imports notes from a backup file, inserting each as a new note. */
+    fun importNotes(notes: List<Note>) {
+        if (notes.isEmpty()) return
+        viewModelScope.launch {
+            notes.forEach { note ->
+                noteUseCases.saveNote(
+                    id = 0L,
+                    title = note.title,
+                    content = note.content,
+                    colorIndex = note.colorIndex,
+                    tags = note.tags,
+                    isPinned = note.isPinned,
+                    inArchive = note.inArchive,
+                    reminderTime = note.reminderTime
+                )
+            }
+        }
+    }
+
+    private fun sortNotes(notes: List<Note>, option: NoteSortOption): List<Note> {
+        val comparator = when (option) {
+            NoteSortOption.LAST_MODIFIED -> compareByDescending<Note> { it.isPinned }.thenByDescending { it.id }
+            NoteSortOption.DATE_CREATED -> compareByDescending<Note> { it.isPinned }.thenBy { it.id }
+            NoteSortOption.TITLE_ASC -> compareByDescending<Note> { it.isPinned }.thenBy { it.title.lowercase() }
+            NoteSortOption.TITLE_DESC -> compareByDescending<Note> { it.isPinned }.thenByDescending { it.title.lowercase() }
+            NoteSortOption.COLOR -> compareByDescending<Note> { it.isPinned }.thenBy { it.colorIndex }
+        }
+        return notes.sortedWith(comparator)
     }
 
     fun addCustomTag(tag: String) {

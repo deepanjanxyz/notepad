@@ -6,6 +6,19 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * Outcome of persisting a note: the stored row id together with the reminder
+ * time that is now in the database.
+ *
+ * Returning the effective reminder time here lets the caller decide whether a
+ * reminder needs to be (re)scheduled without issuing a second read of the row
+ * it just wrote.
+ */
+data class SavedNote(
+    val id: Long,
+    val reminderTime: Long?
+)
+
 class SaveNoteUseCase(private val repository: NoteRepository) {
     suspend operator fun invoke(
         id: Long,
@@ -16,7 +29,7 @@ class SaveNoteUseCase(private val repository: NoteRepository) {
         isPinned: Boolean? = null,
         inArchive: Boolean? = null,
         reminderTime: Long? = null
-    ): Long {
+    ): SavedNote {
         val existing = if (id != 0L) repository.getNoteById(id) else null
         val finalReminderTime = reminderTime ?: existing?.reminderTime
         val noteToSave = Note(
@@ -31,7 +44,8 @@ class SaveNoteUseCase(private val repository: NoteRepository) {
             inArchive = inArchive ?: existing?.inArchive ?: false,
             reminderTime = finalReminderTime
         )
-        return repository.insertOrUpdate(noteToSave)
+        val savedId = repository.insertOrUpdate(noteToSave)
+        return SavedNote(id = savedId, reminderTime = finalReminderTime)
     }
 
     suspend operator fun invoke(note: Note): Long {

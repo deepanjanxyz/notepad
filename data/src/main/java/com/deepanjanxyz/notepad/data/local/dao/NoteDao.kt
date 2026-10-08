@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import com.deepanjanxyz.notepad.data.local.entity.NoteEntity
 import kotlinx.coroutines.flow.Flow
@@ -72,4 +73,34 @@ interface NoteDao {
 
     @Query("UPDATE notes_table SET REMINDER_TIME = :reminderTime WHERE ID = :id")
     suspend fun updateReminderTime(id: Long, reminderTime: Long?): Int
+
+    /**
+     * Renames a tag across every note in a single transaction.
+     *
+     * Tags are denormalized into each note's TAGS column, so a rename has to
+     * touch every row that carries the old name. Running the whole sweep inside
+     * one transaction avoids the per-row commit that made this an N-write loop.
+     */
+    @Transaction
+    suspend fun renameTag(oldName: String, newName: String) {
+        getAllNotesRaw().forEach { entity ->
+            val tags = entity.tags.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            if (tags.any { it.equals(oldName, ignoreCase = true) }) {
+                val updatedTags = tags.map { if (it.equals(oldName, ignoreCase = true)) newName else it }
+                updateNote(entity.copy(tags = updatedTags.joinToString(",")))
+            }
+        }
+    }
+
+    /** Removes a tag from every note in a single transaction. */
+    @Transaction
+    suspend fun deleteTag(name: String) {
+        getAllNotesRaw().forEach { entity ->
+            val tags = entity.tags.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            if (tags.any { it.equals(name, ignoreCase = true) }) {
+                val updatedTags = tags.filterNot { it.equals(name, ignoreCase = true) }
+                updateNote(entity.copy(tags = updatedTags.joinToString(",")))
+            }
+        }
+    }
 }

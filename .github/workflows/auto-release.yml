@@ -32,6 +32,7 @@ jobs:
         id: compare
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
 
@@ -46,8 +47,10 @@ jobs:
           fi
 
           latest_tag=$(git tag --list 'v*' --sort=-v:refname | head -n1 || true)
+          latest_name=""
           latest_code=""
           if [ -n "$latest_tag" ]; then
+            latest_name="${latest_tag#v}"
             # The versionCode as actually published in the latest release's APK names.
             latest_code=$(gh release view "$latest_tag" --json assets --jq '.assets[].name' 2>/dev/null \
               | sed -nE 's/.*-([0-9]+)-[^-]+\.apk$/\1/p' | sort -n | tail -n1 || true)
@@ -58,29 +61,69 @@ jobs:
             fi
           fi
 
-          echo "PR:            versionName=$pr_name versionCode=$pr_code"
-          echo "Latest release: tag=${latest_tag:-<none>} versionCode=${latest_code:-<unknown>}"
+          echo "PR:             versionName=$pr_name versionCode=$pr_code"
+          echo "Latest release: tag=${latest_tag:-<none>} versionName=${latest_name:-<unknown>} versionCode=${latest_code:-<unknown>}"
 
           {
             echo "pr_name=$pr_name"
             echo "pr_code=$pr_code"
             echo "latest_tag=$latest_tag"
+            echo "latest_name=$latest_name"
             echo "latest_code=$latest_code"
           } >> "$GITHUB_OUTPUT"
 
+          # 1. versionCode must be greater than the latest release's versionCode.
           if [ -z "$latest_code" ]; then
-            echo "No released versionCode found; allowing this pull request."
-            echo "bumped=true" >> "$GITHUB_OUTPUT"
+            echo "No released versionCode found; skipping the numeric comparison."
+          elif [ "$pr_code" -le "$latest_code" ]; then
+            echo "versionCode not bumped: $pr_code <= $latest_code"
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            echo "reason=code" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          if [ "$pr_code" -gt "$latest_code" ]; then
-            echo "Version bumped: $pr_code > $latest_code"
-            echo "bumped=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Version NOT bumped: $pr_code <= $latest_code"
+          # 2. versionName must be strict SemVer and greater than the latest release's versionName.
+          if ! echo "$pr_name" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "versionName is not strict SemVer (X.Y.Z): $pr_name"
             echo "bumped=false" >> "$GITHUB_OUTPUT"
+            echo "reason=name" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          if [ -n "$latest_name" ]; then
+            highest=$(printf '%s\n%s\n' "$latest_name" "$pr_name" | sort -V | tail -n1)
+            if [ "$pr_name" = "$latest_name" ] || [ "$highest" != "$pr_name" ]; then
+              echo "versionName not bumped: $pr_name <= $latest_name"
+              echo "bumped=false" >> "$GITHUB_OUTPUT"
+              echo "reason=name" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          # 3. No other open pull request into main may claim the same versionCode.
+          collision=""
+          while read -r num oid; do
+            [ -z "$num" ] && continue
+            [ "$num" = "$PR" ] && continue
+            other_code=$(gh api "repos/${GITHUB_REPOSITORY}/contents/app/build.gradle.kts?ref=${oid}" \
+              -H "Accept: application/vnd.github.raw" 2>/dev/null \
+              | grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | head -n1 || true)
+            if [ -n "$other_code" ] && [ "$other_code" = "$pr_code" ]; then
+              collision="$num"
+              break
+            fi
+          done <<< "$(gh pr list --repo "${GITHUB_REPOSITORY}" --base main --state open --limit 100 \
+            --json number,headRefOid --jq '.[] | "\(.number) \(.headRefOid)"' 2>/dev/null || true)"
+
+          if [ -n "$collision" ]; then
+            echo "versionCode $pr_code collides with open pull request #$collision"
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            echo "reason=collision" >> "$GITHUB_OUTPUT"
+            echo "collision_pr=$collision" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Version bump OK: versionCode $pr_code > ${latest_code:-none}, versionName $pr_name > ${latest_name:-none}"
+          echo "bumped=true" >> "$GITHUB_OUTPUT"
 
       - name: Comment on the pull request
         if: steps.compare.outputs.bumped != 'true'
@@ -90,17 +133,26 @@ jobs:
           PR_NAME: ${{ steps.compare.outputs.pr_name }}
           PR_CODE: ${{ steps.compare.outputs.pr_code }}
           LATEST_TAG: ${{ steps.compare.outputs.latest_tag }}
+          LATEST_NAME: ${{ steps.compare.outputs.latest_name }}
           LATEST_CODE: ${{ steps.compare.outputs.latest_code }}
+          COLLISION_PR: ${{ steps.compare.outputs.collision_pr }}
           REASON: ${{ steps.compare.outputs.reason }}
         run: |
           set -euo pipefail
           marker='<!-- version-guard -->'
 
-          if [ "${REASON:-}" = "missing" ]; then
-            detail="Could not read \`versionCode\`/\`versionName\` from \`app/build.gradle.kts\`."
-          else
-            detail="This pull request declares \`versionCode = ${PR_CODE:-?}\` / \`versionName = ${PR_NAME:-?}\`, but the latest release \`${LATEST_TAG:-<none>}\` already uses \`versionCode ${LATEST_CODE:-?}\`."
-          fi
+          case "${REASON:-}" in
+            missing)
+              detail="Could not read \`versionCode\`/\`versionName\` from \`app/build.gradle.kts\`." ;;
+            code)
+              detail="This pull request declares \`versionCode = ${PR_CODE:-?}\`, but the latest release \`${LATEST_TAG:-<none>}\` already uses \`versionCode ${LATEST_CODE:-?}\`." ;;
+            name)
+              detail="\`versionName\` must be a strict \`X.Y.Z\` value greater than the latest release \`${LATEST_NAME:-?}\`, but this pull request declares \`${PR_NAME:-?}\`." ;;
+            collision)
+              detail="\`versionCode ${PR_CODE:-?}\` is also claimed by open pull request #${COLLISION_PR:-?}. Only one open pull request may use a given \`versionCode\`." ;;
+            *)
+              detail="The version in \`app/build.gradle.kts\` does not satisfy the release rules." ;;
+          esac
 
           body=$(cat <<EOF
           ${marker}
@@ -108,14 +160,14 @@ jobs:
 
           ${detail}
 
-          Every pull request merged into \`main\` must bump \`versionCode\` in
-          \`app/build.gradle.kts\` (and keep \`versionName\` in step with it) so the
+          Every pull request merged into \`main\` must raise \`versionCode\` above the
+          latest release and set a \`versionName\` that is a greater \`X.Y.Z\`, so the
           release job can tag and publish the merge without rewriting the version.
 
           Please update, for example:
           \`\`\`kotlin
-          versionCode = ${LATEST_CODE:-<current>} + 1
-          versionName = "<next semver>"
+          versionCode = <greater than ${LATEST_CODE:-the latest}>
+          versionName = "<greater than ${LATEST_NAME:-the latest}>"
           \`\`\`
           and push again — this check re-runs automatically.
           EOF
@@ -146,7 +198,7 @@ jobs:
       - name: Fail the check when the version was not bumped
         if: steps.compare.outputs.bumped != 'true'
         run: |
-          echo "::error::versionCode in app/build.gradle.kts must be greater than the latest release's versionCode."
+          echo "::error::app/build.gradle.kts must set a versionCode and versionName greater than the latest release, with a unique versionCode across open pull requests."
           exit 1
 
   guard:
@@ -291,6 +343,30 @@ jobs:
           code="${{ steps.version.outputs.version_code }}"
           if ! echo "$code" | grep -qE '^[1-9][0-9]*$'; then
             echo "🔴 Release failed: versionCode '$code' is missing or not a positive integer."
+            exit 1
+          fi
+
+      - name: Ensure the version is newer than the latest release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          vn="${{ steps.version.outputs.version }}"
+          vc="${{ steps.version.outputs.version_code }}"
+          latest_tag=$(git tag --list 'v*' --sort=-v:refname | head -n1 || true)
+          if [ -z "$latest_tag" ]; then
+            echo "No previous release; nothing to compare against."
+            exit 0
+          fi
+          latest_name="${latest_tag#v}"
+          latest_code=$(gh release view "$latest_tag" --json assets --jq '.assets[].name' 2>/dev/null \
+            | sed -nE 's/.*-([0-9]+)-[^-]+\.apk$/\1/p' | sort -n | tail -n1 || true)
+          if [ -n "$latest_code" ] && [ "$vc" -le "$latest_code" ]; then
+            echo "🔴 Release failed: versionCode $vc is not newer than $latest_tag ($latest_code). Re-bump and open a new pull request."
+            exit 1
+          fi
+          if [ "$vn" != "$latest_name" ] && [ "$(printf '%s\n%s\n' "$latest_name" "$vn" | sort -V | tail -n1)" != "$vn" ]; then
+            echo "🔴 Release failed: versionName $vn is not newer than $latest_tag ($latest_name). Re-bump and open a new pull request."
             exit 1
           fi
 

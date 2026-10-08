@@ -98,7 +98,8 @@ android {
     // Keep debug builds independent from release secrets, but never silently
     // produce an unsigned release artifact when release signing is unavailable.
     gradle.taskGraph.whenReady {
-        if (!hasReleaseSigning && allTasks.any { it.name.endsWith("Release") }) {
+        if (!hasReleaseSigning && !project.hasProperty("allowUnsignedRelease") &&
+            allTasks.any { it.name.endsWith("Release") }) {
             val missing = buildList {
                 if (!keystoreIsValid) add("a valid app/keystore.jks")
                 if (releaseStorePass == null) add("KEYSTORE_PASSWORD")
@@ -116,6 +117,13 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    // Disable the Google Play dependency metadata block: it is only consumed by
+    // Play and is unnecessary for F-Droid / reproducible builds.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
     }
 }
 

@@ -1,6 +1,7 @@
 plugins {
     id("com.android.library")
     id("com.google.devtools.ksp")
+    id("androidx.room")
 }
 
 android {
@@ -20,8 +21,16 @@ android {
 
 // Export the Room schema so migrations can be authored for every version bump
 // instead of relying on destructive fallback.
-ksp {
-    arg("room.schemaLocation", "$projectDir/schemas")
+//
+// Configured through the Room Gradle Plugin rather than a raw
+// `ksp { arg("room.schemaLocation", ...) }`. With the raw argument the project
+// schema folder is an output of every variant's KSP task, so a parallel build
+// (`assembleDebug assembleRelease --parallel`) has one variant read the schema
+// file while another is still writing it, which fails with a truncated-JSON
+// error. The plugin keeps `$projectDir/schemas` a pure input and writes the
+// per-variant schemas into the build directory instead.
+room {
+    schemaDirectory(path = "$projectDir/schemas")
 }
 
 dependencies {

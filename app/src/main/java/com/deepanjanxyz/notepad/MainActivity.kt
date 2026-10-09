@@ -44,6 +44,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deepanjanxyz.notepad.domain.model.DrawingSerializer
@@ -78,6 +79,10 @@ class MainActivity : FragmentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Install the compat splash screen before super.onCreate so that the
+        // Android 12 splash (with the animated launcher icon) also shows on
+        // Android 11 and below. It also applies postSplashScreenTheme.
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handleNotificationIntent(intent)

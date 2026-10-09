@@ -398,8 +398,10 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun writeBackup(name: String) {
         val context = getApplication<Application>()
-        // Never write an empty backup file. When there is nothing to store, leave
-        // whatever is already on disk untouched instead of creating an empty one.
+        // Never write an empty backup file. When there is nothing to store - every
+        // note deleted, say - the last non-empty backup is deliberately kept
+        // rather than replaced with an empty one: a backup still holding
+        // yesterday's notes is worth more than one holding nothing.
         val notes = currentBackupNotes().filter { it.isBackupWorthy() }
         if (notes.isEmpty()) {
             Log.d(TAG, "Skipped the backup: there are no notes to store")
@@ -646,9 +648,11 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Imports notes from a backup file, inserting each as a new note.
      *
-     * A note whose title and body already exist (including notes added by an
-     * earlier import in the same batch) is skipped, so restoring the same backup
-     * twice no longer produces duplicates.
+     * The note's own creation date and timestamps are carried across, and any
+     * reminder still in the future is scheduled, so a restored note behaves like
+     * one that was never lost. A note whose title, body and creation date all
+     * already exist (including notes added by an earlier import in this same
+     * batch) is skipped, so restoring the same backup twice does not duplicate.
      */
     fun importNotes(notes: List<Note>) {
         if (notes.isEmpty()) {
@@ -656,27 +660,43 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         viewModelScope.launch {
+            val context = getApplication<Application>()
+            val now = System.currentTimeMillis()
             val seen = (rawActiveNotes.value + archiveNotes.value + trashNotes.value)
-                .map { noteKey(it.title, it.content) }
+                .map { noteKey(it) }
                 .toMutableSet()
             var imported = 0
             var skipped = 0
             notes.forEach { note ->
-                if (seen.add(noteKey(note.title, note.content))) {
-                    noteUseCases.saveNote(
-                        id = 0L,
-                        title = note.title,
-                        content = note.content,
-                        colorIndex = note.colorIndex,
-                        tags = note.tags,
-                        isPinned = note.isPinned,
-                        inArchive = note.inArchive,
-                        reminderTime = note.reminderTime
-                    )
-                    imported++
-                } else {
+                if (!seen.add(noteKey(note))) {
                     skipped++
+                    return@forEach
                 }
+                // Stored through the Note overload rather than the field-by-field
+                // one, so the backup's own creation date and timestamps survive
+                // the restore instead of being regenerated as today.
+                val newId = noteUseCases.saveNote(
+                    note.copy(
+                        id = 0L,
+                        inTrash = false,
+                        createdAt = note.createdAt.takeIf { it > 0L } ?: now,
+                        updatedAt = note.updatedAt.takeIf { it > 0L } ?: now
+                    )
+                )
+                // A reminder time in the database does not fire anything on its
+                // own, so the alarm is scheduled for every future reminder that
+                // came in with the backup.
+                val trigger = note.reminderTime
+                if (trigger != null && trigger > now) {
+                    NoteReminderScheduler.scheduleReminder(
+                        context = context,
+                        noteId = newId,
+                        noteTitle = note.title,
+                        noteContent = note.content,
+                        triggerAtMillis = trigger
+                    )
+                }
+                imported++
             }
             _importOutcome.value = ImportOutcome(imported = imported, skipped = skipped)
         }
@@ -687,13 +707,24 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         _importOutcome.value = null
     }
 
-    private fun noteKey(title: String, content: String): String =
-        title.trim() + "\u0000" + content.trim()
+    /**
+     * Identity used to decide whether an imported note is one we already hold.
+     *
+     * Title, body and creation date together: two notes that merely share the
+     * same text but were written on different days are different notes and both
+     * are kept, while restoring the same backup twice still skips the copy.
+     */
+    private fun noteKey(note: Note): String =
+        note.title.trim() + "\u0000" + note.content.trim() + "\u0000" + note.date.trim()
 
     private fun sortNotes(notes: List<Note>, option: NoteSortOption): List<Note> {
         val comparator = when (option) {
-            NoteSortOption.LAST_MODIFIED -> compareByDescending<Note> { it.isPinned }.thenByDescending { it.id }
-            NoteSortOption.DATE_CREATED -> compareByDescending<Note> { it.isPinned }.thenBy { it.id }
+            // Order by the real timestamps, falling back to the id only for rows
+            // that predate them, so editing an old note actually moves it up.
+            NoteSortOption.LAST_MODIFIED ->
+                compareByDescending<Note> { it.isPinned }.thenByDescending { it.updatedAt }.thenByDescending { it.id }
+            NoteSortOption.DATE_CREATED ->
+                compareByDescending<Note> { it.isPinned }.thenBy { it.createdAt }.thenBy { it.id }
             NoteSortOption.TITLE_ASC -> compareByDescending<Note> { it.isPinned }.thenBy { it.title.lowercase() }
             NoteSortOption.TITLE_DESC -> compareByDescending<Note> { it.isPinned }.thenByDescending { it.title.lowercase() }
             NoteSortOption.COLOR -> compareByDescending<Note> { it.isPinned }.thenBy { it.colorIndex }

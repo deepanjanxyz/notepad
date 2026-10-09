@@ -35,6 +35,11 @@ object DownloadsBackup {
     // Built from the framework constant, so it cannot be a compile-time const.
     private val RELATIVE_DIR = "${Environment.DIRECTORY_DOWNLOADS}/$FOLDER_NAME"
     private const val JSON_SUFFIX = ".json"
+    // Suffixes of the internal working files a write goes through. They are not
+    // backups in their own right, and are kept out of the Restore list whenever
+    // the real backup is present.
+    private const val PARTIAL_SUFFIX = ".partial.json"
+    private const val PREVIOUS_SUFFIX = ".previous.json"
 
     /** True when writing needs the legacy WRITE_EXTERNAL_STORAGE runtime permission. */
     val needsLegacyPermission: Boolean
@@ -81,7 +86,7 @@ object DownloadsBackup {
      */
     private fun partialName(name: String): String =
         if (name.endsWith(JSON_SUFFIX)) {
-            name.removeSuffix(JSON_SUFFIX) + ".partial" + JSON_SUFFIX
+            name.removeSuffix(JSON_SUFFIX) + PARTIAL_SUFFIX
         } else {
             "$name.partial"
         }
@@ -93,7 +98,7 @@ object DownloadsBackup {
      */
     private fun previousName(name: String): String =
         if (name.endsWith(JSON_SUFFIX)) {
-            name.removeSuffix(JSON_SUFFIX) + ".previous" + JSON_SUFFIX
+            name.removeSuffix(JSON_SUFFIX) + PREVIOUS_SUFFIX
         } else {
             "$name.previous"
         }
@@ -128,8 +133,24 @@ object DownloadsBackup {
         return if (file.exists()) Info(locationLabel(), file.lastModified()) else null
     }
 
-    /** Every backup file in the folder, newest first. */
+    /**
+     * Every backup file in the folder, newest first.
+     *
+     * The `.partial` / `.previous` files a write goes through are internal, not
+     * backups in their own right. While the real backup is present they are left
+     * out, so the folder and the Restore list show the user a single backup
+     * rather than a backup of a backup. They appear only when the real backup is
+     * missing, which is exactly when one of them is the copy worth recovering.
+     */
     fun list(context: Context): List<Entry> {
+        val entries = readEntries(context)
+        val hasRealBackup = entries.any { it.name == FILE_NAME }
+        return entries
+            .filter { !(hasRealBackup && isInternal(it.name)) }
+            .sortedByDescending { it.lastModified }
+    }
+
+    private fun readEntries(context: Context): List<Entry> {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val resolver = context.contentResolver
             val entries = mutableListOf<Entry>()
@@ -146,14 +167,17 @@ object DownloadsBackup {
                     entries += Entry(name, cursor.getLong(1) * 1000L)
                 }
             }
-            return entries.sortedByDescending { it.lastModified }
+            return entries
         }
         return legacyDir()
             .listFiles { file -> file.isFile && file.name.endsWith(JSON_SUFFIX) }
             ?.map { Entry(it.name, it.lastModified()) }
-            ?.sortedByDescending { it.lastModified }
             .orEmpty()
     }
+
+    /** True for the internal working files a write goes through. */
+    private fun isInternal(name: String): Boolean =
+        name.endsWith(PARTIAL_SUFFIX) || name.endsWith(PREVIOUS_SUFFIX)
 
     /** Removes a backup file. Returns true when a file was actually removed. */
     fun delete(context: Context, name: String = FILE_NAME): Boolean {
@@ -179,8 +203,13 @@ object DownloadsBackup {
         val resolver = context.contentResolver
         val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
 
-        // Clear a temporary file left behind by an interrupted earlier write.
+        // Clear the working files left behind by an interrupted earlier write.
+        // The .previous copy is only worth keeping while the real backup is
+        // missing, so once it is back the leftover is just clutter.
         resolver.delete(collection, selection(), selectionArgs(tempName))
+        if (findFile(resolver, collection, finalName) != null) {
+            resolver.delete(collection, selection(), selectionArgs(previousName(finalName)))
+        }
 
         val uri = insertPendingFile(resolver, collection, tempName)
             ?: error("Could not create the backup file in Downloads")

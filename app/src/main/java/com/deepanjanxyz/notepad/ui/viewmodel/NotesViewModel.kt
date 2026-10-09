@@ -28,6 +28,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.IOException
 
@@ -350,6 +352,11 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     private var autoBackupJob: Job? = null
 
+    // The automatic backup and the "Back up now" button both write the same file,
+    // each on its own coroutine. Serialising them means one write can never clear
+    // the other's working file or collide with its rename.
+    private val backupWriteMutex = Mutex()
+
     /**
      * Turns automatic backup on or off. The switch is reflected only once the
      * choice is persisted, mirroring the other settings.
@@ -397,6 +404,11 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun writeAutoBackup() = writeBackup(DownloadsBackup.FILE_NAME)
 
     private suspend fun writeBackup(name: String) {
+        backupWriteMutex.withLock { writeBackupLocked(name) }
+    }
+
+    /** The body of [writeBackup], run with the backup write lock held. */
+    private suspend fun writeBackupLocked(name: String) {
         val context = getApplication<Application>()
         // Never write an empty backup file. When there is nothing to store - every
         // note deleted, say - the last non-empty backup is deliberately kept
@@ -650,9 +662,9 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
      *
      * The note's own creation date and timestamps are carried across, and any
      * reminder still in the future is scheduled, so a restored note behaves like
-     * one that was never lost. A note whose title, body and creation date all
-     * already exist (including notes added by an earlier import in this same
-     * batch) is skipped, so restoring the same backup twice does not duplicate.
+     * one that was never lost. A note that matches an existing one on every field
+     * (including notes added by an earlier import in this same batch) is skipped,
+     * so restoring the same backup twice does not duplicate.
      */
     fun importNotes(notes: List<Note>) {
         if (notes.isEmpty()) {
@@ -710,12 +722,23 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Identity used to decide whether an imported note is one we already hold.
      *
-     * Title, body and creation date together: two notes that merely share the
-     * same text but were written on different days are different notes and both
-     * are kept, while restoring the same backup twice still skips the copy.
+     * Every field that can tell two notes apart is part of the key, not just the
+     * text: two notes written on the same day with the same title and body are
+     * still different notes if their tags, reminder, colour or flags differ, and
+     * neither should be dropped. Only a note matching on every field counts as
+     * one we already have, which is what makes restoring the same backup twice a
+     * no-op rather than a way to duplicate the whole list.
      */
-    private fun noteKey(note: Note): String =
-        note.title.trim() + "\u0000" + note.content.trim() + "\u0000" + note.date.trim()
+    private fun noteKey(note: Note): String = listOf(
+        note.title.trim(),
+        note.content.trim(),
+        note.date.trim(),
+        note.colorIndex.toString(),
+        note.isPinned.toString(),
+        note.inArchive.toString(),
+        note.reminderTime?.toString().orEmpty(),
+        note.tags.map { it.trim().lowercase() }.sorted().joinToString(",")
+    ).joinToString("\u0000")
 
     private fun sortNotes(notes: List<Note>, option: NoteSortOption): List<Note> {
         val comparator = when (option) {

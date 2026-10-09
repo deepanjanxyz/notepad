@@ -13,7 +13,7 @@ import com.deepanjanxyz.notepad.data.local.entity.NoteEntity
 
 @Database(
     entities = [NoteEntity::class, LabelEntity::class],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -66,6 +66,28 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Adds the real created/updated timestamps behind the sort orders.
+         *
+         * "Last modified" used to order by row id, which never changes when an
+         * old note is edited, so a freshly edited note did not necessarily rise
+         * to the top. Rows written before this version carry no timestamp, so
+         * they are backfilled from the id: the id is monotonic with insertion
+         * order, which reproduces exactly the ordering the old code produced.
+         * Every later save stores a real epoch-millis value instead.
+         */
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `notes_table` ADD COLUMN `CREATED_AT` INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    "ALTER TABLE `notes_table` ADD COLUMN `UPDATED_AT` INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL("UPDATE `notes_table` SET `CREATED_AT` = `ID`, `UPDATED_AT` = `ID`")
+            }
+        }
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -82,7 +104,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // by MIGRATION_1_5, and exported schemas (see the
                     // room.schemaLocation argument) make it possible to author a
                     // further Migration for any future version bump.
-                    .addMigrations(MIGRATION_1_5)
+                    .addMigrations(MIGRATION_1_5, MIGRATION_5_6)
                     .build()
                 INSTANCE = instance
                 instance

@@ -10,5 +10,11 @@ data class Note(
     val tags: List<String> = emptyList(),
     val inTrash: Boolean = false,
     val inArchive: Boolean = false,
-    val reminderTime: Long? = null
+    val reminderTime: Long? = null,
+    // Epoch millis. createdAt is fixed when the note is first stored and is kept
+    // across edits and restores; updatedAt moves on every save. They back the
+    // "Date created" and "Last modified" sort orders - a row id cannot, because
+    // editing an old note never changes its id.
+    val createdAt: Long = 0L,
+    val updatedAt: Long = 0L
 )

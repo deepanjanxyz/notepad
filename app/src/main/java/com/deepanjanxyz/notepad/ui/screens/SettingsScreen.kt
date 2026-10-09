@@ -1,11 +1,14 @@
 package com.deepanjanxyz.notepad.ui.screens
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -77,16 +80,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.R
+import com.deepanjanxyz.notepad.backup.DownloadsBackup
+import com.deepanjanxyz.notepad.backup.parseBackupJson
 import com.deepanjanxyz.notepad.domain.model.Note
+import com.deepanjanxyz.notepad.ui.components.ActionTooltip
+import com.deepanjanxyz.notepad.ui.viewmodel.AutoBackupStatus
 import com.deepanjanxyz.notepad.ui.viewmodel.ImportOutcome
 import com.deepanjanxyz.notepad.ui.viewmodel.NotesUiState
-import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -96,10 +99,12 @@ import java.util.Locale
 fun SettingsScreen(
     uiState: NotesUiState,
     notes: List<Note>,
-    backupNotes: List<Note>,
+    autoBackupStatus: AutoBackupStatus?,
     importOutcome: ImportOutcome?,
     onThemeChange: (String) -> Unit,
     onLockToggle: (Boolean) -> Unit,
+    onAutoBackupChange: (Boolean) -> Unit,
+    onBackUpNow: (String) -> Unit,
     onImportNotes: (List<Note>) -> Unit,
     onImportOutcomeShown: () -> Unit,
     onNavigateBack: () -> Unit,
@@ -113,17 +118,40 @@ fun SettingsScreen(
 
     var showOverwriteDialog by remember { mutableStateOf(false) }
     var showRestoreDialog by remember { mutableStateOf(false) }
-    var availableBackups by remember { mutableStateOf(listOf<File>()) }
+    var availableBackups by remember { mutableStateOf(listOf<DownloadsBackup.Entry>()) }
 
-    fun performExport(target: File) {
+    // The backup that is actually on disk, read back from Downloads so the screen
+    // never reports a save that did not happen.
+    var backupInfo by remember { mutableStateOf<DownloadsBackup.Info?>(null) }
+
+    LaunchedEffect(autoBackupStatus, showRestoreDialog) {
+        backupInfo = withContext(Dispatchers.IO) { DownloadsBackup.info(context) }
+    }
+
+    // Turning auto backup on needs the legacy storage permission on Android 9 and
+    // below; on newer versions MediaStore needs no permission at all, so it is
+    // only ever requested at the moment the switch is turned on.
+    val storagePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
         scope.launch {
-            val ok = withContext(Dispatchers.IO) {
-                runCatching { target.writeText(buildBackupJson(backupNotes)) }.isSuccess
+            if (granted) {
+                onAutoBackupChange(true)
+            } else {
+                snackbarHostState.showSnackbar("Storage permission is needed to back up to Downloads")
             }
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            snackbarHostState.showSnackbar(
-                if (ok) "Backup saved to ${target.name}" else "Couldn't save the backup"
-            )
+        }
+    }
+
+    fun onAutoBackupToggle(enabled: Boolean) {
+        val missingPermission = enabled &&
+            DownloadsBackup.needsLegacyPermission &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) !=
+            PackageManager.PERMISSION_GRANTED
+        if (missingPermission) {
+            storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        } else {
+            onAutoBackupChange(enabled)
         }
     }
 
@@ -440,10 +468,57 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "Backups are stored in the app's own backup folder. Export keeps a single file: if one already exists you can overwrite it or save a separate copy.",
+                        text = "Backups are saved to " + DownloadsBackup.locationLabel() +
+                            " and stay there even if you clear the app's data, so you can restore your notes afterwards.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // The real state of the file on disk, never a claimed save.
+                    Text(
+                        text = backupStatusText(backupInfo, autoBackupStatus),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = if (backupInfo == null) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
+                        modifier = Modifier.testTag("backup_status_text")
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Auto backup",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Save every change to Downloads automatically.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = uiState.autoBackup,
+                            onCheckedChange = { onAutoBackupToggle(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                            ),
+                            modifier = Modifier.testTag("auto_backup_switch")
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -453,10 +528,11 @@ fun SettingsScreen(
                     ) {
                         OutlinedButton(
                             onClick = {
-                                if (defaultBackupFile(context).exists()) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                if (backupInfo != null) {
                                     showOverwriteDialog = true
                                 } else {
-                                    performExport(defaultBackupFile(context))
+                                    onBackUpNow(DownloadsBackup.FILE_NAME)
                                 }
                             },
                             modifier = Modifier
@@ -469,12 +545,12 @@ fun SettingsScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Export")
+                            Text("Back up now")
                         }
 
                         OutlinedButton(
                             onClick = {
-                                availableBackups = listBackups(context)
+                                availableBackups = DownloadsBackup.list(context)
                                 showRestoreDialog = true
                             },
                             modifier = Modifier
@@ -556,12 +632,12 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showOverwriteDialog = false },
             title = { Text("Backup already exists") },
-            text = { Text("A backup file already exists in the app's backup folder. Overwrite it, or save a separate copy?") },
+            text = { Text("A backup already exists in Downloads. Overwrite it, or save a separate copy?") },
             confirmButton = {
                 TextButton(
                     onClick = {
                         showOverwriteDialog = false
-                        performExport(defaultBackupFile(context))
+                        onBackUpNow(DownloadsBackup.FILE_NAME)
                     },
                     modifier = Modifier.testTag("overwrite_backup_button")
                 ) {
@@ -573,7 +649,7 @@ fun SettingsScreen(
                     TextButton(
                         onClick = {
                             showOverwriteDialog = false
-                            performExport(newBackupFile(context))
+                            onBackUpNow(newBackupFileName())
                         },
                         modifier = Modifier.testTag("new_copy_backup_button")
                     ) {
@@ -594,22 +670,24 @@ fun SettingsScreen(
             text = {
                 Column {
                     if (availableBackups.isEmpty()) {
-                        Text("No backups found in the app's backup folder.")
+                        Text("No backups found in " + DownloadsBackup.locationLabel() + ".")
                     } else {
-                        availableBackups.forEach { file ->
+                        availableBackups.forEach { entry ->
                             TextButton(
                                 onClick = {
                                     showRestoreDialog = false
                                     scope.launch {
                                         val text = withContext(Dispatchers.IO) {
-                                            runCatching { file.readText() }.getOrDefault("")
+                                            runCatching { DownloadsBackup.read(context, entry.name) }
+                                                .getOrNull()
+                                                .orEmpty()
                                         }
                                         restoreFromText(text)
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text(file.name, maxLines = 1)
+                                Text(entry.name, maxLines = 1)
                             }
                         }
                     }
@@ -679,81 +757,16 @@ private fun getAppVersionName(context: Context): String =
         "App versionName is missing"
     }
 
-/** The app-managed folder where backups live (app-specific external storage, no permission needed). */
-private fun backupDir(context: Context): File {
-    val base = context.getExternalFilesDir(null) ?: context.filesDir
-    return File(base, "backups").apply { if (!exists()) mkdirs() }
-}
-
-private fun defaultBackupFile(context: Context): File =
-    File(backupDir(context), "elite-memo-backup.json")
-
-private fun newBackupFile(context: Context): File {
+/** A timestamped file name for a separate backup copy. */
+private fun newBackupFileName(): String {
     val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
-    return File(backupDir(context), "elite-memo-backup-$stamp.json")
+    return "elite-memo-backup-$stamp.json"
 }
 
-private fun listBackups(context: Context): List<File> =
-    backupDir(context)
-        .listFiles { file -> file.isFile && file.name.endsWith(".json") }
-        ?.sortedByDescending { it.lastModified() }
-        .orEmpty()
-
-/** Serializes the given notes into a portable JSON backup document. */
-private fun buildBackupJson(notes: List<Note>): String {
-    val array = JSONArray()
-    notes.forEach { note ->
-        val obj = JSONObject()
-        obj.put("title", note.title)
-        obj.put("content", note.content)
-        obj.put("date", note.date)
-        obj.put("colorIndex", note.colorIndex)
-        obj.put("isPinned", note.isPinned)
-        obj.put("inArchive", note.inArchive)
-        obj.put("reminderTime", note.reminderTime ?: JSONObject.NULL)
-        val tagArray = JSONArray()
-        note.tags.forEach { tagArray.put(it) }
-        obj.put("tags", tagArray)
-        array.put(obj)
-    }
-    val root = JSONObject()
-    root.put("app", "Elite Memo Pro")
-    root.put("version", 1)
-    root.put("notes", array)
-    return root.toString(2)
-}
-
-/** Parses a JSON backup document produced by [buildBackupJson]. */
-private fun parseBackupJson(text: String): List<Note> {
-    if (text.isBlank()) return emptyList()
-    return runCatching {
-        val root = JSONObject(text)
-        val array = root.optJSONArray("notes")
-        val result = mutableListOf<Note>()
-        if (array != null) {
-            for (i in 0 until array.length()) {
-                val obj = array.optJSONObject(i) ?: continue
-                val tagArray = obj.optJSONArray("tags")
-                val tags = if (tagArray == null) {
-                    emptyList()
-                } else {
-                    (0 until tagArray.length())
-                        .mapNotNull { index -> tagArray.optString(index).takeIf { it.isNotBlank() } }
-                }
-                result.add(
-                    Note(
-                        title = obj.optString("title"),
-                        content = obj.optString("content"),
-                        date = obj.optString("date"),
-                        colorIndex = obj.optInt("colorIndex"),
-                        isPinned = obj.optBoolean("isPinned"),
-                        inArchive = obj.optBoolean("inArchive"),
-                        tags = tags,
-                        reminderTime = if (obj.isNull("reminderTime")) null else obj.optLong("reminderTime")
-                    )
-                )
-            }
-        }
-        result.toList()
-    }.getOrDefault(emptyList())
+/** Describes the backup that is really on disk, or the last failed attempt. */
+private fun backupStatusText(info: DownloadsBackup.Info?, status: AutoBackupStatus?): String {
+    if (status?.error != null) return "Last backup failed: ${status.error}"
+    val lastModified = info?.lastModified ?: return "No backup saved yet"
+    val stamp = SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault()).format(Date(lastModified))
+    return "Last backup: $stamp"
 }

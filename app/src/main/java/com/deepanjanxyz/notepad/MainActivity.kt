@@ -121,7 +121,7 @@ class MainActivity : FragmentActivity() {
             val trashNotes by viewModel.trashNotes.collectAsStateWithLifecycle()
             val roomLabels by viewModel.roomLabels.collectAsStateWithLifecycle()
             val allTags by viewModel.allTags.collectAsStateWithLifecycle()
-            val backupNotes by viewModel.backupNotes.collectAsStateWithLifecycle()
+            val autoBackupStatus by viewModel.autoBackupStatus.collectAsStateWithLifecycle()
             val importOutcome by viewModel.importOutcome.collectAsStateWithLifecycle()
 
             val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -317,12 +317,16 @@ class MainActivity : FragmentActivity() {
                                             SettingsScreen(
                                                 uiState = uiState,
                                                 notes = rawActiveNotes,
-                                                backupNotes = backupNotes,
+                                                autoBackupStatus = autoBackupStatus,
                                                 importOutcome = importOutcome,
                                                 onThemeChange = { viewModel.setTheme(it) },
                                                 onLockToggle = { enabled ->
                                                     viewModel.setLockEnabled(enabled)
                                                 },
+                                                onAutoBackupChange = { enabled ->
+                                                    viewModel.setAutoBackup(enabled)
+                                                },
+                                                onBackUpNow = { name -> viewModel.backUp(name) },
                                                 onImportNotes = { viewModel.importNotes(it) },
                                                 onImportOutcomeShown = { viewModel.clearImportOutcome() },
                                                 onNavigateBack = { viewModel.navigateTo(Screen.Home) }

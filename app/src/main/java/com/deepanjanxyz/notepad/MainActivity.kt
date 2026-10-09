@@ -281,6 +281,7 @@ class MainActivity : FragmentActivity() {
                                                 onMoveSelectedToTrash = { selectedIds ->
                                                     viewModel.moveSelectedToTrash(selectedIds)
                                                 },
+                                                onUndoMoveToTrash = { viewModel.undoMoveToTrash() },
                                                 onNoteClick = { note ->
                                                     if (DrawingSerializer.isDrawing(note.content)) {
                                                         viewModel.navigateTo(Screen.Drawing(note.id, Screen.Archive))

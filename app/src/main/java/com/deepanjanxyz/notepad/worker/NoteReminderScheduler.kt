@@ -62,7 +62,7 @@ object NoteReminderScheduler {
         val calendarTarget = Calendar.getInstance().apply { timeInMillis = millis }
         val calendarNow = Calendar.getInstance()
 
-        val timeFormat = timeFormatter.get()
+        val timeFormat = timeFormatter.get() ?: SimpleDateFormat("h:mm a", Locale.getDefault())
         val formattedTime = timeFormat.format(Date(millis))
 
         val isSameDay = calendarTarget.get(Calendar.YEAR) == calendarNow.get(Calendar.YEAR) &&
@@ -76,10 +76,12 @@ object NoteReminderScheduler {
             isSameDay -> "Today, $formattedTime"
             isTomorrow -> "Tomorrow, $formattedTime"
             calendarTarget.get(Calendar.YEAR) == calendarNow.get(Calendar.YEAR) -> {
-                dayFormatter.get().format(Date(millis)) + formattedTime
+                val dayFormat = dayFormatter.get() ?: SimpleDateFormat("MMM d, ", Locale.getDefault())
+                dayFormat.format(Date(millis)) + formattedTime
             }
             else -> {
-                fullDateFormatter.get().format(Date(millis)) + formattedTime
+                val fullFormat = fullDateFormatter.get() ?: SimpleDateFormat("MMM d, yyyy, ", Locale.getDefault())
+                fullFormat.format(Date(millis)) + formattedTime
             }
         }
     }

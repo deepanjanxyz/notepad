@@ -41,8 +41,8 @@ android {
         applicationId = "com.deepanjanxyz.notepad"
         minSdk = 24
         targetSdk = 37
-        versionCode = 13
-        versionName = "1.0.13"
+        versionCode = 15
+        versionName = "1.0.15"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -98,7 +98,8 @@ android {
     // Keep debug builds independent from release secrets, but never silently
     // produce an unsigned release artifact when release signing is unavailable.
     gradle.taskGraph.whenReady {
-        if (!hasReleaseSigning && allTasks.any { it.name.endsWith("Release") }) {
+        if (!hasReleaseSigning && !project.hasProperty("allowUnsignedRelease") &&
+            allTasks.any { it.name.endsWith("Release") }) {
             val missing = buildList {
                 if (!keystoreIsValid) add("a valid app/keystore.jks")
                 if (releaseStorePass == null) add("KEYSTORE_PASSWORD")
@@ -110,12 +111,19 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 
     buildFeatures {
         compose = true
+    }
+
+    // Disable the Google Play dependency metadata block: it is only consumed by
+    // Play and is unnecessary for F-Droid / reproducible builds.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
     }
 }
 
@@ -125,7 +133,7 @@ dependencies {
     implementation(project(":domain"))
     implementation(project(":features"))
 
-    implementation(platform("androidx.compose:compose-bom:2026.08.00"))
+    implementation(platform("androidx.compose:compose-bom:2026.09.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
@@ -135,12 +143,12 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
-    implementation("androidx.core:core-ktx:1.19.0")
-    implementation("androidx.fragment:fragment-ktx:1.8.5")
+    implementation("androidx.core:core-ktx:1.19.1")
+    implementation("androidx.fragment:fragment-ktx:1.9.1")
     implementation("androidx.biometric:biometric:1.4.0-alpha07")
 
     // WorkManager
-    implementation("androidx.work:work-runtime-ktx:2.11.2")
+    implementation("androidx.work:work-runtime-ktx:2.12.0")
 
     testImplementation("junit:junit:4.13.2")
 }

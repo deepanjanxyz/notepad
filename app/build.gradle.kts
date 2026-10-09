@@ -1,6 +1,5 @@
 import java.io.FileInputStream
 import java.util.Properties
-import org.gradle.api.GradleException
 
 plugins {
     id("com.android.application")
@@ -41,8 +40,8 @@ android {
         applicationId = "com.deepanjanxyz.notepad"
         minSdk = 24
         targetSdk = 37
-        versionCode = 15
-        versionName = "1.0.15"
+        versionCode = 16
+        versionName = "1.0.16"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -95,18 +94,21 @@ android {
         }
     }
 
-    // Keep debug builds independent from release secrets, but never silently
-    // produce an unsigned release artifact when release signing is unavailable.
+    // Keep debug builds independent from release secrets. When release signing is
+    // unavailable, warn loudly and carry on so unsigned / reproducible builds
+    // (e.g. F-Droid, IzzyOnDroid) still succeed, instead of failing the build.
     gradle.taskGraph.whenReady {
-        if (!hasReleaseSigning && !project.hasProperty("allowUnsignedRelease") &&
-            allTasks.any { it.name.endsWith("Release") }) {
+        if (!hasReleaseSigning && allTasks.any { it.name.endsWith("Release") }) {
             val missing = buildList {
                 if (!keystoreIsValid) add("a valid app/keystore.jks")
                 if (releaseStorePass == null) add("KEYSTORE_PASSWORD")
                 if (releaseAlias == null) add("KEY_ALIAS")
                 if (releaseKeyPass == null) add("KEY_PASSWORD")
             }
-            throw GradleException("Release signing is not configured; missing ${missing.joinToString()}")
+            println(
+                "\n⚠️  WARNING: Release signing is not configured — missing ${missing.joinToString()}.\n" +
+                    "⚠️  Building an UNSIGNED release APK instead. Configure the signing values for a signed build.\n"
+            )
         }
     }
 
@@ -144,6 +146,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
     implementation("androidx.core:core-ktx:1.19.1")
+    implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.fragment:fragment-ktx:1.9.1")
     implementation("androidx.biometric:biometric:1.4.0-alpha07")
 

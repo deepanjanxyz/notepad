@@ -1,5 +1,6 @@
 package com.deepanjanxyz.notepad.ui.screens
 
+import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -51,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -82,11 +84,13 @@ fun NoteEditorScreen(
     onMoveToTrash: suspend (Long) -> Unit,
     onMoveToArchive: suspend (Long) -> Unit,
     onAddLabel: suspend (String) -> Unit,
+    onClearReminder: suspend (Long) -> Unit,
     onOpenDrawing: (Long) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     var currentNoteId by remember { mutableLongStateOf(noteId) }
     var title by remember { mutableStateOf("") }
@@ -183,6 +187,23 @@ fun NoteEditorScreen(
         }
     }
 
+    fun shareNote() {
+        val textPart = if (isChecklistMode) serializeChecklist(checklistItems) else content
+        val body = buildString {
+            if (title.isNotBlank()) {
+                append(title)
+                append("\n\n")
+            }
+            if (textPart.isNotBlank()) append(textPart)
+        }.trim().ifBlank { "Shared from Elite Memo Pro" }
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, title)
+            putExtra(Intent.EXTRA_TEXT, body)
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "Share note"))
+    }
+
     BackHandler {
         forceSave()
         onNavigateBack()
@@ -260,6 +281,7 @@ fun NoteEditorScreen(
                     }
                     onNavigateBack()
                 },
+                onShare = { shareNote() },
                 onSaveAndClose = {
                     forceSave()
                     onNavigateBack()
@@ -332,8 +354,9 @@ fun NoteEditorScreen(
                                     .size(16.dp)
                                     .clickable {
                                         reminderTime = null
-                                        coroutineScope.launch {
-                                            onSaveNote(currentNoteId, title, content, colorIndex, tags, isPinned, inArchive, null)
+                                        val idToClear = currentNoteId
+                                        if (idToClear > 0L) {
+                                            coroutineScope.launch { onClearReminder(idToClear) }
                                         }
                                     }
                                     .testTag("remove_reminder_icon")
@@ -560,19 +583,9 @@ fun NoteEditorScreen(
             },
             onClearReminder = {
                 reminderTime = null
-                coroutineScope.launch {
-                    var effectiveContent = content
-                    if (isChecklistMode) {
-                        var items = checklistItems
-                        if (newItemText.isNotBlank()) {
-                            items = items + ChecklistItem(text = newItemText.trim(), isChecked = false)
-                        }
-                        effectiveContent = serializeChecklist(items)
-                    }
-                    val savedId = onSaveNote(currentNoteId, title, effectiveContent, colorIndex, tags, isPinned, inArchive, null)
-                    if (currentNoteId <= 0L && savedId > 0L) {
-                        currentNoteId = savedId
-                    }
+                val idToClear = currentNoteId
+                if (idToClear > 0L) {
+                    coroutineScope.launch { onClearReminder(idToClear) }
                 }
             },
             onDismiss = { showReminderDialog = false }

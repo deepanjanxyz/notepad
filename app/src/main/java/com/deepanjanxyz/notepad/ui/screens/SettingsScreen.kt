@@ -1,9 +1,14 @@
 package com.deepanjanxyz.notepad.ui.screens
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -25,13 +30,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.SettingsBrightness
+import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,40 +50,155 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.R
+import com.deepanjanxyz.notepad.backup.DownloadsBackup
+import com.deepanjanxyz.notepad.backup.BackupParseResult
+import com.deepanjanxyz.notepad.backup.parseBackupJson
 import com.deepanjanxyz.notepad.domain.model.Note
-import com.deepanjanxyz.notepad.ui.viewmodel.NotesUiState
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
+import com.deepanjanxyz.notepad.ui.viewmodel.AutoBackupStatus
+import com.deepanjanxyz.notepad.ui.viewmodel.ImportOutcome
+import com.deepanjanxyz.notepad.ui.viewmodel.NotesUiState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     uiState: NotesUiState,
     notes: List<Note>,
+    autoBackupStatus: AutoBackupStatus?,
+    importOutcome: ImportOutcome?,
     onThemeChange: (String) -> Unit,
     onLockToggle: (Boolean) -> Unit,
+    onAutoBackupChange: (Boolean) -> Unit,
+    onBackUpNow: (String) -> Unit,
+    onImportNotes: (List<Note>) -> Unit,
+    onImportOutcomeShown: () -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     val versionName = getAppVersionName(context)
+
+    var showRestoreDialog by remember { mutableStateOf(false) }
+    var availableBackups by remember { mutableStateOf(listOf<DownloadsBackup.Entry>()) }
+    // How many backup files are actually present, detected from the folder.
+    var backupFileCount by remember { mutableStateOf(0) }
+
+    // The backup that is actually on disk, read back from Downloads so the screen
+    // never reports a save that did not happen.
+    var backupInfo by remember { mutableStateOf<DownloadsBackup.Info?>(null) }
+
+    LaunchedEffect(autoBackupStatus, showRestoreDialog) {
+        val (info, entries) = withContext(Dispatchers.IO) {
+            DownloadsBackup.info(context) to DownloadsBackup.list(context)
+        }
+        backupInfo = info
+        backupFileCount = entries.size
+    }
+
+    // Turning auto backup on needs the legacy storage permission on Android 9 and
+    // below; on newer versions MediaStore needs no permission at all, so it is
+    // only ever requested at the moment the switch is turned on.
+    val storagePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        scope.launch {
+            if (granted) {
+                onAutoBackupChange(true)
+            } else {
+                snackbarHostState.showSnackbar("Storage permission is needed to back up to Downloads")
+            }
+        }
+    }
+
+    fun onAutoBackupToggle(enabled: Boolean) {
+        val missingPermission = enabled &&
+            DownloadsBackup.needsLegacyPermission &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) !=
+            PackageManager.PERMISSION_GRANTED
+        if (missingPermission) {
+            storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        } else {
+            onAutoBackupChange(enabled)
+        }
+    }
+
+    fun restoreFromText(text: String) {
+        when (val parsed = parseBackupJson(text)) {
+            is BackupParseResult.Success -> onImportNotes(parsed.notes)
+            is BackupParseResult.Failure -> {
+                scope.launch { snackbarHostState.showSnackbar(parsed.reason) }
+            }
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val text = withContext(Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.openInputStream(uri)?.use { input ->
+                            input.readBytes().toString(Charsets.UTF_8)
+                        }
+                    }.getOrNull().orEmpty()
+                }
+                restoreFromText(text)
+            }
+        }
+    }
+
+    LaunchedEffect(importOutcome) {
+        val outcome = importOutcome ?: return@LaunchedEffect
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        snackbarHostState.showSnackbar(
+            if (outcome.skipped > 0) {
+                "Imported ${outcome.imported} note(s), skipped ${outcome.skipped} duplicate(s)"
+            } else {
+                "Imported ${outcome.imported} note(s)"
+            }
+        )
+        onImportOutcomeShown()
+    }
 
     BackHandler {
         onNavigateBack()
@@ -89,6 +213,7 @@ fun SettingsScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -321,6 +446,131 @@ fun SettingsScreen(
                 }
             }
 
+            // Backup & Restore Card
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Backup,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.size(12.dp))
+                        Text(
+                            text = "Backup & Restore",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Backups are saved to " + DownloadsBackup.locationLabel() +
+                            " and stay there even if you clear the app's data, so you can restore your notes afterwards.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // The real state of the file on disk, never a claimed save.
+                    Text(
+                        text = backupStatusText(backupInfo, autoBackupStatus, backupFileCount),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = if (backupInfo == null) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
+                        modifier = Modifier.testTag("backup_status_text")
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Auto backup",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Save every change to Downloads automatically.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = uiState.autoBackup,
+                            onCheckedChange = { onAutoBackupToggle(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                            ),
+                            modifier = Modifier.testTag("auto_backup_switch")
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onBackUpNow(DownloadsBackup.FILE_NAME)
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("export_notes_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Upload,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Back up now")
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                availableBackups = DownloadsBackup.list(context)
+                                showRestoreDialog = true
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("import_notes_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Restore")
+                        }
+                    }
+                }
+            }
+
             // About Card
             Card(
                 shape = RoundedCornerShape(20.dp),
@@ -379,6 +629,55 @@ fun SettingsScreen(
             }
         }
     }
+
+    if (showRestoreDialog) {
+        AlertDialog(
+            onDismissRequest = { showRestoreDialog = false },
+            title = { Text("Restore notes") },
+            text = {
+                Column {
+                    if (availableBackups.isEmpty()) {
+                        Text("No backups found in " + DownloadsBackup.locationLabel() + ".")
+                    } else {
+                        availableBackups.forEach { entry ->
+                            TextButton(
+                                onClick = {
+                                    showRestoreDialog = false
+                                    scope.launch {
+                                        val text = withContext(Dispatchers.IO) {
+                                            runCatching { DownloadsBackup.read(context, entry.name) }
+                                                .getOrNull()
+                                                .orEmpty()
+                                        }
+                                        restoreFromText(text)
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(entry.name, maxLines = 1)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showRestoreDialog = false
+                        importLauncher.launch(arrayOf("application/json", "text/plain"))
+                    },
+                    modifier = Modifier.testTag("browse_backup_button")
+                ) {
+                    Text("Choose file")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRestoreDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -424,3 +723,18 @@ private fun getAppVersionName(context: Context): String =
     requireNotNull(context.packageManager.getPackageInfo(context.packageName, 0).versionName) {
         "App versionName is missing"
     }
+
+/**
+ * Describes the backup that is really on disk, or the last failed attempt. The
+ * number of files is reported so it is obvious when more than one exists.
+ */
+private fun backupStatusText(
+    info: DownloadsBackup.Info?,
+    status: AutoBackupStatus?,
+    fileCount: Int
+): String {
+    if (status?.error != null) return "Last backup failed: ${status.error}"
+    val lastModified = info?.lastModified ?: return "No backup saved yet"
+    val stamp = SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault()).format(Date(lastModified))
+    return if (fileCount > 1) "Last backup: $stamp \u00b7 $fileCount files" else "Last backup: $stamp"
+}

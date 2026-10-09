@@ -132,30 +132,18 @@ class NoteRepositoryImpl(
         val cleanNew = newName.trim().replace("#", "")
         if (cleanNew.isNotEmpty() && !cleanNew.equals(oldName, ignoreCase = true)) {
             labelDao.renameLabel(oldName, cleanNew)
-            // Labels are denormalized into each note, so keep existing note tags in sync.
-            val notes = noteDao.getAllNotesRaw()
-            notes.forEach { noteEntity ->
-                val tags = noteEntity.tags.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                if (tags.any { it.equals(oldName, ignoreCase = true) }) {
-                    val updatedTags = tags.map { if (it.equals(oldName, ignoreCase = true)) cleanNew else it }
-                    noteDao.updateNote(noteEntity.copy(tags = updatedTags.joinToString(",")))
-                }
-            }
+            // Labels are denormalized into each note, so the note rows are kept
+            // in sync inside a single database transaction rather than one write
+            // per note.
+            noteDao.renameTag(oldName, cleanNew)
         }
         Unit
     }
 
     override suspend fun deleteLabel(name: String) = withContext(ioDispatcher) {
         labelDao.deleteByName(name)
-        // Labels are denormalized into each note, so remove the tag there as well.
-        val notes = noteDao.getAllNotesRaw()
-        notes.forEach { noteEntity ->
-            val tags = noteEntity.tags.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-            if (tags.any { it.equals(name, ignoreCase = true) }) {
-                val updatedTags = tags.filter { !it.equals(name, ignoreCase = true) }
-                noteDao.updateNote(noteEntity.copy(tags = updatedTags.joinToString(",")))
-            }
-        }
+        // Labels are denormalized into each note, so the tag is removed there too.
+        noteDao.deleteTag(name)
         Unit
     }
 }

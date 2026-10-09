@@ -1,7 +1,13 @@
 package com.deepanjanxyz.notepad
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
+import android.view.animation.DecelerateInterpolator
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -44,6 +50,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deepanjanxyz.notepad.domain.model.DrawingSerializer
@@ -78,6 +85,30 @@ class MainActivity : FragmentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Install the compat splash screen before super.onCreate so that the
+        // Android 12 splash (with its icon reveal) also shows on Android 11 and
+        // below. It also applies postSplashScreenTheme.
+        val splashScreen = installSplashScreen()
+        // Hand the splash over to the app smoothly: the logo scales up while the
+        // splash fades out, then the splash view is removed.
+        splashScreen.setOnExitAnimationListener { provider ->
+            val iconView = provider.iconView
+            val splashView = provider.view
+            val scaleX = ObjectAnimator.ofFloat(iconView, View.SCALE_X, 1f, 1.2f)
+            val scaleY = ObjectAnimator.ofFloat(iconView, View.SCALE_Y, 1f, 1.2f)
+            val fadeOut = ObjectAnimator.ofFloat(splashView, View.ALPHA, 1f, 0f)
+            AnimatorSet().apply {
+                playTogether(scaleX, scaleY, fadeOut)
+                duration = 300L
+                interpolator = DecelerateInterpolator()
+                addListener(object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: Animator) {
+                        provider.remove()
+                    }
+                })
+                start()
+            }
+        }
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handleNotificationIntent(intent)
@@ -90,6 +121,8 @@ class MainActivity : FragmentActivity() {
             val trashNotes by viewModel.trashNotes.collectAsStateWithLifecycle()
             val roomLabels by viewModel.roomLabels.collectAsStateWithLifecycle()
             val allTags by viewModel.allTags.collectAsStateWithLifecycle()
+            val autoBackupStatus by viewModel.autoBackupStatus.collectAsStateWithLifecycle()
+            val importOutcome by viewModel.importOutcome.collectAsStateWithLifecycle()
 
             val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
             val scope = rememberCoroutineScope()
@@ -193,7 +226,9 @@ class MainActivity : FragmentActivity() {
                                                 onClearSelection = { viewModel.clearSelection() },
                                                 onSelectAll = { viewModel.selectAll(filteredNotes) },
                                                 onMoveSelectedToTrash = { viewModel.moveSelectedToTrash() },
-                                                onMoveSelectedToArchive = { viewModel.moveSelectedToArchive() }
+                                                onMoveSelectedToArchive = { viewModel.moveSelectedToArchive() },
+                                                onUndoMoveToTrash = { viewModel.undoMoveToTrash() },
+                                                onSortOptionChange = { viewModel.setSortOption(it) }
                                             )
                                         }
 
@@ -203,13 +238,14 @@ class MainActivity : FragmentActivity() {
                                                 availableTags = allTags,
                                                 onGetNote = { id -> viewModel.getNote(id) },
                                                 onSaveNote = { id, title, content, colorIndex, tags, isPinned, inArchive, reminderTime ->
-                                                    viewModel.saveNote(id, title, content, colorIndex, tags, isPinned, inArchive, reminderTime)
+                                                    viewModel.saveNote(id, title, content, colorIndex, tags, isPinned, inArchive, reminderTime).id
                                                 },
                                                 onAddLabel = { label -> viewModel.addLabel(label) },
                                                 onMoveToArchive = { id -> viewModel.moveToArchive(id) },
                                                 onMoveToTrash = { id -> viewModel.moveToTrash(id) },
-                                                onOpenDrawing = { noteId -> viewModel.navigateTo(Screen.Drawing(noteId)) },
-                                                onNavigateBack = { viewModel.navigateTo(Screen.Home) }
+                                                onClearReminder = { id -> viewModel.setNoteReminder(id, null) },
+                                                onOpenDrawing = { noteId -> viewModel.navigateTo(Screen.Drawing(noteId, screen.returnTo)) },
+                                                onNavigateBack = { viewModel.navigateTo(screen.returnTo) }
                                             )
                                         }
 
@@ -218,13 +254,13 @@ class MainActivity : FragmentActivity() {
                                                 noteId = screen.noteId,
                                                 onGetNote = { id -> viewModel.getNote(id) },
                                                 onSaveNote = { id, title, content, colorIndex, tags, isPinned, inArchive ->
-                                                    viewModel.saveNote(id, title, content, colorIndex, tags, isPinned, inArchive)
+                                                    viewModel.saveNote(id, title, content, colorIndex, tags, isPinned, inArchive).id
                                                 },
                                                 onNavigateBack = { savedId ->
                                                     if (savedId > 0L) {
-                                                        viewModel.navigateTo(Screen.Editor(savedId))
+                                                        viewModel.navigateTo(Screen.Editor(savedId, screen.returnTo))
                                                     } else {
-                                                        viewModel.navigateTo(Screen.Home)
+                                                        viewModel.navigateTo(screen.returnTo)
                                                     }
                                                 }
                                             )
@@ -245,11 +281,12 @@ class MainActivity : FragmentActivity() {
                                                 onMoveSelectedToTrash = { selectedIds ->
                                                     viewModel.moveSelectedToTrash(selectedIds)
                                                 },
+                                                onUndoMoveToTrash = { viewModel.undoMoveToTrash() },
                                                 onNoteClick = { note ->
                                                     if (DrawingSerializer.isDrawing(note.content)) {
-                                                        viewModel.navigateTo(Screen.Drawing(note.id))
+                                                        viewModel.navigateTo(Screen.Drawing(note.id, Screen.Archive))
                                                     } else {
-                                                        viewModel.navigateTo(Screen.Editor(note.id))
+                                                        viewModel.navigateTo(Screen.Editor(note.id, Screen.Archive))
                                                     }
                                                 }
                                             )
@@ -266,7 +303,14 @@ class MainActivity : FragmentActivity() {
                                                 onPermanentlyDeleteNote = { viewModel.permanentlyDelete(it) },
                                                 onEmptyTrash = { viewModel.emptyTrash() },
                                                 onRestoreSelected = { viewModel.restoreSelectedTrashNotes() },
-                                                onPermanentlyDeleteSelected = { viewModel.permanentlyDeleteSelectedTrashNotes() }
+                                                onPermanentlyDeleteSelected = { viewModel.permanentlyDeleteSelectedTrashNotes() },
+                                                onNoteClick = { note ->
+                                                    if (DrawingSerializer.isDrawing(note.content)) {
+                                                        viewModel.navigateTo(Screen.Drawing(note.id, Screen.Trash))
+                                                    } else {
+                                                        viewModel.navigateTo(Screen.Editor(note.id, Screen.Trash))
+                                                    }
+                                                }
                                             )
                                         }
 
@@ -274,10 +318,18 @@ class MainActivity : FragmentActivity() {
                                             SettingsScreen(
                                                 uiState = uiState,
                                                 notes = rawActiveNotes,
+                                                autoBackupStatus = autoBackupStatus,
+                                                importOutcome = importOutcome,
                                                 onThemeChange = { viewModel.setTheme(it) },
                                                 onLockToggle = { enabled ->
                                                     viewModel.setLockEnabled(enabled)
                                                 },
+                                                onAutoBackupChange = { enabled ->
+                                                    viewModel.setAutoBackup(enabled)
+                                                },
+                                                onBackUpNow = { name -> viewModel.backUp(name) },
+                                                onImportNotes = { viewModel.importNotes(it) },
+                                                onImportOutcomeShown = { viewModel.clearImportOutcome() },
                                                 onNavigateBack = { viewModel.navigateTo(Screen.Home) }
                                             )
                                         }

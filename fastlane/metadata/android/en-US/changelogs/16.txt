@@ -1,0 +1,10 @@
+Navigation fixes, new features and a sturdier backup system.
+
+- Leaving a note returns you to the section you opened it from - Home, Archive or Trash
+- Open notes from Trash, and Undo a move to Trash
+- Sort notes by last modified, date created, title or colour
+- Share any note as plain text
+- Back up and restore all notes to a JSON file in Downloads, with optional auto backup
+- Clearing a reminder now works, plus a polished animated splash screen
+
+Thank you for using Elite Memo Pro!

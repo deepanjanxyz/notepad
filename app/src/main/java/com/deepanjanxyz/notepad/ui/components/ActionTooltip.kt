@@ -27,7 +27,7 @@ fun ActionTooltip(
 ) {
     TooltipBox(
         // PlainTooltip has always anchored above its target; the positioning-aware
-        // provider keeps that placement now that the plain-tooltip API is deprecated.
+        // provider keeps that placement after the plain-tooltip API was deprecated.
         positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
         tooltip = { PlainTooltip { Text(actionName) } },
         state = rememberTooltipState(),

@@ -19,8 +19,12 @@ fun Note.isBackupWorthy(): Boolean = title.isNotBlank() || content.isNotBlank()
  * never padded with empty entries.
  */
 fun buildBackupJson(notes: List<Note>): String {
+    val worthBackingUp = notes.filter { it.isBackupWorthy() }
+    // With nothing to store, return an empty document so callers can tell the
+    // difference and avoid writing an empty file.
+    if (worthBackingUp.isEmpty()) return ""
     val array = JSONArray()
-    notes.filter { it.isBackupWorthy() }.forEach { note ->
+    worthBackingUp.forEach { note ->
         val obj = JSONObject()
         obj.put("title", note.title)
         obj.put("content", note.content)

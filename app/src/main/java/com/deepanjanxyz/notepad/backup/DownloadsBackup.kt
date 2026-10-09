@@ -50,6 +50,9 @@ object DownloadsBackup {
 
     /** Writes [json] to a backup file, replacing any existing file of the same name. */
     fun write(context: Context, json: String, name: String = FILE_NAME) {
+        // Never create an empty backup file: with nothing to store, leave the
+        // file already on disk untouched.
+        if (json.isBlank()) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             writeViaMediaStore(context, json, name)
         } else {

@@ -376,6 +376,9 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         }
         if (autoBackupJob?.isActive == true) return
         autoBackupJob = viewModelScope.launch {
+            // Take a snapshot straight away, so turning the switch on is all the
+            // user has to do - no manual "Back up now" step is needed.
+            writeAutoBackup()
             backupNotes
                 .drop(1) // ignore the initial empty value emitted before the database loads
                 .collectLatest {

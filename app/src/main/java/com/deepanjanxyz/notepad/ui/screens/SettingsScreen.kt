@@ -130,7 +130,7 @@ fun SettingsScreen(
     fun restoreFromText(text: String) {
         val parsed = parseBackupJson(text)
         if (parsed.isEmpty()) {
-            snackbarHostState.showSnackbar("No notes found in that file")
+            scope.launch { snackbarHostState.showSnackbar("No notes found in that file") }
         } else {
             onImportNotes(parsed)
         }

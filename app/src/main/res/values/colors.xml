@@ -4,4 +4,6 @@
     <color name="teal_200">#03DAC5</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <!-- Background of the launch splash screen (matches the app's dark surface). -->
+    <color name="splash_background">#0E1116</color>
 </resources>

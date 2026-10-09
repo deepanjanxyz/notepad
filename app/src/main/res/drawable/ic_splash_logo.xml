@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Splash icon.
+
+    This points at the app's own launcher mark rather than a redrawn copy, so
+    the splash can never drift away from the icon the user taps on their home
+    screen: whatever ships as the launcher icon is what the splash shows.
+
+    The round variant is used because its corners are already transparent, which
+    is exactly what the splash's circular mask expects. It carries the same
+    artwork as the square launcher icon.
+
+    The themed splash reveal and the exit animation are unaffected - they are
+    driven by Theme.EliteMemoPro.Starting and MainActivity, not by this file.
+-->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@mipmap/ic_launcher_round"
+    android:filter="true"
+    android:gravity="fill" />

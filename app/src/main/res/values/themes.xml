@@ -3,4 +3,21 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
+
+    <!--
+        Starting theme for the launcher activity.
+
+        Inheriting from Theme.SplashScreen (androidx.core:core-splashscreen) makes
+        every device from API 23 show the Android 12 splash screen, including the
+        animated reveal of the icon. Phones running Android 11 and below therefore
+        get the same launch experience as Android 12+ devices instead of a blank
+        window. The icon is a crisp vector drawable (see ic_splash_logo), not the
+        launcher bitmap.
+    -->
+    <style name="Theme.EliteMemoPro.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
+        <item name="windowSplashScreenAnimationDuration">500</item>
+        <item name="postSplashScreenTheme">@style/Theme.EliteMemoPro</item>
+    </style>
 </resources>

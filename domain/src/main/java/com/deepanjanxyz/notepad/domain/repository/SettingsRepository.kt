@@ -19,4 +19,6 @@ interface SettingsRepository {
     suspend fun setGridLayout(isGridLayout: Boolean)
 
     suspend fun setLockEnabled(enabled: Boolean)
+
+    suspend fun setAutoBackup(enabled: Boolean)
 }

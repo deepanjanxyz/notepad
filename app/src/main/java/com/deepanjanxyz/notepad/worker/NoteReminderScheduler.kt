@@ -13,6 +13,16 @@ import java.util.concurrent.TimeUnit
 
 object NoteReminderScheduler {
 
+    // SimpleDateFormat is not thread-safe, so each thread keeps its own cached
+    // instance instead of allocating a fresh formatter on every call. This is
+    // invoked while composing every note card that carries a reminder.
+    private val timeFormatter: ThreadLocal<SimpleDateFormat> =
+        ThreadLocal.withInitial { SimpleDateFormat("h:mm a", Locale.getDefault()) }
+    private val dayFormatter: ThreadLocal<SimpleDateFormat> =
+        ThreadLocal.withInitial { SimpleDateFormat("MMM d, ", Locale.getDefault()) }
+    private val fullDateFormatter: ThreadLocal<SimpleDateFormat> =
+        ThreadLocal.withInitial { SimpleDateFormat("MMM d, yyyy, ", Locale.getDefault()) }
+
     fun getWorkName(noteId: Long): String = "note_reminder_$noteId"
 
     fun scheduleReminder(
@@ -52,7 +62,7 @@ object NoteReminderScheduler {
         val calendarTarget = Calendar.getInstance().apply { timeInMillis = millis }
         val calendarNow = Calendar.getInstance()
 
-        val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
+        val timeFormat = timeFormatter.get() ?: SimpleDateFormat("h:mm a", Locale.getDefault())
         val formattedTime = timeFormat.format(Date(millis))
 
         val isSameDay = calendarTarget.get(Calendar.YEAR) == calendarNow.get(Calendar.YEAR) &&
@@ -66,12 +76,12 @@ object NoteReminderScheduler {
             isSameDay -> "Today, $formattedTime"
             isTomorrow -> "Tomorrow, $formattedTime"
             calendarTarget.get(Calendar.YEAR) == calendarNow.get(Calendar.YEAR) -> {
-                val dateFormat = SimpleDateFormat("MMM d, ", Locale.getDefault())
-                dateFormat.format(Date(millis)) + formattedTime
+                val dayFormat = dayFormatter.get() ?: SimpleDateFormat("MMM d, ", Locale.getDefault())
+                dayFormat.format(Date(millis)) + formattedTime
             }
             else -> {
-                val dateFormat = SimpleDateFormat("MMM d, yyyy, ", Locale.getDefault())
-                dateFormat.format(Date(millis)) + formattedTime
+                val fullFormat = fullDateFormatter.get() ?: SimpleDateFormat("MMM d, yyyy, ", Locale.getDefault())
+                fullFormat.format(Date(millis)) + formattedTime
             }
         }
     }

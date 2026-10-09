@@ -20,5 +20,6 @@ object ThemeMode {
 data class AppSettings(
     val themeMode: String = ThemeMode.DARK,
     val isGridLayout: Boolean = true,
-    val lockEnabled: Boolean = false
+    val lockEnabled: Boolean = false,
+    val autoBackup: Boolean = false
 )

@@ -11,4 +11,6 @@ class SaveSettingsUseCase(
     suspend fun setGridLayout(isGridLayout: Boolean) = settingsRepository.setGridLayout(isGridLayout)
 
     suspend fun setLockEnabled(enabled: Boolean) = settingsRepository.setLockEnabled(enabled)
+
+    suspend fun setAutoBackup(enabled: Boolean) = settingsRepository.setAutoBackup(enabled)
 }

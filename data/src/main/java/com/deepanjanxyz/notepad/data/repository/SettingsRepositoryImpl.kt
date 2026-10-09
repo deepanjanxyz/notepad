@@ -29,6 +29,7 @@ class SettingsRepositoryImpl(
         val THEME_MODE = stringPreferencesKey("pref_theme")
         val GRID_LAYOUT = booleanPreferencesKey("pref_grid_layout")
         val LOCK_ENABLED = booleanPreferencesKey("pref_lock")
+        val AUTO_BACKUP = booleanPreferencesKey("pref_auto_backup")
     }
 
     override val settings: Flow<AppSettings> = dataStore.data
@@ -41,7 +42,8 @@ class SettingsRepositoryImpl(
             AppSettings(
                 themeMode = preferences[Keys.THEME_MODE] ?: ThemeMode.DARK,
                 isGridLayout = preferences[Keys.GRID_LAYOUT] ?: true,
-                lockEnabled = preferences[Keys.LOCK_ENABLED] ?: false
+                lockEnabled = preferences[Keys.LOCK_ENABLED] ?: false,
+                autoBackup = preferences[Keys.AUTO_BACKUP] ?: false
             )
         }
 
@@ -55,5 +57,9 @@ class SettingsRepositoryImpl(
 
     override suspend fun setLockEnabled(enabled: Boolean) {
         dataStore.edit { preferences -> preferences[Keys.LOCK_ENABLED] = enabled }
+    }
+
+    override suspend fun setAutoBackup(enabled: Boolean) {
+        dataStore.edit { preferences -> preferences[Keys.AUTO_BACKUP] = enabled }
     }
 }

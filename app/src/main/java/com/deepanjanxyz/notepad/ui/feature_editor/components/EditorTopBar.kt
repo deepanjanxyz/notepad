@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.Icon
@@ -47,6 +48,7 @@ fun EditorTopBar(
     hasDrawing: Boolean,
     onOpenDrawing: () -> Unit,
     onArchive: () -> Unit,
+    onShare: () -> Unit,
     onSaveAndClose: () -> Unit,
     onNavigateBack: () -> Unit,
     textPrimary: Color = Color(0xFFE2E2E6),
@@ -145,6 +147,20 @@ fun EditorTopBar(
                         imageVector = Icons.Filled.Brush,
                         contentDescription = "Drawing",
                         tint = if (hasDrawing) amberAccent else textPrimary
+                    )
+                }
+            }
+
+            // Share Action
+            ActionTooltip("Share Note") {
+                IconButton(
+                    onClick = onShare,
+                    modifier = Modifier.testTag("share_note_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "Share Note",
+                        tint = textPrimary
                     )
                 }
             }

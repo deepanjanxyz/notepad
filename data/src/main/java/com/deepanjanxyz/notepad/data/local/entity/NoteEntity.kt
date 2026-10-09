@@ -36,7 +36,13 @@ data class NoteEntity(
     val inArchive: Boolean = false,
 
     @ColumnInfo(name = "REMINDER_TIME")
-    val reminderTime: Long? = null
+    val reminderTime: Long? = null,
+
+    @ColumnInfo(name = "CREATED_AT", defaultValue = "0")
+    val createdAt: Long = 0,
+
+    @ColumnInfo(name = "UPDATED_AT", defaultValue = "0")
+    val updatedAt: Long = 0
 ) {
     fun toDomain(): Note = Note(
         id = id,
@@ -48,7 +54,9 @@ data class NoteEntity(
         tags = if (tags.isBlank()) emptyList() else tags.split(",").map { it.trim() }.filter { it.isNotEmpty() },
         inTrash = inTrash,
         inArchive = inArchive,
-        reminderTime = reminderTime
+        reminderTime = reminderTime,
+        createdAt = createdAt,
+        updatedAt = updatedAt
     )
 
     companion object {
@@ -62,7 +70,9 @@ data class NoteEntity(
             tags = note.tags.joinToString(","),
             inTrash = note.inTrash,
             inArchive = note.inArchive,
-            reminderTime = note.reminderTime
+            reminderTime = note.reminderTime,
+            createdAt = note.createdAt,
+            updatedAt = note.updatedAt
         )
     }
 }

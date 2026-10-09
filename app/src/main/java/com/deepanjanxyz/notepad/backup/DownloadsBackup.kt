@@ -1,5 +1,6 @@
 package com.deepanjanxyz.notepad.backup
 
+import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
@@ -57,8 +58,11 @@ object DownloadsBackup {
      * replaced once the new one is confirmed on disk.
      */
     fun write(context: Context, json: String, name: String = FILE_NAME) {
-        // Never create an empty backup file: with nothing to store, leave the
-        // file already on disk untouched.
+        // Deliberate recovery policy, not an oversight: when there is nothing
+        // worth storing - every note deleted, say - the file already on disk is
+        // left exactly as it is. Replacing a backup that still holds yesterday's
+        // notes with one that holds nothing would turn a recoverable mistake
+        // into an unrecoverable one.
         if (json.isBlank()) return
         val tempName = partialName(name)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -80,6 +84,18 @@ object DownloadsBackup {
             name.removeSuffix(JSON_SUFFIX) + ".partial" + JSON_SUFFIX
         } else {
             "$name.partial"
+        }
+
+    /**
+     * Name the previous backup is parked under while the new one is moved into
+     * place. Like the partial name, it keeps the `.json` suffix so an interrupted
+     * swap still leaves a restorable file.
+     */
+    private fun previousName(name: String): String =
+        if (name.endsWith(JSON_SUFFIX)) {
+            name.removeSuffix(JSON_SUFFIX) + ".previous" + JSON_SUFFIX
+        } else {
+            "$name.previous"
         }
 
     /** Reads a backup file, or null when it does not exist. */
@@ -166,24 +182,19 @@ object DownloadsBackup {
         // Clear a temporary file left behind by an interrupted earlier write.
         resolver.delete(collection, selection(), selectionArgs(tempName))
 
-        val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, tempName)
-            put(MediaStore.MediaColumns.MIME_TYPE, MIME_TYPE)
-            put(MediaStore.MediaColumns.RELATIVE_PATH, RELATIVE_DIR)
-            put(MediaStore.MediaColumns.IS_PENDING, 1)
-        }
-        val uri = resolver.insert(collection, values)
+        val uri = insertPendingFile(resolver, collection, tempName)
             ?: error("Could not create the backup file in Downloads")
 
         resolver.openOutputStream(uri)?.use { output ->
             output.write(json.toByteArray())
         } ?: error("Could not open the backup file for writing")
 
-        values.clear()
-        values.put(MediaStore.MediaColumns.IS_PENDING, 0)
-        resolver.update(uri, values, null, null)
+        val published = ContentValues().apply {
+            put(MediaStore.MediaColumns.IS_PENDING, 0)
+        }
+        resolver.update(uri, published, null, null)
 
-        // Read the new file back before the previous backup is removed: if the
+        // Read the new file back before the previous backup is touched: if the
         // bytes do not match, the old backup is left exactly as it was.
         val written = resolver.openInputStream(uri)?.use { it.readBytes().decodeToString() }
         if (written != json) {
@@ -191,13 +202,81 @@ object DownloadsBackup {
             error("The backup could not be verified after writing")
         }
 
-        // The new copy is confirmed on disk, so the previous file can be dropped
-        // and the temporary one given the canonical name.
-        resolver.delete(collection, selection(), selectionArgs(finalName))
-        val rename = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, finalName)
+        // The new copy is confirmed on disk, but the previous backup is still not
+        // deleted: a rename can fail on some builds or under scoped-storage
+        // restrictions, and deleting first would then leave nothing but the
+        // .partial file. Instead the old file is parked under a third name, the
+        // new one is promoted, and only once that promotion is confirmed is the
+        // old copy removed. If the promotion fails, the old file is put back
+        // exactly where it was.
+        val parkedUri = findFile(resolver, collection, finalName)
+        if (parkedUri != null && !rename(resolver, parkedUri, previousName(finalName))) {
+            // The old backup could not be moved aside, so nothing is touched and
+            // the verified new copy is kept under its temporary name.
+            error("Could not move the previous backup aside")
         }
-        resolver.update(uri, rename, null, null)
+
+        if (!rename(resolver, uri, finalName)) {
+            // Put the previous backup back under its real name; the verified new
+            // copy stays on disk as the .partial file, so neither is lost.
+            if (parkedUri != null) rename(resolver, parkedUri, finalName)
+            error("Could not replace the previous backup")
+        }
+
+        resolver.delete(collection, selection(), selectionArgs(previousName(finalName)))
+    }
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun insertPendingFile(
+        resolver: ContentResolver,
+        collection: Uri,
+        name: String
+    ): Uri? {
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+            put(MediaStore.MediaColumns.MIME_TYPE, MIME_TYPE)
+            put(MediaStore.MediaColumns.RELATIVE_PATH, RELATIVE_DIR)
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+        return resolver.insert(collection, values)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun findFile(resolver: ContentResolver, collection: Uri, name: String): Uri? =
+        resolver.query(
+            collection,
+            arrayOf(MediaStore.MediaColumns._ID),
+            selection(),
+            selectionArgs(name),
+            null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                ContentUris.withAppendedId(collection, cursor.getLong(0))
+            } else {
+                null
+            }
+        }
+
+    /**
+     * Renames a file and confirms the new name actually took effect. A silent
+     * no-op update is exactly the case that would otherwise lose the backup, so
+     * the result is read back rather than assumed.
+     */
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun rename(resolver: ContentResolver, uri: Uri, name: String): Boolean {
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+        }
+        resolver.update(uri, values, null, null)
+        return resolver.query(
+            uri,
+            arrayOf(MediaStore.MediaColumns.DISPLAY_NAME),
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            cursor.moveToFirst() && cursor.getString(0) == name
+        } ?: false
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)

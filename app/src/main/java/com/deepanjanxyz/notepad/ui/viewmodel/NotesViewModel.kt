@@ -40,6 +40,9 @@ enum class NoteSortOption(val label: String) {
     COLOR("Color")
 }
 
+/** Result of an import: how many notes were added and how many were skipped as duplicates. */
+data class ImportOutcome(val imported: Int, val skipped: Int)
+
 data class NotesUiState(
     val currentScreen: Screen = Screen.Home,
     val isSelectionMode: Boolean = false,
@@ -108,6 +111,10 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     // Ids of the notes most recently moved to Trash, so the home screen's Undo
     // action can restore exactly that batch.
     private var lastTrashedIds: List<Long> = emptyList()
+
+    // One-shot result of the most recent import, surfaced to the Settings screen.
+    private val _importOutcome = MutableStateFlow<ImportOutcome?>(null)
+    val importOutcome: StateFlow<ImportOutcome?> = _importOutcome.asStateFlow()
 
     // Room DB Labels Stream - starts completely clean
     val roomLabels: StateFlow<List<String>> = labelUseCases.getLabels()
@@ -527,24 +534,52 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** Imports notes from a backup file, inserting each as a new note. */
+    /**
+     * Imports notes from a backup file, inserting each as a new note.
+     *
+     * A note whose title and body already exist (including notes added by an
+     * earlier import in the same batch) is skipped, so restoring the same backup
+     * twice no longer produces duplicates.
+     */
     fun importNotes(notes: List<Note>) {
-        if (notes.isEmpty()) return
+        if (notes.isEmpty()) {
+            _importOutcome.value = ImportOutcome(imported = 0, skipped = 0)
+            return
+        }
         viewModelScope.launch {
+            val seen = (rawActiveNotes.value + archiveNotes.value + trashNotes.value)
+                .map { noteKey(it.title, it.content) }
+                .toMutableSet()
+            var imported = 0
+            var skipped = 0
             notes.forEach { note ->
-                noteUseCases.saveNote(
-                    id = 0L,
-                    title = note.title,
-                    content = note.content,
-                    colorIndex = note.colorIndex,
-                    tags = note.tags,
-                    isPinned = note.isPinned,
-                    inArchive = note.inArchive,
-                    reminderTime = note.reminderTime
-                )
+                if (seen.add(noteKey(note.title, note.content))) {
+                    noteUseCases.saveNote(
+                        id = 0L,
+                        title = note.title,
+                        content = note.content,
+                        colorIndex = note.colorIndex,
+                        tags = note.tags,
+                        isPinned = note.isPinned,
+                        inArchive = note.inArchive,
+                        reminderTime = note.reminderTime
+                    )
+                    imported++
+                } else {
+                    skipped++
+                }
             }
+            _importOutcome.value = ImportOutcome(imported = imported, skipped = skipped)
         }
     }
+
+    /** Consumes the one-shot import result so it is only shown once. */
+    fun clearImportOutcome() {
+        _importOutcome.value = null
+    }
+
+    private fun noteKey(title: String, content: String): String =
+        title.trim() + "\u0000" + content.trim()
 
     private fun sortNotes(notes: List<Note>, option: NoteSortOption): List<Note> {
         val comparator = when (option) {

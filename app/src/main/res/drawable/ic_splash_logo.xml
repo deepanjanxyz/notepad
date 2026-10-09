@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Splash screen logo. A vector drawable so it stays crisp at any size on every
+  density (the previous splash reused the launcher bitmap, which looked soft and
+  dated once scaled up by the splash screen).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Note card with a folded top-right corner -->
+    <path
+        android:fillColor="#FFB300"
+        android:pathData="M38,30 H66 L78,42 V74 A6,6 0 0 1 72,80 H38 A6,6 0 0 1 32,74 V36 A6,6 0 0 1 38,30 Z" />
+
+    <!-- Folded corner -->
+    <path
+        android:fillColor="#FFD54F"
+        android:pathData="M66,30 L78,42 H66 Z" />
+
+    <!-- Text lines -->
+    <path
+        android:strokeColor="#1B1B1F"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:pathData="M42,50 H70" />
+    <path
+        android:strokeColor="#1B1B1F"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:pathData="M42,60 H70" />
+    <path
+        android:strokeColor="#1B1B1F"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:pathData="M42,70 H60" />
+</vector>

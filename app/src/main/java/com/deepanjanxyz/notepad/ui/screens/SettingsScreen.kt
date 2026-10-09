@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.SettingsBrightness
 import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,17 +49,28 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -66,10 +78,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.domain.model.Note
+import com.deepanjanxyz.notepad.ui.viewmodel.ImportOutcome
 import com.deepanjanxyz.notepad.ui.viewmodel.NotesUiState
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,25 +97,42 @@ fun SettingsScreen(
     uiState: NotesUiState,
     notes: List<Note>,
     backupNotes: List<Note>,
+    importOutcome: ImportOutcome?,
     onThemeChange: (String) -> Unit,
     onLockToggle: (Boolean) -> Unit,
     onImportNotes: (List<Note>) -> Unit,
+    onImportOutcomeShown: () -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     val versionName = getAppVersionName(context)
 
-    val exportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
-    ) { uri ->
-        if (uri != null) {
-            runCatching {
-                val json = buildBackupJson(backupNotes)
-                context.contentResolver.openOutputStream(uri)?.use { out ->
-                    out.write(json.toByteArray(Charsets.UTF_8))
-                }
+    var showOverwriteDialog by remember { mutableStateOf(false) }
+    var showRestoreDialog by remember { mutableStateOf(false) }
+    var availableBackups by remember { mutableStateOf(listOf<File>()) }
+
+    fun performExport(target: File) {
+        scope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                runCatching { target.writeText(buildBackupJson(backupNotes)) }.isSuccess
             }
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            snackbarHostState.showSnackbar(
+                if (ok) "Backup saved to ${target.name}" else "Couldn't save the backup"
+            )
+        }
+    }
+
+    fun restoreFromText(text: String) {
+        val parsed = parseBackupJson(text)
+        if (parsed.isEmpty()) {
+            snackbarHostState.showSnackbar("No notes found in that file")
+        } else {
+            onImportNotes(parsed)
         }
     }
 
@@ -103,16 +140,30 @@ fun SettingsScreen(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
-            runCatching {
-                val text = context.contentResolver.openInputStream(uri)?.use { input ->
-                    input.readBytes().toString(Charsets.UTF_8)
-                }.orEmpty()
-                val imported = parseBackupJson(text)
-                if (imported.isNotEmpty()) {
-                    onImportNotes(imported)
+            scope.launch {
+                val text = withContext(Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.openInputStream(uri)?.use { input ->
+                            input.readBytes().toString(Charsets.UTF_8)
+                        }
+                    }.getOrNull().orEmpty()
                 }
+                restoreFromText(text)
             }
         }
+    }
+
+    LaunchedEffect(importOutcome) {
+        val outcome = importOutcome ?: return@LaunchedEffect
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        snackbarHostState.showSnackbar(
+            if (outcome.skipped > 0) {
+                "Imported ${outcome.imported} note(s), skipped ${outcome.skipped} duplicate(s)"
+            } else {
+                "Imported ${outcome.imported} note(s)"
+            }
+        )
+        onImportOutcomeShown()
     }
 
     BackHandler {
@@ -128,6 +179,7 @@ fun SettingsScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -388,7 +440,7 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "Export your notes to a JSON file, or restore them from a previous backup.",
+                        text = "Backups are stored in the app's own backup folder. Export keeps a single file: if one already exists you can overwrite it or save a separate copy.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -400,7 +452,13 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         OutlinedButton(
-                            onClick = { exportLauncher.launch("elite-memo-backup.json") },
+                            onClick = {
+                                if (defaultBackupFile(context).exists()) {
+                                    showOverwriteDialog = true
+                                } else {
+                                    performExport(defaultBackupFile(context))
+                                }
+                            },
                             modifier = Modifier
                                 .weight(1f)
                                 .testTag("export_notes_button")
@@ -415,7 +473,10 @@ fun SettingsScreen(
                         }
 
                         OutlinedButton(
-                            onClick = { importLauncher.launch(arrayOf("application/json", "text/plain")) },
+                            onClick = {
+                                availableBackups = listBackups(context)
+                                showRestoreDialog = true
+                            },
                             modifier = Modifier
                                 .weight(1f)
                                 .testTag("import_notes_button")
@@ -426,7 +487,7 @@ fun SettingsScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Import")
+                            Text("Restore")
                         }
                     }
                 }
@@ -490,6 +551,88 @@ fun SettingsScreen(
             }
         }
     }
+
+    if (showOverwriteDialog) {
+        AlertDialog(
+            onDismissRequest = { showOverwriteDialog = false },
+            title = { Text("Backup already exists") },
+            text = { Text("A backup file already exists in the app's backup folder. Overwrite it, or save a separate copy?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showOverwriteDialog = false
+                        performExport(defaultBackupFile(context))
+                    },
+                    modifier = Modifier.testTag("overwrite_backup_button")
+                ) {
+                    Text("Overwrite")
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(
+                        onClick = {
+                            showOverwriteDialog = false
+                            performExport(newBackupFile(context))
+                        },
+                        modifier = Modifier.testTag("new_copy_backup_button")
+                    ) {
+                        Text("New copy")
+                    }
+                    TextButton(onClick = { showOverwriteDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            }
+        )
+    }
+
+    if (showRestoreDialog) {
+        AlertDialog(
+            onDismissRequest = { showRestoreDialog = false },
+            title = { Text("Restore notes") },
+            text = {
+                Column {
+                    if (availableBackups.isEmpty()) {
+                        Text("No backups found in the app's backup folder.")
+                    } else {
+                        availableBackups.forEach { file ->
+                            TextButton(
+                                onClick = {
+                                    showRestoreDialog = false
+                                    scope.launch {
+                                        val text = withContext(Dispatchers.IO) {
+                                            runCatching { file.readText() }.getOrDefault("")
+                                        }
+                                        restoreFromText(text)
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(file.name, maxLines = 1)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showRestoreDialog = false
+                        importLauncher.launch(arrayOf("application/json", "text/plain"))
+                    },
+                    modifier = Modifier.testTag("browse_backup_button")
+                ) {
+                    Text("Choose file")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRestoreDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -535,6 +678,26 @@ private fun getAppVersionName(context: Context): String =
     requireNotNull(context.packageManager.getPackageInfo(context.packageName, 0).versionName) {
         "App versionName is missing"
     }
+
+/** The app-managed folder where backups live (app-specific external storage, no permission needed). */
+private fun backupDir(context: Context): File {
+    val base = context.getExternalFilesDir(null) ?: context.filesDir
+    return File(base, "backups").apply { if (!exists()) mkdirs() }
+}
+
+private fun defaultBackupFile(context: Context): File =
+    File(backupDir(context), "elite-memo-backup.json")
+
+private fun newBackupFile(context: Context): File {
+    val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
+    return File(backupDir(context), "elite-memo-backup-$stamp.json")
+}
+
+private fun listBackups(context: Context): List<File> =
+    backupDir(context)
+        .listFiles { file -> file.isFile && file.name.endsWith(".json") }
+        ?.sortedByDescending { it.lastModified() }
+        .orEmpty()
 
 /** Serializes the given notes into a portable JSON backup document. */
 private fun buildBackupJson(notes: List<Note>): String {

@@ -1,7 +1,13 @@
 package com.deepanjanxyz.notepad
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
+import android.view.animation.DecelerateInterpolator
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -80,9 +86,29 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Install the compat splash screen before super.onCreate so that the
-        // Android 12 splash (with the animated launcher icon) also shows on
-        // Android 11 and below. It also applies postSplashScreenTheme.
-        installSplashScreen()
+        // Android 12 splash (with its icon reveal) also shows on Android 11 and
+        // below. It also applies postSplashScreenTheme.
+        val splashScreen = installSplashScreen()
+        // Hand the splash over to the app smoothly: the logo scales up while the
+        // splash fades out, then the splash view is removed.
+        splashScreen.setOnExitAnimationListener { provider ->
+            val iconView = provider.iconView
+            val splashView = provider.view
+            val scaleX = ObjectAnimator.ofFloat(iconView, View.SCALE_X, 1f, 1.2f)
+            val scaleY = ObjectAnimator.ofFloat(iconView, View.SCALE_Y, 1f, 1.2f)
+            val fadeOut = ObjectAnimator.ofFloat(splashView, View.ALPHA, 1f, 0f)
+            AnimatorSet().apply {
+                playTogether(scaleX, scaleY, fadeOut)
+                duration = 300L
+                interpolator = DecelerateInterpolator()
+                addListener(object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: Animator) {
+                        provider.remove()
+                    }
+                })
+                start()
+            }
+        }
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handleNotificationIntent(intent)
@@ -96,6 +122,7 @@ class MainActivity : FragmentActivity() {
             val roomLabels by viewModel.roomLabels.collectAsStateWithLifecycle()
             val allTags by viewModel.allTags.collectAsStateWithLifecycle()
             val backupNotes by viewModel.backupNotes.collectAsStateWithLifecycle()
+            val importOutcome by viewModel.importOutcome.collectAsStateWithLifecycle()
 
             val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
             val scope = rememberCoroutineScope()
@@ -291,11 +318,13 @@ class MainActivity : FragmentActivity() {
                                                 uiState = uiState,
                                                 notes = rawActiveNotes,
                                                 backupNotes = backupNotes,
+                                                importOutcome = importOutcome,
                                                 onThemeChange = { viewModel.setTheme(it) },
                                                 onLockToggle = { enabled ->
                                                     viewModel.setLockEnabled(enabled)
                                                 },
                                                 onImportNotes = { viewModel.importNotes(it) },
+                                                onImportOutcomeShown = { viewModel.clearImportOutcome() },
                                                 onNavigateBack = { viewModel.navigateTo(Screen.Home) }
                                             )
                                         }

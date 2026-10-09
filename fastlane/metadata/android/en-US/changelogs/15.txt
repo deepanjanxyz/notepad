@@ -1,0 +1,8 @@
+Under-the-hood modernisation for a faster, more reliable app.
+
+- Rebuilt on the latest Kotlin 2.4, Android Gradle Plugin 9.4 and Gradle 9.8 toolchains, now targeting Java 21
+- Every bundled library refreshed, including AndroidX, Jetpack Compose, Room, WorkManager and DataStore
+- Supabase backend SDK upgraded to its latest major version
+- No changes to how you write, organise or draw notes
+
+Thank you for using Elite Memo Pro!

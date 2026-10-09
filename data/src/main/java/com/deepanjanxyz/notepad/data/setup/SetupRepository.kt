@@ -6,9 +6,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import com.deepanjanxyz.notepad.data.SupabaseClientProvider
-import io.github.jan.supabase.gotrue.auth
-import io.github.jan.supabase.gotrue.OtpType
-import io.github.jan.supabase.gotrue.providers.builtin.OTP
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.OtpType
+import io.github.jan.supabase.auth.providers.builtin.OTP
 import java.net.HttpURLConnection
 import java.net.URL
 

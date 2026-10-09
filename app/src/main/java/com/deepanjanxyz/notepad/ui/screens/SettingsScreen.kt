@@ -116,16 +116,21 @@ fun SettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val versionName = getAppVersionName(context)
 
-    var showOverwriteDialog by remember { mutableStateOf(false) }
     var showRestoreDialog by remember { mutableStateOf(false) }
     var availableBackups by remember { mutableStateOf(listOf<DownloadsBackup.Entry>()) }
+    // How many backup files are actually present, detected from the folder.
+    var backupFileCount by remember { mutableStateOf(0) }
 
     // The backup that is actually on disk, read back from Downloads so the screen
     // never reports a save that did not happen.
     var backupInfo by remember { mutableStateOf<DownloadsBackup.Info?>(null) }
 
     LaunchedEffect(autoBackupStatus, showRestoreDialog) {
-        backupInfo = withContext(Dispatchers.IO) { DownloadsBackup.info(context) }
+        val (info, entries) = withContext(Dispatchers.IO) {
+            DownloadsBackup.info(context) to DownloadsBackup.list(context)
+        }
+        backupInfo = info
+        backupFileCount = entries.size
     }
 
     // Turning auto backup on needs the legacy storage permission on Android 9 and
@@ -478,7 +483,7 @@ fun SettingsScreen(
 
                     // The real state of the file on disk, never a claimed save.
                     Text(
-                        text = backupStatusText(backupInfo, autoBackupStatus),
+                        text = backupStatusText(backupInfo, autoBackupStatus, backupFileCount),
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium,
                         color = if (backupInfo == null) {
@@ -529,11 +534,7 @@ fun SettingsScreen(
                         OutlinedButton(
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                if (backupInfo != null) {
-                                    showOverwriteDialog = true
-                                } else {
-                                    onBackUpNow(DownloadsBackup.FILE_NAME)
-                                }
+                                onBackUpNow(DownloadsBackup.FILE_NAME)
                             },
                             modifier = Modifier
                                 .weight(1f)
@@ -626,41 +627,6 @@ fun SettingsScreen(
                 }
             }
         }
-    }
-
-    if (showOverwriteDialog) {
-        AlertDialog(
-            onDismissRequest = { showOverwriteDialog = false },
-            title = { Text("Backup already exists") },
-            text = { Text("A backup already exists in Downloads. Overwrite it, or save a separate copy?") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showOverwriteDialog = false
-                        onBackUpNow(DownloadsBackup.FILE_NAME)
-                    },
-                    modifier = Modifier.testTag("overwrite_backup_button")
-                ) {
-                    Text("Overwrite")
-                }
-            },
-            dismissButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    TextButton(
-                        onClick = {
-                            showOverwriteDialog = false
-                            onBackUpNow(newBackupFileName())
-                        },
-                        modifier = Modifier.testTag("new_copy_backup_button")
-                    ) {
-                        Text("New copy")
-                    }
-                    TextButton(onClick = { showOverwriteDialog = false }) {
-                        Text("Cancel")
-                    }
-                }
-            }
-        )
     }
 
     if (showRestoreDialog) {
@@ -757,16 +723,17 @@ private fun getAppVersionName(context: Context): String =
         "App versionName is missing"
     }
 
-/** A timestamped file name for a separate backup copy. */
-private fun newBackupFileName(): String {
-    val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
-    return "elite-memo-backup-$stamp.json"
-}
-
-/** Describes the backup that is really on disk, or the last failed attempt. */
-private fun backupStatusText(info: DownloadsBackup.Info?, status: AutoBackupStatus?): String {
+/**
+ * Describes the backup that is really on disk, or the last failed attempt. The
+ * number of files is reported so it is obvious when more than one exists.
+ */
+private fun backupStatusText(
+    info: DownloadsBackup.Info?,
+    status: AutoBackupStatus?,
+    fileCount: Int
+): String {
     if (status?.error != null) return "Last backup failed: ${status.error}"
     val lastModified = info?.lastModified ?: return "No backup saved yet"
     val stamp = SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault()).format(Date(lastModified))
-    return "Last backup: $stamp"
+    return if (fileCount > 1) "Last backup: $stamp \u00b7 $fileCount files" else "Last backup: $stamp"
 }

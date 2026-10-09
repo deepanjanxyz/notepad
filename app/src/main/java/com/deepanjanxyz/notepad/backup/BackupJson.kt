@@ -5,14 +5,22 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
+ * A note is worth backing up only if it actually carries something: either a
+ * title or body text. A drawing is stored inside [Note.content], so a note that
+ * holds only a drawing still counts. This keeps empty notes out of the backup.
+ */
+fun Note.isBackupWorthy(): Boolean = title.isNotBlank() || content.isNotBlank()
+
+/**
  * Serializes the given notes into a portable JSON backup document.
  *
  * Shared by the manual export and the automatic backup so both write exactly
- * the same format.
+ * the same format. Notes with no title and no body are skipped so the file is
+ * never padded with empty entries.
  */
 fun buildBackupJson(notes: List<Note>): String {
     val array = JSONArray()
-    notes.forEach { note ->
+    notes.filter { it.isBackupWorthy() }.forEach { note ->
         val obj = JSONObject()
         obj.put("title", note.title)
         obj.put("content", note.content)

@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.deepanjanxyz.notepad.NotepadApplication
 import com.deepanjanxyz.notepad.backup.DownloadsBackup
 import com.deepanjanxyz.notepad.backup.buildBackupJson
+import com.deepanjanxyz.notepad.backup.isBackupWorthy
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.domain.usecase.label.LabelUseCases
 import com.deepanjanxyz.notepad.domain.usecase.note.NoteUseCases
@@ -394,9 +395,16 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun writeBackup(name: String) {
         val context = getApplication<Application>()
+        // Never write an empty backup file. When there is nothing to store, leave
+        // whatever is already on disk untouched instead of creating an empty one.
+        val notes = currentBackupNotes().filter { it.isBackupWorthy() }
+        if (notes.isEmpty()) {
+            Log.d(TAG, "Skipped the backup: there are no notes to store")
+            return
+        }
         runCatching {
             withContext(Dispatchers.IO) {
-                DownloadsBackup.write(context, buildBackupJson(currentBackupNotes()), name)
+                DownloadsBackup.write(context, buildBackupJson(notes), name)
             }
         }.onSuccess {
             _autoBackupStatus.value = AutoBackupStatus(

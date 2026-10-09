@@ -5,21 +5,29 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.deepanjanxyz.notepad.NotepadApplication
+import com.deepanjanxyz.notepad.backup.DownloadsBackup
+import com.deepanjanxyz.notepad.backup.buildBackupJson
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.domain.usecase.label.LabelUseCases
 import com.deepanjanxyz.notepad.domain.usecase.note.NoteUseCases
 import com.deepanjanxyz.notepad.domain.usecase.note.SavedNote
 import com.deepanjanxyz.notepad.domain.usecase.settings.SettingsUseCases
 import com.deepanjanxyz.notepad.worker.NoteReminderScheduler
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.IOException
 
 sealed interface Screen {
@@ -43,6 +51,16 @@ enum class NoteSortOption(val label: String) {
 /** Result of an import: how many notes were added and how many were skipped as duplicates. */
 data class ImportOutcome(val imported: Int, val skipped: Int)
 
+/**
+ * Outcome of the most recent automatic backup. Settings shows this so it can
+ * report what actually happened instead of claiming a save that never ran.
+ */
+data class AutoBackupStatus(
+    val location: String,
+    val lastModified: Long?,
+    val error: String? = null
+)
+
 data class NotesUiState(
     val currentScreen: Screen = Screen.Home,
     val isSelectionMode: Boolean = false,
@@ -55,7 +73,8 @@ data class NotesUiState(
     val selectedColorFilter: Int? = null,
     val selectedTagFilter: String? = null,
     val showEditLabelsDialog: Boolean = false,
-    val sortOption: NoteSortOption = NoteSortOption.LAST_MODIFIED
+    val sortOption: NoteSortOption = NoteSortOption.LAST_MODIFIED,
+    val autoBackup: Boolean = false
 )
 
 class NotesViewModel(application: Application) : AndroidViewModel(application) {
@@ -89,9 +108,11 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
                         themeMode = settings.themeMode,
                         isGridLayout = settings.isGridLayout,
                         lockEnabled = settings.lockEnabled,
+                        autoBackup = settings.autoBackup,
                         isLocked = if (isFirstEmission) settings.lockEnabled else current.isLocked
                     )
                 }
+                updateAutoBackup(settings.autoBackup)
                 isFirstEmission = false
             }
         }
@@ -318,6 +339,83 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    // --- Backup ---------------------------------------------------------------
+
+    // Outcome of the most recent automatic backup, so Settings can report the
+    // real result rather than a save that never happened.
+    private val _autoBackupStatus = MutableStateFlow<AutoBackupStatus?>(null)
+    val autoBackupStatus: StateFlow<AutoBackupStatus?> = _autoBackupStatus.asStateFlow()
+
+    private var autoBackupJob: Job? = null
+
+    /**
+     * Turns automatic backup on or off. The switch is reflected only once the
+     * choice is persisted, mirroring the other settings.
+     */
+    fun setAutoBackup(enabled: Boolean) {
+        persistSetting(
+            label = "auto backup",
+            onSuccess = { _uiState.update { it.copy(autoBackup = enabled) } }
+        ) {
+            settingsUseCases.saveSettings.setAutoBackup(enabled)
+        }
+    }
+
+    /**
+     * Starts or stops the automatic backup to match the persisted setting. While
+     * it is on, the backup file in Downloads is rewritten whenever the set of
+     * notes changes, so a new note, an edit or a delete is reflected at once.
+     */
+    private fun updateAutoBackup(enabled: Boolean) {
+        if (!enabled) {
+            autoBackupJob?.cancel()
+            autoBackupJob = null
+            return
+        }
+        if (autoBackupJob?.isActive == true) return
+        autoBackupJob = viewModelScope.launch {
+            backupNotes
+                .drop(1) // ignore the initial empty value emitted before the database loads
+                .collectLatest {
+                    // Wait for a quiet moment so a burst of changes becomes one write.
+                    delay(600)
+                    writeAutoBackup()
+                }
+        }
+    }
+
+    /** Writes a backup to Downloads now, used by the manual "Back up now" action. */
+    fun backUp(name: String = DownloadsBackup.FILE_NAME) {
+        viewModelScope.launch { writeBackup(name) }
+    }
+
+    private suspend fun writeAutoBackup() = writeBackup(DownloadsBackup.FILE_NAME)
+
+    private suspend fun writeBackup(name: String) {
+        val context = getApplication<Application>()
+        runCatching {
+            withContext(Dispatchers.IO) {
+                DownloadsBackup.write(context, buildBackupJson(currentBackupNotes()), name)
+            }
+        }.onSuccess {
+            _autoBackupStatus.value = AutoBackupStatus(
+                location = DownloadsBackup.locationLabel(name),
+                lastModified = System.currentTimeMillis()
+            )
+        }.onFailure { error ->
+            Log.w(TAG, "Backup to Downloads failed", error)
+            _autoBackupStatus.value = AutoBackupStatus(
+                location = DownloadsBackup.locationLabel(name),
+                lastModified = null,
+                error = error.message
+            )
+        }
+    }
+
+    /** Every note a backup contains: active notes plus archived notes. */
+    private suspend fun currentBackupNotes(): List<Note> =
+        noteUseCases.getNotes().first() + noteUseCases.getArchiveNotes().first()
 
     fun toggleSelection(noteId: Long) {
         val current = _uiState.value.selectedNoteIds.toMutableSet()

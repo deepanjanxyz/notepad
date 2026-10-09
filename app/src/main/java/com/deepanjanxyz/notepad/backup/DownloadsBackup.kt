@@ -30,7 +30,8 @@ object DownloadsBackup {
 
     private const val MIME_TYPE = "application/json"
     private const val FOLDER_NAME = "EliteMemoPro"
-    private const val RELATIVE_DIR = "${Environment.DIRECTORY_DOWNLOADS}/$FOLDER_NAME"
+    // Built from the framework constant, so it cannot be a compile-time const.
+    private val RELATIVE_DIR = "${Environment.DIRECTORY_DOWNLOADS}/$FOLDER_NAME"
     private const val JSON_SUFFIX = ".json"
 
     /** True when writing needs the legacy WRITE_EXTERNAL_STORAGE runtime permission. */

@@ -81,6 +81,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.backup.DownloadsBackup
+import com.deepanjanxyz.notepad.backup.BackupParseResult
 import com.deepanjanxyz.notepad.backup.parseBackupJson
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
@@ -161,11 +162,11 @@ fun SettingsScreen(
     }
 
     fun restoreFromText(text: String) {
-        val parsed = parseBackupJson(text)
-        if (parsed.isEmpty()) {
-            scope.launch { snackbarHostState.showSnackbar("No notes found in that file") }
-        } else {
-            onImportNotes(parsed)
+        when (val parsed = parseBackupJson(text)) {
+            is BackupParseResult.Success -> onImportNotes(parsed.notes)
+            is BackupParseResult.Failure -> {
+                scope.launch { snackbarHostState.showSnackbar(parsed.reason) }
+            }
         }
     }
 

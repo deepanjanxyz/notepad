@@ -1,0 +1,224 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ComplexCondition:DrawingCanvas.kt:initB.width &gt; 2f &amp;&amp; initB.height &gt; 2f &amp;&amp; newB.width &gt; 2f &amp;&amp; newB.height &gt; 2f</ID>
+    <ID>ComplexCondition:DrawingScreen.kt:isLoaded &amp;&amp; (strokes.isNotEmpty() || title.isNotBlank() || noteDescription.isNotBlank())</ID>
+    <ID>ComplexCondition:NoteEditorScreen.kt:isLoaded &amp;&amp; (title.isNotBlank() || content.isNotBlank() || drawingPart.isNotBlank() || tags.isNotEmpty() || reminderTime != null)</ID>
+    <ID>ComplexCondition:NoteEditorScreen.kt:isLoaded &amp;&amp; (title.isNotBlank() || effectiveText.isNotBlank() || drawingPart.isNotBlank() || tags.isNotEmpty() || reminderTime != null)</ID>
+    <ID>CyclomaticComplexMethod:DrawingCanvas.kt:@Composable fun DrawingCanvas</ID>
+    <ID>CyclomaticComplexMethod:DrawingColorPaletteSheet.kt:@Composable fun DrawingColorPaletteSheet</ID>
+    <ID>CyclomaticComplexMethod:DrawingScreen.kt:@OptIn(ExperimentalMaterial3Api::class) @Composable fun DrawingScreen</ID>
+    <ID>CyclomaticComplexMethod:EditLabelsDialog.kt:@Composable fun EditLabelsDialog</ID>
+    <ID>CyclomaticComplexMethod:HomeScreen.kt:@OptIn(ExperimentalMaterial3Api::class) @Composable fun HomeScreen</ID>
+    <ID>CyclomaticComplexMethod:MainActivity.kt:MainActivity$override fun onCreate</ID>
+    <ID>CyclomaticComplexMethod:NoteCard.kt:@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class) @Composable fun NoteCard</ID>
+    <ID>CyclomaticComplexMethod:NoteEditorScreen.kt:@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class) @Composable fun NoteEditorScreen</ID>
+    <ID>CyclomaticComplexMethod:ReminderDialog.kt:@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class) @Composable fun ReminderDialog</ID>
+    <ID>CyclomaticComplexMethod:SettingsScreen.kt:@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingsScreen</ID>
+    <ID>CyclomaticComplexMethod:SetupRepository.kt:SetupRepository$suspend fun verify: SetupResult</ID>
+    <ID>LongMethod:AppDrawerContent.kt:@Composable fun AppDrawerContent</ID>
+    <ID>LongMethod:ArchiveScreen.kt:@OptIn(ExperimentalMaterial3Api::class) @Composable fun ArchiveScreen</ID>
+    <ID>LongMethod:CanvasBackgroundDialog.kt:@Composable fun CanvasBackgroundDialog</ID>
+    <ID>LongMethod:DrawingCanvas.kt:@Composable fun DrawingCanvas</ID>
+    <ID>LongMethod:DrawingColorPaletteSheet.kt:@Composable fun DrawingColorPaletteSheet</ID>
+    <ID>LongMethod:DrawingEraserDrawer.kt:@Composable fun EraserOptionsDrawer</ID>
+    <ID>LongMethod:DrawingScreen.kt:@OptIn(ExperimentalMaterial3Api::class) @Composable fun DrawingScreen</ID>
+    <ID>LongMethod:DrawingTopBar.kt:@Composable fun DrawingTopBar</ID>
+    <ID>LongMethod:EditLabelsDialog.kt:@Composable fun EditLabelsDialog</ID>
+    <ID>LongMethod:EditLabelsDialog.kt:@Composable private fun LabelListItem</ID>
+    <ID>LongMethod:EditorChecklistContent.kt:@Composable fun EditorChecklistContent</ID>
+    <ID>LongMethod:EditorColorPickerSheet.kt:@OptIn(ExperimentalMaterial3Api::class) @Composable fun EditorColorPickerSheet</ID>
+    <ID>LongMethod:EditorDrawingPreview.kt:@Composable fun EmbeddedDrawingCard</ID>
+    <ID>LongMethod:EditorLabelsSheet.kt:@OptIn(ExperimentalMaterial3Api::class) @Composable fun EditorLabelsSheet</ID>
+    <ID>LongMethod:EditorTopBar.kt:@Composable fun EditorTopBar</ID>
+    <ID>LongMethod:HomeScreen.kt:@OptIn(ExperimentalMaterial3Api::class) @Composable fun HomeScreen</ID>
+    <ID>LongMethod:MainActivity.kt:MainActivity$override fun onCreate</ID>
+    <ID>LongMethod:NoteCard.kt:@Composable fun buildHighlightedText: AnnotatedString</ID>
+    <ID>LongMethod:NoteCard.kt:@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class) @Composable fun NoteCard</ID>
+    <ID>LongMethod:NoteEditorScreen.kt:@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class) @Composable fun NoteEditorScreen</ID>
+    <ID>LongMethod:NoteReminderWorker.kt:NoteReminderWorker$override suspend fun doWork: Result</ID>
+    <ID>LongMethod:ReminderDialog.kt:@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class) @Composable fun ReminderDialog</ID>
+    <ID>LongMethod:SearchBar.kt:@Composable fun FloatingSearchBar</ID>
+    <ID>LongMethod:SettingsScreen.kt:@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingsScreen</ID>
+    <ID>LongMethod:TrashScreen.kt:@OptIn(ExperimentalMaterial3Api::class) @Composable fun TrashScreen</ID>
+    <ID>LoopWithTooManyJumpStatements:DownloadsBackup.kt:DownloadsBackup$while</ID>
+    <ID>LoopWithTooManyJumpStatements:DrawingCanvas.kt:while</ID>
+    <ID>MagicNumber:CanvasBackgroundDialog.kt:0xFF202124</ID>
+    <ID>MagicNumber:CanvasBackgroundDialog.kt:0xFF2196F3</ID>
+    <ID>MagicNumber:CanvasBackgroundDialog.kt:0xFF2C2C32</ID>
+    <ID>MagicNumber:CanvasBackgroundDialog.kt:0xFF666666</ID>
+    <ID>MagicNumber:CanvasBackgroundDialog.kt:0xFFB0B3BD</ID>
+    <ID>MagicNumber:CanvasBackgroundDialog.kt:0xFFCCCCCC</ID>
+    <ID>MagicNumber:ChecklistItem.kt:ChecklistItem.Companion$4</ID>
+    <ID>MagicNumber:DownloadsBackup.kt:DownloadsBackup$1000L</ID>
+    <ID>MagicNumber:DrawingBottomToolbar.kt:0xFF131314</ID>
+    <ID>MagicNumber:DrawingBottomToolbar.kt:0xFF2196F3</ID>
+    <ID>MagicNumber:DrawingBottomToolbar.kt:3f</ID>
+    <ID>MagicNumber:DrawingBottomToolbar.kt:4f</ID>
+    <ID>MagicNumber:DrawingCanvas.kt:0x222196F3</ID>
+    <ID>MagicNumber:DrawingCanvas.kt:0xFF2196F3</ID>
+    <ID>MagicNumber:DrawingCanvas.kt:1.8f</ID>
+    <ID>MagicNumber:DrawingCanvas.kt:10f</ID>
+    <ID>MagicNumber:DrawingCanvas.kt:28f</ID>
+    <ID>MagicNumber:DrawingCanvas.kt:6f</ID>
+    <ID>MagicNumber:DrawingCanvas.kt:8f</ID>
+    <ID>MagicNumber:DrawingColorPaletteSheet.kt:0xFF1E1F22</ID>
+    <ID>MagicNumber:DrawingColorPaletteSheet.kt:0xFF2196F3</ID>
+    <ID>MagicNumber:DrawingColorPaletteSheet.kt:0xFF2B2C30</ID>
+    <ID>MagicNumber:DrawingColorPaletteSheet.kt:0xFF2C2D31</ID>
+    <ID>MagicNumber:DrawingColorPaletteSheet.kt:0xFF424248</ID>
+    <ID>MagicNumber:DrawingColorPaletteSheet.kt:0xFF666666</ID>
+    <ID>MagicNumber:DrawingColorPaletteSheet.kt:0xFF9E9E9E</ID>
+    <ID>MagicNumber:DrawingColorPaletteSheet.kt:0xFFB0B0B0</ID>
+    <ID>MagicNumber:DrawingColorPaletteSheet.kt:16</ID>
+    <ID>MagicNumber:DrawingColorPaletteSheet.kt:22f</ID>
+    <ID>MagicNumber:DrawingData.kt:DrawingSerializer$0xFFFFFFFFL</ID>
+    <ID>MagicNumber:DrawingData.kt:DrawingSerializer$16</ID>
+    <ID>MagicNumber:DrawingData.kt:DrawingSerializer$3</ID>
+    <ID>MagicNumber:DrawingEraserDrawer.kt:0xFF1A1A1E</ID>
+    <ID>MagicNumber:DrawingEraserDrawer.kt:0xFF2196F3</ID>
+    <ID>MagicNumber:DrawingEraserDrawer.kt:0xFF2A2A30</ID>
+    <ID>MagicNumber:DrawingEraserDrawer.kt:0xFF2E2E36</ID>
+    <ID>MagicNumber:DrawingEraserDrawer.kt:0xFF352024</ID>
+    <ID>MagicNumber:DrawingEraserDrawer.kt:0xFF404048</ID>
+    <ID>MagicNumber:DrawingEraserDrawer.kt:0xFF64B5F6</ID>
+    <ID>MagicNumber:DrawingEraserDrawer.kt:0xFF9093A0</ID>
+    <ID>MagicNumber:DrawingEraserDrawer.kt:0xFFCCCCCC</ID>
+    <ID>MagicNumber:DrawingEraserDrawer.kt:0xFFEF5350</ID>
+    <ID>MagicNumber:DrawingEraserDrawer.kt:18f</ID>
+    <ID>MagicNumber:DrawingEraserDrawer.kt:32f</ID>
+    <ID>MagicNumber:DrawingEraserDrawer.kt:48f</ID>
+    <ID>MagicNumber:DrawingMath.kt:3</ID>
+    <ID>MagicNumber:DrawingMath.kt:4</ID>
+    <ID>MagicNumber:DrawingMath.kt:5</ID>
+    <ID>MagicNumber:DrawingMath.kt:6</ID>
+    <ID>MagicNumber:DrawingMath.kt:7</ID>
+    <ID>MagicNumber:DrawingScreen.kt:0xFF131314</ID>
+    <ID>MagicNumber:DrawingScreen.kt:180</ID>
+    <ID>MagicNumber:DrawingScreen.kt:200</ID>
+    <ID>MagicNumber:DrawingScreen.kt:220</ID>
+    <ID>MagicNumber:DrawingScreen.kt:600</ID>
+    <ID>MagicNumber:DrawingSelectionOverlay.kt:0xFF2196F3</ID>
+    <ID>MagicNumber:DrawingSelectionOverlay.kt:0xFF26272E</ID>
+    <ID>MagicNumber:DrawingSelectionOverlay.kt:0xFF3E404C</ID>
+    <ID>MagicNumber:DrawingSelectionOverlay.kt:0xFF8E9099</ID>
+    <ID>MagicNumber:DrawingSelectionOverlay.kt:0xFFEF5350</ID>
+    <ID>MagicNumber:EditLabelsDialog.kt:30</ID>
+    <ID>MagicNumber:EditorChecklistContent.kt:0xFF1B1B1F</ID>
+    <ID>MagicNumber:EditorChecklistContent.kt:0xFF2C2C30</ID>
+    <ID>MagicNumber:EditorChecklistContent.kt:0xFF6E7179</ID>
+    <ID>MagicNumber:EditorChecklistContent.kt:0xFF8E9099</ID>
+    <ID>MagicNumber:EditorChecklistContent.kt:0xFFE2E2E6</ID>
+    <ID>MagicNumber:EditorChecklistContent.kt:0xFFFFB300</ID>
+    <ID>MagicNumber:EditorColorPickerSheet.kt:0xFF1E1E22</ID>
+    <ID>MagicNumber:EditorColorPickerSheet.kt:0xFF42434D</ID>
+    <ID>MagicNumber:EditorColorPickerSheet.kt:0xFF757579</ID>
+    <ID>MagicNumber:EditorColorPickerSheet.kt:0xFFFFB300</ID>
+    <ID>MagicNumber:EditorDrawingPreview.kt:0x99000000</ID>
+    <ID>MagicNumber:EditorLabelsSheet.kt:0xFF1E1E22</ID>
+    <ID>MagicNumber:EditorLabelsSheet.kt:0xFF48484F</ID>
+    <ID>MagicNumber:EditorLabelsSheet.kt:0xFF6E7179</ID>
+    <ID>MagicNumber:EditorLabelsSheet.kt:0xFF757579</ID>
+    <ID>MagicNumber:EditorLabelsSheet.kt:0xFF8E9099</ID>
+    <ID>MagicNumber:EditorLabelsSheet.kt:0xFF9E9E9E</ID>
+    <ID>MagicNumber:EditorLabelsSheet.kt:0xFFE2E2E6</ID>
+    <ID>MagicNumber:EditorLabelsSheet.kt:0xFFEF5350</ID>
+    <ID>MagicNumber:EditorLabelsSheet.kt:0xFFFFB300</ID>
+    <ID>MagicNumber:EditorLabelsSheet.kt:30</ID>
+    <ID>MagicNumber:EditorTopBar.kt:0xFF282419</ID>
+    <ID>MagicNumber:EditorTopBar.kt:0xFFE2E2E6</ID>
+    <ID>MagicNumber:EditorTopBar.kt:0xFFFFB300</ID>
+    <ID>MagicNumber:EncryptedSetupStore.kt:EncryptedSetupStore$12</ID>
+    <ID>MagicNumber:EncryptedSetupStore.kt:EncryptedSetupStore$128</ID>
+    <ID>MagicNumber:HomeScreen.kt:0xFF1B1B1F</ID>
+    <ID>MagicNumber:HomeScreen.kt:0xFF2196F3</ID>
+    <ID>MagicNumber:HomeScreen.kt:0xFFFFB300</ID>
+    <ID>MagicNumber:MainActivity.kt:MainActivity$300L</ID>
+    <ID>MagicNumber:NoteCard.kt:1.5f</ID>
+    <ID>MagicNumber:NoteEditorScreen.kt:0xFF2C2C32</ID>
+    <ID>MagicNumber:NoteEditorScreen.kt:0xFF42434D</ID>
+    <ID>MagicNumber:NoteEditorScreen.kt:500</ID>
+    <ID>MagicNumber:NotesViewModel.kt:NotesViewModel$600</ID>
+    <ID>MagicNumber:SetupRepository.kt:SetupRepository$12</ID>
+    <ID>MagicNumber:SetupRepository.kt:SetupRepository$200</ID>
+    <ID>MagicNumber:SetupRepository.kt:SetupRepository$299</ID>
+    <ID>MaxLineLength:AppDrawerContent.kt:imageVector = if (currentScreen is Screen.Archive) Icons.Filled.Archive else Icons.Outlined.Archive</ID>
+    <ID>MaxLineLength:AppDrawerContent.kt:imageVector = if (currentScreen is Screen.Home &amp;&amp; selectedTagFilter == null) Icons.Filled.Description else Icons.Outlined.Description</ID>
+    <ID>MaxLineLength:AppDrawerContent.kt:imageVector = if (currentScreen is Screen.Settings) Icons.Filled.Settings else Icons.Outlined.Settings</ID>
+    <ID>MaxLineLength:AppDrawerContent.kt:imageVector = if (isSelected) Icons.AutoMirrored.Filled.Label else Icons.AutoMirrored.Outlined.Label</ID>
+    <ID>MaxLineLength:DrawingCanvas.kt:activeStroke = activeStroke.copy(points = activeStroke.points + DrawingPoint(pos.x, pos.y))</ID>
+    <ID>MaxLineLength:DrawingColorPaletteSheet.kt:color = if (color == 0xFFFFFFFFL) Color(0xFF666666) else if (isSelected) Color(0xFF2196F3) else Color.Transparent</ID>
+    <ID>MaxLineLength:DrawingEraserDrawer.kt:border = BorderStroke(1.dp, if (currentMode == EraserMode.SEGMENT) Color(0xFF64B5F6) else Color(0xFF404048))</ID>
+    <ID>MaxLineLength:DrawingEraserDrawer.kt:border = BorderStroke(1.dp, if (currentMode == EraserMode.STROKE) Color(0xFF64B5F6) else Color(0xFF404048))</ID>
+    <ID>MaxLineLength:DrawingEraserDrawer.kt:fontWeight = if (currentMode == EraserMode.SEGMENT) FontWeight.Bold else FontWeight.Medium</ID>
+    <ID>MaxLineLength:DrawingEraserDrawer.kt:fontWeight = if (currentMode == EraserMode.STROKE) FontWeight.Bold else FontWeight.Medium</ID>
+    <ID>MaxLineLength:DrawingMath.kt:cap = if (stroke.isHighlighter) androidx.compose.ui.graphics.StrokeCap.Square else androidx.compose.ui.graphics.StrokeCap.Round</ID>
+    <ID>MaxLineLength:DrawingScreen.kt:LaunchedEffect</ID>
+    <ID>MaxLineLength:DrawingScreen.kt:visible = showColorPalette &amp;&amp; (activeTool == DrawingTool.PEN || activeTool == DrawingTool.MARKER || activeTool == DrawingTool.HIGHLIGHTER)</ID>
+    <ID>MaxLineLength:DrawingTopBar.kt:tint = if (canRedo) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f)</ID>
+    <ID>MaxLineLength:DrawingTopBar.kt:tint = if (canUndo) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f)</ID>
+    <ID>MaxLineLength:EditLabelsDialog.kt:color = if (isDuplicate) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline</ID>
+    <ID>MaxLineLength:EditLabelsDialog.kt:color = if (isRenameDuplicate) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline</ID>
+    <ID>MaxLineLength:EditLabelsDialog.kt:tint = if (newLabelText.isNotBlank() &amp;&amp; !isDuplicate) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline</ID>
+    <ID>MaxLineLength:EditorLabelsSheet.kt:val isDuplicate = cleanInput.isNotBlank() &amp;&amp; allUniqueLabels.any { it.equals(cleanInput, ignoreCase = true) }</ID>
+    <ID>MaxLineLength:EditorTopBar.kt:imageVector = if (hasReminder) Icons.Filled.NotificationsActive else Icons.Outlined.Notifications</ID>
+    <ID>MaxLineLength:HomeScreen.kt:// Do NOT permanently display a dedicated "Pinned Section" header unless pinned notes actually exist!</ID>
+    <ID>MaxLineLength:HomeScreen.kt:color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)</ID>
+    <ID>MaxLineLength:HomeScreen.kt:contentDescription = if (anyUnpinned) "Pin selected notes" else "Unpin selected notes"</ID>
+    <ID>MaxLineLength:HomeScreen.kt:if</ID>
+    <ID>MaxLineLength:HomeScreen.kt:imageVector = if (isAllSelected) Icons.Default.Deselect else Icons.Default.SelectAll</ID>
+    <ID>MaxLineLength:HomeScreen.kt:imageVector = if (uiState.searchQuery.isNotBlank()) Icons.Default.Description else Icons.Default.Description</ID>
+    <ID>MaxLineLength:MainActivity.kt:MainActivity$onOpenDrawing = { noteId -&gt; viewModel.navigateTo(Screen.Drawing(noteId, screen.returnTo)) }</ID>
+    <ID>MaxLineLength:MainActivity.kt:MainActivity$onPermanentlyDeleteSelected = { viewModel.permanentlyDeleteSelectedTrashNotes() }</ID>
+    <ID>MaxLineLength:MainActivity.kt:MainActivity$onSaveNote</ID>
+    <ID>MaxLineLength:MainActivity.kt:MainActivity$viewModel.saveNote(id, title, content, colorIndex, tags, isPinned, inArchive).id</ID>
+    <ID>MaxLineLength:MainActivity.kt:MainActivity$viewModel.saveNote(id, title, content, colorIndex, tags, isPinned, inArchive, reminderTime).id</ID>
+    <ID>MaxLineLength:NoteCard.kt:border = BorderStroke(1.dp, if (isPast) MaterialTheme.colorScheme.outlineVariant else MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))</ID>
+    <ID>MaxLineLength:NoteCard.kt:color = if (isPast) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onPrimaryContainer</ID>
+    <ID>MaxLineLength:NoteCard.kt:color = if (isPast) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)</ID>
+    <ID>MaxLineLength:NoteCard.kt:color = if (note.title.isNotBlank()) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)</ID>
+    <ID>MaxLineLength:NoteCard.kt:containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f) else cardColor</ID>
+    <ID>MaxLineLength:NoteCard.kt:tint = if (isPast) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.primary</ID>
+    <ID>MaxLineLength:NoteCard.kt:tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline</ID>
+    <ID>MaxLineLength:NoteDao.kt:NoteDao$@Query("SELECT * FROM notes_table WHERE IN_TRASH = 0 AND IN_ARCHIVE = 0 AND (TITLE LIKE '%' || :query || '%' OR CONTENT LIKE '%' || :query || '%' OR TAGS LIKE '%' || :query || '%') ORDER BY PINNED DESC, ID DESC")</ID>
+    <ID>MaxLineLength:NoteEditorScreen.kt:border = BorderStroke(1.dp, if (isPast) MaterialTheme.colorScheme.outlineVariant else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))</ID>
+    <ID>MaxLineLength:NoteEditorScreen.kt:color = if (isPast) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onPrimaryContainer</ID>
+    <ID>MaxLineLength:NoteEditorScreen.kt:color = if (isPast) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)</ID>
+    <ID>MaxLineLength:NoteEditorScreen.kt:if</ID>
+    <ID>MaxLineLength:NoteEditorScreen.kt:tint = if (isPast) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)</ID>
+    <ID>MaxLineLength:NoteEditorScreen.kt:tint = if (isPast) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.primary</ID>
+    <ID>MaxLineLength:NoteEditorScreen.kt:val hasChecklist = lines.isNotEmpty() &amp;&amp; lines.any { it.startsWith("[ ] ") || it.startsWith("[x] ", ignoreCase = true) }</ID>
+    <ID>MaxLineLength:NoteEditorScreen.kt:val parsed: List&lt;ChecklistItem&gt; = if (content.isNotBlank()) parseChecklist(content) else emptyList()</ID>
+    <ID>MaxLineLength:NoteEditorScreen.kt:val savedId = onSaveNote(currentNoteId, title, combined, colorIndex, tags, isPinned, inArchive, reminderTime)</ID>
+    <ID>MaxLineLength:NoteEditorScreen.kt:val savedId = onSaveNote(currentNoteId, title, effectiveContent, colorIndex, tags, isPinned, inArchive, newMillis)</ID>
+    <ID>MaxLineLength:NoteLogicTest.kt:NoteLogicTest$assertEquals(serializedDrawing.trim(), com.deepanjanxyz.notepad.domain.model.DrawingSerializer.extractDrawingPart(combined))</ID>
+    <ID>MaxLineLength:NoteLogicTest.kt:NoteLogicTest$val caseWhitespaceMatch = com.deepanjanxyz.notepad.domain.util.NoteFilter.filterNotes(allNotes, " TEAM ROADMAP ")</ID>
+    <ID>MaxLineLength:NotesViewModel.kt:NotesViewModel$NoteSortOption.TITLE_DESC -&gt; compareByDescending&lt;Note&gt; { it.isPinned }.thenByDescending { it.title.lowercase() }</ID>
+    <ID>MaxLineLength:ReminderDialog.kt:color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer</ID>
+    <ID>MaxLineLength:ReminderDialog.kt:contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface</ID>
+    <ID>MaxLineLength:SearchBar.kt:contentDescription = if (isGridLayout) "Switch to Single Column List" else "Switch to Grid View"</ID>
+    <ID>MaxLineLength:SettingsScreen.kt:" and stay there even if you clear the app's data, so you can restore your notes afterwards."</ID>
+    <ID>MaxLineLength:SettingsScreen.kt:text = "Crafted with Kotlin Coroutines, Jetpack Compose Material 3, and Room local persistence."</ID>
+    <ID>ReturnCount:BackupJson.kt:fun parseBackupJson: BackupParseResult</ID>
+    <ID>ReturnCount:DownloadsBackup.kt:DownloadsBackup$fun info: Info?</ID>
+    <ID>ReturnCount:DrawingMath.kt:fun getSelectionBounds: Rect?</ID>
+    <ID>ReturnCount:DrawingMath.kt:fun isStrokeHit: Boolean</ID>
+    <ID>ReturnCount:NoteReminderWorker.kt:NoteReminderWorker$override suspend fun doWork: Result</ID>
+    <ID>ReturnCount:SettingsScreen.kt:private fun backupStatusText: String</ID>
+    <ID>SwallowedException:NoteReminderWorker.kt:NoteReminderWorker$e: SecurityException</ID>
+    <ID>TooGenericExceptionCaught:AuthRepositoryImpl.kt:AuthRepositoryImpl$error: Throwable</ID>
+    <ID>TooGenericExceptionCaught:SetupRepository.kt:SetupRepository$error: Exception</ID>
+    <ID>TooManyFunctions:DownloadsBackup.kt:DownloadsBackup</ID>
+    <ID>TooManyFunctions:NoteDao.kt:NoteDao</ID>
+    <ID>TooManyFunctions:NoteRepository.kt:NoteRepository</ID>
+    <ID>TooManyFunctions:NoteRepositoryImpl.kt:NoteRepositoryImpl : NoteRepository</ID>
+    <ID>TooManyFunctions:NotesViewModel.kt:NotesViewModel : AndroidViewModel</ID>
+    <ID>UnusedParameter:ArchiveScreen.kt:onMoveToTrash: (Long) -&gt; Unit</ID>
+    <ID>UnusedParameter:DrawingCanvas.kt:eraserMode: EraserMode</ID>
+    <ID>UnusedParameter:DrawingCanvas.kt:eraserRadiusPx: Float</ID>
+    <ID>UnusedParameter:MainActivity.kt:onBypass: () -&gt; Unit</ID>
+    <ID>UnusedParameter:NoteCard.kt:onTogglePin: () -&gt; Unit = {}</ID>
+    <ID>UnusedParameter:NoteEditorScreen.kt:onMoveToTrash: suspend (Long) -&gt; Unit</ID>
+  </CurrentIssues>
+</SmellBaseline>

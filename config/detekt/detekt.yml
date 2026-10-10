@@ -1,0 +1,20 @@
+# detekt configuration for Elite Memo Pro.
+#
+# The Gradle setup applies this on top of detekt's bundled default rule set
+# (`buildUponDefaultConfig = true` in the root build.gradle.kts), so only the
+# deliberate deviations from the defaults are recorded here. Any rule that is
+# not mentioned below keeps its default detekt configuration.
+
+naming:
+  # Jetpack Compose UI functions are PascalCase by convention
+  # (e.g. `@Composable fun HomeScreen()`), which the default `[a-z][a-zA-Z0-9]*`
+  # function pattern reports as a violation. detekt 2.x's FunctionNaming has no
+  # annotation-based exemption, so it is disabled for this Compose codebase.
+  FunctionNaming:
+    active: false
+
+  # The UI packages use underscored segments (e.g. `ui.feature_drawing` and
+  # `ui.feature_editor`), which the default package pattern rejects. Allow an
+  # underscore inside a segment while still requiring lowercase packages.
+  PackageNaming:
+    packagePattern: '[a-z]+(\.[a-z][A-Za-z0-9_]*)*'

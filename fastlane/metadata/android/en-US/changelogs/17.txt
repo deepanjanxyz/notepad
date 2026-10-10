@@ -1,0 +1,10 @@
+Polished animations and a safer Trash.
+
+- Smoother navigation: screens now slide in the direction you are moving
+- Notes animate into place in both the grid and the list layout
+- The sort control and the colour filters share one clean, rounded style
+- Changing the search, filter or sort jumps back to the top of your notes
+- Archive and Trash fade their toolbars in and out of selection mode
+- Deleting a single note from Trash now asks for confirmation first
+
+Thank you for using Elite Memo Pro!

@@ -1,6 +1,10 @@
 package com.deepanjanxyz.notepad.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -85,7 +89,14 @@ fun ArchiveScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            if (isSelectionMode) {
+            // Cross-fade between the default bar and the contextual selection bar
+            // instead of swapping them abruptly.
+            AnimatedContent(
+                targetState = isSelectionMode,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "archive_top_bar"
+            ) { selecting ->
+            if (selecting) {
                 TopAppBar(
                     title = { Text("${selectedNoteIds.size} Selected") },
                     navigationIcon = {
@@ -192,6 +203,7 @@ fun ArchiveScreen(
                     )
                 )
             }
+            }
         }
     ) { innerPadding ->
         Column(
@@ -270,7 +282,8 @@ fun ArchiveScreen(
                                 } else {
                                     selectedNoteIds + note.id
                                 }
-                            }
+                            },
+                            modifier = Modifier.animateItem()
                         )
                     }
                 }

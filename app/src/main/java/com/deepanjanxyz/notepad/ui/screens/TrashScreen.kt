@@ -1,6 +1,10 @@
 package com.deepanjanxyz.notepad.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -73,6 +77,7 @@ fun TrashScreen(
     val isSelectionMode = selectedNoteIds.isNotEmpty()
     var showEmptyTrashConfirm by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var pendingDeleteNoteId by remember { mutableStateOf<Long?>(null) }
 
     BackHandler(enabled = isSelectionMode) {
         selectedNoteIds = emptySet()
@@ -129,11 +134,45 @@ fun TrashScreen(
         )
     }
 
+    // A single note's "Delete forever" button is one tap away from irreversible
+    // data loss, so it is confirmed just like the batch delete above.
+    pendingDeleteNoteId?.let { id ->
+        AlertDialog(
+            onDismissRequest = { pendingDeleteNoteId = null },
+            title = { Text("Permanently Delete?") },
+            text = { Text("This note will be permanently deleted from your device. This action cannot be reversed.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingDeleteNoteId = null
+                        onPermanentlyDeleteNote(id)
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    modifier = Modifier.testTag("confirm_delete_note_forever_button")
+                ) {
+                    Text("Delete Permanently")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteNoteId = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            if (isSelectionMode) {
+            // Cross-fade between the default bar and the contextual selection bar
+            // instead of swapping them abruptly.
+            AnimatedContent(
+                targetState = isSelectionMode,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "trash_top_bar"
+            ) { selecting ->
+            if (selecting) {
                 TopAppBar(
                     title = {
                         Text("${selectedNoteIds.size} Selected")
@@ -237,6 +276,7 @@ fun TrashScreen(
                         containerColor = MaterialTheme.colorScheme.background
                     )
                 )
+            }
             }
         }
     ) { innerPadding ->
@@ -349,8 +389,9 @@ fun TrashScreen(
                                 onRestoreNote(note.id)
                             },
                             onDeleteForever = {
-                                onPermanentlyDeleteNote(note.id)
-                            }
+                                pendingDeleteNoteId = note.id
+                            },
+                            modifier = Modifier.animateItem()
                         )
                     }
                 }

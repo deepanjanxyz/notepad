@@ -33,6 +33,7 @@ import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -71,6 +72,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -437,26 +439,27 @@ fun HomeScreen(
                             .padding(horizontal = 20.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // The selected chip (or colour dot) already shows which filter
+                        // is active, so only the search term is spelled out here.
                         val filterText = when {
                             uiState.searchQuery.isNotBlank() && uiState.selectedTagFilter != null ->
                                 "Searching \"${uiState.searchQuery}\" in ${uiState.selectedTagFilter}"
                             uiState.searchQuery.isNotBlank() ->
                                 "Results for \"${uiState.searchQuery}\""
-                            uiState.selectedTagFilter != null ->
-                                "Filtered by ${uiState.selectedTagFilter}"
-                            else ->
-                                "Filtered by Color Tint"
+                            else -> null
                         }
-                        Text(
-                            text = filterText,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        if (filterText != null) {
+                            Text(
+                                text = filterText,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
                         Text(
                             text = "(${notes.size} found)",
                             style = MaterialTheme.typography.labelSmall,
@@ -560,8 +563,21 @@ fun HomeScreen(
 
                 // Grid mode: 2-column grid; List mode: 1-column flat full-width list
                 val gridColumns = if (uiState.isGridLayout) StaggeredGridCells.Fixed(2) else StaggeredGridCells.Fixed(1)
+                val gridState = rememberLazyStaggeredGridState()
+
+                // Changing the search, filter or sort should show the results from
+                // the top instead of keeping the previous scroll position.
+                LaunchedEffect(
+                    uiState.searchQuery,
+                    uiState.selectedTagFilter,
+                    uiState.selectedColorFilter,
+                    uiState.sortOption
+                ) {
+                    gridState.scrollToItem(0)
+                }
 
                 LazyVerticalStaggeredGrid(
+                    state = gridState,
                     columns = gridColumns,
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),

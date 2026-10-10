@@ -86,7 +86,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.domain.model.Note
@@ -312,15 +311,24 @@ fun HomeScreen(
                         var sortMenuExpanded by remember { mutableStateOf(false) }
                         Box {
                             ActionTooltip("Sort notes") {
-                                IconButton(
+                                // Same height and container treatment as the chips
+                                // and colour dots, so the row reads as one system.
+                                Surface(
                                     onClick = { sortMenuExpanded = true },
-                                    modifier = Modifier.testTag("sort_button")
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .testTag("sort_button")
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.Sort,
-                                        contentDescription = "Sort notes",
-                                        tint = MaterialTheme.colorScheme.onSurface
-                                    )
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.Sort,
+                                            contentDescription = "Sort notes",
+                                            tint = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
                                 }
                             }
                             DropdownMenu(
@@ -404,12 +412,12 @@ fun HomeScreen(
                             val isSelected = uiState.selectedColorFilter == index
                             Box(
                                 modifier = Modifier
-                                    .size(30.dp)
+                                    .size(32.dp)
                                     .clip(CircleShape)
                                     .background(color)
                                     .border(
-                                        width = if (isSelected) 3.dp else 1.5.dp,
-                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                                        width = if (isSelected) 2.dp else 0.dp,
+                                        color = MaterialTheme.colorScheme.primary,
                                         shape = CircleShape
                                     )
                                     .clickable {
@@ -428,57 +436,6 @@ fun HomeScreen(
                                 }
                             }
                         }
-                    }
-                }
-
-                // Active filter and search subheader
-                if (uiState.searchQuery.isNotBlank() || uiState.selectedTagFilter != null || uiState.selectedColorFilter != null) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // The selected chip (or colour dot) already shows which filter
-                        // is active, so only the search term is spelled out here.
-                        val filterText = when {
-                            uiState.searchQuery.isNotBlank() && uiState.selectedTagFilter != null ->
-                                "Searching \"${uiState.searchQuery}\" in ${uiState.selectedTagFilter}"
-                            uiState.searchQuery.isNotBlank() ->
-                                "Results for \"${uiState.searchQuery}\""
-                            else -> null
-                        }
-                        if (filterText != null) {
-                            Text(
-                                text = filterText,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                        }
-                        Text(
-                            text = "(${notes.size} found)",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                        Text(
-                            text = "Clear",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier
-                                .clickable {
-                                    onSearchQueryChange("")
-                                    onTagFilterChange(null)
-                                    onColorFilterChange(null)
-                                }
-                                .testTag("clear_filter_button")
-                        )
                     }
                 }
             }

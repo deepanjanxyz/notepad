@@ -1,7 +1,6 @@
 package com.deepanjanxyz.notepad.ui.screens
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -9,7 +8,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -519,95 +517,56 @@ fun HomeScreen(
                     }
                 }
             } else {
-                // Cross-fade between the grid and the single-column list so the
-                // layout switch animates in both directions.
-                AnimatedContent(
-                    targetState = uiState.isGridLayout,
-                    transitionSpec = { fadeIn() togetherWith fadeOut() },
-                    label = "notes_layout"
-                ) { isGrid ->
-                    val pinnedNotes = notes.filter { it.isPinned }
-                    val otherNotes = notes.filter { !it.isPinned }
+                val pinnedNotes = notes.filter { it.isPinned }
+                val otherNotes = notes.filter { !it.isPinned }
 
-                    // Grid mode: 2-column grid; List mode: 1-column flat full-width list
-                    val gridColumns = if (isGrid) StaggeredGridCells.Fixed(2) else StaggeredGridCells.Fixed(1)
-                    val gridState = rememberLazyStaggeredGridState()
+                // Grid mode: 2-column grid; List mode: 1-column flat full-width list
+                val gridColumns = if (uiState.isGridLayout) StaggeredGridCells.Fixed(2) else StaggeredGridCells.Fixed(1)
+                val gridState = rememberLazyStaggeredGridState()
 
-                    // Changing the search, filter or sort should show the results from
-                    // the top instead of keeping the previous scroll position.
-                    LaunchedEffect(
-                        uiState.searchQuery,
-                        uiState.selectedTagFilter,
-                        uiState.selectedColorFilter,
-                        uiState.sortOption
-                    ) {
-                        gridState.scrollToItem(0)
-                    }
+                // Changing the search, filter or sort should show the results from
+                // the top instead of keeping the previous scroll position.
+                LaunchedEffect(
+                    uiState.searchQuery,
+                    uiState.selectedTagFilter,
+                    uiState.selectedColorFilter,
+                    uiState.sortOption
+                ) {
+                    gridState.scrollToItem(0)
+                }
 
-                    LazyVerticalStaggeredGrid(
-                        state = gridState,
-                        columns = gridColumns,
-                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalItemSpacing = 12.dp,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        // Do NOT permanently display a dedicated "Pinned Section" header unless pinned notes actually exist!
-                        if (pinnedNotes.isNotEmpty()) {
-                            item(span = StaggeredGridItemSpan.FullLine) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.PushPin,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.size(6.dp))
-                                    Text(
-                                        text = "PINNED",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
-
-                            items(pinnedNotes, key = { it.id }) { note ->
-                                NoteCard(
-                                    note = note,
-                                    isSelected = uiState.selectedNoteIds.contains(note.id),
-                                    isSelectionMode = uiState.isSelectionMode,
-                                    searchQuery = uiState.searchQuery,
-                                    onClick = {
-                                        if (uiState.isSelectionMode) {
-                                            onNoteLongClick(note)
-                                        } else {
-                                            onNoteClick(note)
-                                        }
-                                    },
-                                    onLongClick = { onNoteLongClick(note) },
-                                    onTogglePin = { onTogglePin(note) },
-                                    modifier = Modifier.animateItem()
+                LazyVerticalStaggeredGrid(
+                    state = gridState,
+                    columns = gridColumns,
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalItemSpacing = 12.dp,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    // Do NOT permanently display a dedicated "Pinned Section" header unless pinned notes actually exist!
+                    if (pinnedNotes.isNotEmpty()) {
+                        item(key = "pinned_header", span = StaggeredGridItemSpan.FullLine) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.PushPin,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
                                 )
-                            }
-
-                            if (otherNotes.isNotEmpty()) {
-                                item(span = StaggeredGridItemSpan.FullLine) {
-                                    Text(
-                                        text = "OTHERS",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.outline,
-                                        modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
-                                    )
-                                }
+                                Spacer(modifier = Modifier.size(6.dp))
+                                Text(
+                                    text = "PINNED",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                             }
                         }
 
-                        items(otherNotes, key = { it.id }) { note ->
+                        items(pinnedNotes, key = { it.id }) { note ->
                             NoteCard(
                                 note = note,
                                 isSelected = uiState.selectedNoteIds.contains(note.id),
@@ -625,6 +584,37 @@ fun HomeScreen(
                                 modifier = Modifier.animateItem()
                             )
                         }
+
+                        if (otherNotes.isNotEmpty()) {
+                            item(key = "others_header", span = StaggeredGridItemSpan.FullLine) {
+                                Text(
+                                    text = "OTHERS",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.outline,
+                                    modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    items(otherNotes, key = { it.id }) { note ->
+                        NoteCard(
+                            note = note,
+                            isSelected = uiState.selectedNoteIds.contains(note.id),
+                            isSelectionMode = uiState.isSelectionMode,
+                            searchQuery = uiState.searchQuery,
+                            onClick = {
+                                if (uiState.isSelectionMode) {
+                                    onNoteLongClick(note)
+                                } else {
+                                    onNoteClick(note)
+                                }
+                            },
+                            onLongClick = { onNoteLongClick(note) },
+                            onTogglePin = { onTogglePin(note) },
+                            modifier = Modifier.animateItem()
+                        )
                     }
                 }
             }

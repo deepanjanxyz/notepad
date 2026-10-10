@@ -14,8 +14,13 @@ import androidx.activity.viewModels
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -48,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -186,7 +192,7 @@ class MainActivity : FragmentActivity() {
                             ) { innerPadding ->
                                 AnimatedContent(
                                     targetState = uiState.currentScreen,
-                                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                                    transitionSpec = screenTransitionSpec(),
                                     label = "screen_transition",
                                     modifier = Modifier.padding(innerPadding)
                                 ) { screen ->
@@ -452,5 +458,48 @@ fun LockScreen(
                 Text("Unlock with Biometrics")
             }
         }
+    }
+}
+
+/**
+ * A rough "depth" for each destination, used to decide the direction of the
+ * screen transition: higher numbers are pushed on top of lower ones, so moving
+ * to a higher depth slides forward and moving to a lower depth slides back.
+ */
+private fun screenDepth(screen: Screen): Int = when (screen) {
+    is Screen.Editor -> 1
+    is Screen.Drawing -> 2
+    else -> 0
+}
+
+private const val SCREEN_SLIDE_DURATION_MS = 300
+private const val SCREEN_FADE_IN_DURATION_MS = 220
+private const val SCREEN_FADE_OUT_DURATION_MS = 180
+private const val SCREEN_SLIDE_DIVISOR = 4
+
+/**
+ * Directional transition between destinations: detail screens slide in from the
+ * right and back out on the way home, so the back gesture reads as a genuine
+ * "back". Same-depth destinations (drawer entries) simply cross-fade.
+ */
+private fun screenTransitionSpec(): AnimatedContentTransitionScope<Screen>.() -> ContentTransform = {
+    val forward = screenDepth(targetState) > screenDepth(initialState)
+    val backward = screenDepth(targetState) < screenDepth(initialState)
+    val slideSpec = tween<IntOffset>(SCREEN_SLIDE_DURATION_MS)
+    val fadeSpec = tween<Float>(SCREEN_SLIDE_DURATION_MS)
+    when {
+        forward -> {
+            val enter = slideInHorizontally(animationSpec = slideSpec) { it } + fadeIn(fadeSpec)
+            val exit = slideOutHorizontally(animationSpec = slideSpec) { -it / SCREEN_SLIDE_DIVISOR } +
+                fadeOut(fadeSpec)
+            enter togetherWith exit
+        }
+        backward -> {
+            val enter = slideInHorizontally(animationSpec = slideSpec) { -it / SCREEN_SLIDE_DIVISOR } +
+                fadeIn(fadeSpec)
+            val exit = slideOutHorizontally(animationSpec = slideSpec) { it } + fadeOut(fadeSpec)
+            enter togetherWith exit
+        }
+        else -> fadeIn(tween(SCREEN_FADE_IN_DURATION_MS)) togetherWith fadeOut(tween(SCREEN_FADE_OUT_DURATION_MS))
     }
 }

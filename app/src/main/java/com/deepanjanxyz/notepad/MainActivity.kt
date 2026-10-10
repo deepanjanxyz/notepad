@@ -462,44 +462,49 @@ fun LockScreen(
 }
 
 /**
- * A rough "depth" for each destination, used to decide the direction of the
- * screen transition: higher numbers are pushed on top of lower ones, so moving
- * to a higher depth slides forward and moving to a lower depth slides back.
+ * Ordering of the destinations, used to decide the direction of the screen
+ * transition: moving to a higher rank slides forward (the new screen enters
+ * from the right) and moving to a lower rank slides back. Drawer destinations
+ * sit on their drawer order; detail screens sit above them.
  */
-private fun screenDepth(screen: Screen): Int = when (screen) {
-    is Screen.Editor -> 1
-    is Screen.Drawing -> 2
-    else -> 0
-}
+private enum class DestinationRank { HOME, ARCHIVE, TRASH, SETTINGS, EDITOR, DRAWING }
+
+private fun screenRank(screen: Screen): Int = when (screen) {
+    is Screen.Home -> DestinationRank.HOME
+    is Screen.Archive -> DestinationRank.ARCHIVE
+    is Screen.Trash -> DestinationRank.TRASH
+    is Screen.Settings -> DestinationRank.SETTINGS
+    is Screen.Editor -> DestinationRank.EDITOR
+    is Screen.Drawing -> DestinationRank.DRAWING
+}.ordinal
 
 private const val SCREEN_SLIDE_DURATION_MS = 300
-private const val SCREEN_FADE_IN_DURATION_MS = 220
-private const val SCREEN_FADE_OUT_DURATION_MS = 180
-private const val SCREEN_SLIDE_DIVISOR = 4
+private const val SCREEN_SLIDE_DIVISOR = 1
+private const val SCREEN_TOP_LEVEL_SLIDE_DIVISOR = 3
 
 /**
- * Directional transition between destinations: detail screens slide in from the
- * right and back out on the way home, so the back gesture reads as a genuine
- * "back". Same-depth destinations (drawer entries) simply cross-fade.
+ * Directional transition between destinations: every navigation slides and
+ * fades, so moving around the app (including into Settings) always animates.
+ * Drawer destinations use a subtle shared-axis slide; detail screens push in
+ * with a full-width slide and slide back out on the way home.
  */
 private fun screenTransitionSpec(): AnimatedContentTransitionScope<Screen>.() -> ContentTransform = {
-    val forward = screenDepth(targetState) > screenDepth(initialState)
-    val backward = screenDepth(targetState) < screenDepth(initialState)
+    val from = screenRank(initialState)
+    val to = screenRank(targetState)
+    val lastTopLevel = DestinationRank.SETTINGS.ordinal
+    val bothTopLevel = from <= lastTopLevel && to <= lastTopLevel
+    val divisor = if (bothTopLevel) SCREEN_TOP_LEVEL_SLIDE_DIVISOR else SCREEN_SLIDE_DIVISOR
     val slideSpec = tween<IntOffset>(SCREEN_SLIDE_DURATION_MS)
     val fadeSpec = tween<Float>(SCREEN_SLIDE_DURATION_MS)
-    when {
-        forward -> {
-            val enter = slideInHorizontally(animationSpec = slideSpec) { it } + fadeIn(fadeSpec)
-            val exit = slideOutHorizontally(animationSpec = slideSpec) { -it / SCREEN_SLIDE_DIVISOR } +
-                fadeOut(fadeSpec)
-            enter togetherWith exit
-        }
-        backward -> {
-            val enter = slideInHorizontally(animationSpec = slideSpec) { -it / SCREEN_SLIDE_DIVISOR } +
-                fadeIn(fadeSpec)
-            val exit = slideOutHorizontally(animationSpec = slideSpec) { it } + fadeOut(fadeSpec)
-            enter togetherWith exit
-        }
-        else -> fadeIn(tween(SCREEN_FADE_IN_DURATION_MS)) togetherWith fadeOut(tween(SCREEN_FADE_OUT_DURATION_MS))
+    if (to > from) {
+        val enter = slideInHorizontally(animationSpec = slideSpec) { it / divisor } + fadeIn(fadeSpec)
+        val exit = slideOutHorizontally(animationSpec = slideSpec) { -it / (divisor * 2) } +
+            fadeOut(fadeSpec)
+        enter togetherWith exit
+    } else {
+        val enter = slideInHorizontally(animationSpec = slideSpec) { -it / divisor } + fadeIn(fadeSpec)
+        val exit = slideOutHorizontally(animationSpec = slideSpec) { it / (divisor * 2) } +
+            fadeOut(fadeSpec)
+        enter togetherWith exit
     }
 }

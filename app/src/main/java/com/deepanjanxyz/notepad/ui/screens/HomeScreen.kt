@@ -2,8 +2,12 @@ package com.deepanjanxyz.notepad.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,6 +33,7 @@ import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -67,6 +72,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -80,7 +86,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.domain.model.Note
@@ -130,7 +135,12 @@ fun HomeScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            if (uiState.isSelectionMode) {
+            AnimatedVisibility(
+                visible = uiState.isSelectionMode,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically(),
+                label = "home_selection_bar"
+            ) {
                 val selectedNotes = notes.filter { uiState.selectedNoteIds.contains(it.id) }
                 val anyUnpinned = selectedNotes.any { !it.isPinned }
                 val isAllSelected = notes.isNotEmpty() && uiState.selectedNoteIds.size == notes.size
@@ -236,8 +246,8 @@ fun HomeScreen(
         floatingActionButton = {
             AnimatedVisibility(
                 visible = !uiState.isSelectionMode,
-                enter = fadeIn(),
-                exit = fadeOut()
+                enter = scaleIn() + fadeIn(),
+                exit = scaleOut() + fadeOut()
             ) {
                 FloatingActionButton(
                     onClick = { showCreateOptionsSheet = true },
@@ -260,7 +270,11 @@ fun HomeScreen(
                 .padding(paddingValues)
         ) {
             // 1. Top Floating Search Bar (hidden in selection mode)
-            if (!uiState.isSelectionMode) {
+            AnimatedVisibility(
+                visible = !uiState.isSelectionMode,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -279,7 +293,11 @@ fun HomeScreen(
             }
 
             // 2. Tags Carousel & Color Palette
-            if (!uiState.isSelectionMode) {
+            AnimatedVisibility(
+                visible = !uiState.isSelectionMode,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -293,20 +311,31 @@ fun HomeScreen(
                         var sortMenuExpanded by remember { mutableStateOf(false) }
                         Box {
                             ActionTooltip("Sort notes") {
-                                IconButton(
+                                // Same height and container treatment as the chips
+                                // and colour dots, so the row reads as one system.
+                                Surface(
                                     onClick = { sortMenuExpanded = true },
-                                    modifier = Modifier.testTag("sort_button")
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .testTag("sort_button")
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.Sort,
-                                        contentDescription = "Sort notes",
-                                        tint = MaterialTheme.colorScheme.onSurface
-                                    )
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.Sort,
+                                            contentDescription = "Sort notes",
+                                            tint = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
                                 }
                             }
                             DropdownMenu(
                                 expanded = sortMenuExpanded,
-                                onDismissRequest = { sortMenuExpanded = false }
+                                onDismissRequest = { sortMenuExpanded = false },
+                                // A softer, rounded menu instead of the default near-square one.
+                                shape = RoundedCornerShape(16.dp)
                             ) {
                                 NoteSortOption.entries.forEach { option ->
                                     DropdownMenuItem(
@@ -385,12 +414,12 @@ fun HomeScreen(
                             val isSelected = uiState.selectedColorFilter == index
                             Box(
                                 modifier = Modifier
-                                    .size(30.dp)
+                                    .size(32.dp)
                                     .clip(CircleShape)
                                     .background(color)
                                     .border(
-                                        width = if (isSelected) 3.dp else 1.5.dp,
-                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                                        width = if (isSelected) 2.dp else 0.dp,
+                                        color = MaterialTheme.colorScheme.primary,
                                         shape = CircleShape
                                     )
                                     .clickable {
@@ -409,56 +438,6 @@ fun HomeScreen(
                                 }
                             }
                         }
-                    }
-                }
-
-                // Active filter and search subheader
-                if (uiState.searchQuery.isNotBlank() || uiState.selectedTagFilter != null || uiState.selectedColorFilter != null) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val filterText = when {
-                            uiState.searchQuery.isNotBlank() && uiState.selectedTagFilter != null ->
-                                "Searching \"${uiState.searchQuery}\" in ${uiState.selectedTagFilter}"
-                            uiState.searchQuery.isNotBlank() ->
-                                "Results for \"${uiState.searchQuery}\""
-                            uiState.selectedTagFilter != null ->
-                                "Filtered by ${uiState.selectedTagFilter}"
-                            else ->
-                                "Filtered by Color Tint"
-                        }
-                        Text(
-                            text = filterText,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "(${notes.size} found)",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                        Text(
-                            text = "Clear",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier
-                                .clickable {
-                                    onSearchQueryChange("")
-                                    onTagFilterChange(null)
-                                    onColorFilterChange(null)
-                                }
-                                .testTag("clear_filter_button")
-                        )
                     }
                 }
             }
@@ -543,8 +522,21 @@ fun HomeScreen(
 
                 // Grid mode: 2-column grid; List mode: 1-column flat full-width list
                 val gridColumns = if (uiState.isGridLayout) StaggeredGridCells.Fixed(2) else StaggeredGridCells.Fixed(1)
+                val gridState = rememberLazyStaggeredGridState()
+
+                // Changing the search, filter or sort should show the results from
+                // the top instead of keeping the previous scroll position.
+                LaunchedEffect(
+                    uiState.searchQuery,
+                    uiState.selectedTagFilter,
+                    uiState.selectedColorFilter,
+                    uiState.sortOption
+                ) {
+                    gridState.scrollToItem(0)
+                }
 
                 LazyVerticalStaggeredGrid(
+                    state = gridState,
                     columns = gridColumns,
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -553,7 +545,7 @@ fun HomeScreen(
                 ) {
                     // Do NOT permanently display a dedicated "Pinned Section" header unless pinned notes actually exist!
                     if (pinnedNotes.isNotEmpty()) {
-                        item(span = StaggeredGridItemSpan.FullLine) {
+                        item(key = "pinned_header", span = StaggeredGridItemSpan.FullLine) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
@@ -588,12 +580,13 @@ fun HomeScreen(
                                     }
                                 },
                                 onLongClick = { onNoteLongClick(note) },
-                                onTogglePin = { onTogglePin(note) }
+                                onTogglePin = { onTogglePin(note) },
+                                modifier = Modifier.animateItem()
                             )
                         }
 
                         if (otherNotes.isNotEmpty()) {
-                            item(span = StaggeredGridItemSpan.FullLine) {
+                            item(key = "others_header", span = StaggeredGridItemSpan.FullLine) {
                                 Text(
                                     text = "OTHERS",
                                     style = MaterialTheme.typography.labelSmall,
@@ -619,7 +612,8 @@ fun HomeScreen(
                                 }
                             },
                             onLongClick = { onNoteLongClick(note) },
-                            onTogglePin = { onTogglePin(note) }
+                            onTogglePin = { onTogglePin(note) },
+                            modifier = Modifier.animateItem()
                         )
                     }
                 }

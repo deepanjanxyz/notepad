@@ -2,8 +2,12 @@ package com.deepanjanxyz.notepad.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -130,7 +134,12 @@ fun HomeScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            if (uiState.isSelectionMode) {
+            AnimatedVisibility(
+                visible = uiState.isSelectionMode,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically(),
+                label = "home_selection_bar"
+            ) {
                 val selectedNotes = notes.filter { uiState.selectedNoteIds.contains(it.id) }
                 val anyUnpinned = selectedNotes.any { !it.isPinned }
                 val isAllSelected = notes.isNotEmpty() && uiState.selectedNoteIds.size == notes.size
@@ -236,8 +245,8 @@ fun HomeScreen(
         floatingActionButton = {
             AnimatedVisibility(
                 visible = !uiState.isSelectionMode,
-                enter = fadeIn(),
-                exit = fadeOut()
+                enter = scaleIn() + fadeIn(),
+                exit = scaleOut() + fadeOut()
             ) {
                 FloatingActionButton(
                     onClick = { showCreateOptionsSheet = true },
@@ -260,7 +269,11 @@ fun HomeScreen(
                 .padding(paddingValues)
         ) {
             // 1. Top Floating Search Bar (hidden in selection mode)
-            if (!uiState.isSelectionMode) {
+            AnimatedVisibility(
+                visible = !uiState.isSelectionMode,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -279,7 +292,11 @@ fun HomeScreen(
             }
 
             // 2. Tags Carousel & Color Palette
-            if (!uiState.isSelectionMode) {
+            AnimatedVisibility(
+                visible = !uiState.isSelectionMode,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -588,7 +605,8 @@ fun HomeScreen(
                                     }
                                 },
                                 onLongClick = { onNoteLongClick(note) },
-                                onTogglePin = { onTogglePin(note) }
+                                onTogglePin = { onTogglePin(note) },
+                                modifier = Modifier.animateItem()
                             )
                         }
 
@@ -619,7 +637,8 @@ fun HomeScreen(
                                 }
                             },
                             onLongClick = { onNoteLongClick(note) },
-                            onTogglePin = { onTogglePin(note) }
+                            onTogglePin = { onTogglePin(note) },
+                            modifier = Modifier.animateItem()
                         )
                     }
                 }

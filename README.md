@@ -4,11 +4,38 @@
 
 *A local-first Android notes app — text, checklists, and freehand drawing — built with Kotlin and Jetpack Compose.*
 
+<p align="center">
+  <a href="https://apt.izzysoft.de/fdroid/index/apk/com.deepanjanxyz.notepad">
+    <img src=".github/assets/izzyondroid.png" alt="Get it on IzzyOnDroid" height="56">
+  </a>
+  <a href="https://github.com/deepanjanxyz/notepad/releases/latest">
+    <img src="https://img.shields.io/github/v/release/deepanjanxyz/notepad?style=for-the-badge&label=latest%20release&logo=github&color=3DDC84" alt="Latest release" height="56">
+  </a>
+</p>
+
 ## Overview
 
 Elite Memo Pro brings text notes and freehand drawings together in one app. Write notes with titles and checklists, sketch on a canvas with pen, marker, highlighter, selection, and eraser tools, and keep everything organised with labels, colours, pins, search, reminders, and a built-in archive and trash.
 
 The app is **local-first**: notes, labels, and settings live in an on-device Room database and DataStore. No account and no server are required to use it.
+
+## Download
+
+Elite Memo Pro is a local-first app — no account and no server, just the APK. Install it from either source:
+
+<p align="center">
+  <a href="https://apt.izzysoft.de/fdroid/index/apk/com.deepanjanxyz.notepad">
+    <img src=".github/assets/izzyondroid.png" alt="Get it on IzzyOnDroid" height="56">
+  </a>
+  <a href="https://github.com/deepanjanxyz/notepad/releases/latest">
+    <img src="https://img.shields.io/github/v/release/deepanjanxyz/notepad?style=for-the-badge&label=latest%20release&logo=github&color=3DDC84" alt="Latest release" height="56">
+  </a>
+</p>
+
+- **IzzyOnDroid (recommended)** — [get it on IzzyOnDroid](https://apt.izzysoft.de/fdroid/index/apk/com.deepanjanxyz.notepad). Add the repository to an F-Droid client (Neo Store, Droid-ify, or the IzzyOnDroid client) and the app stays up to date automatically.
+- **GitHub Releases** — download the signed APK (per-ABI or universal) with its SHA-256 checksums from the [latest release](https://github.com/deepanjanxyz/notepad/releases/latest).
+
+The app never requests the `INTERNET` permission, so it cannot send your notes anywhere.
 
 ## Features
 
@@ -90,6 +117,22 @@ The app is **local-first**: notes, labels, and settings live in an on-device Roo
 Elite Memo Pro is a standard Gradle project built with Kotlin and the Android Gradle Plugin against **JDK 17**. Debug builds need no secrets. Release builds are signed from a keystore at `app/keystore.jks` together with the `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD` values, supplied through `app/.env`, `local.properties`, or matching environment variables. A release build without them fails fast rather than producing an unsigned artifact, and none of these files are committed.
 
 Versions follow **Semantic Versioning** (`X.Y.Z`) with a `versionCode` that increments by one per release. `dev` is the integration branch and `main` is the release branch. Pull requests into `main` that change application code receive an automatic patch bump, and merging to `main` publishes a tagged GitHub release (`v<versionName>`) with a signed APK and SHA-256 checksums. Continuous integration runs the unit tests and a debug build on every push and pull request, and a per-pull-request check adds lint, static analysis, and a secret scan, reported back as a single status table.
+
+## Releases
+
+Every release is tagged `v<versionName>` and published as a GitHub release with a signed APK and SHA-256 checksums. The same builds are mirrored to the IzzyOnDroid F-Droid repository.
+
+<p align="center">
+  <a href="https://github.com/deepanjanxyz/notepad/releases">
+    <img src="https://img.shields.io/github/v/release/deepanjanxyz/notepad?style=for-the-badge&label=latest%20release&logo=github&color=3DDC84" alt="Latest release" height="56">
+  </a>
+  <a href="https://apt.izzysoft.de/fdroid/index/apk/com.deepanjanxyz.notepad">
+    <img src=".github/assets/izzyondroid.png" alt="Get it on IzzyOnDroid" height="56">
+  </a>
+</p>
+
+- GitHub: [github.com/deepanjanxyz/notepad/releases](https://github.com/deepanjanxyz/notepad/releases)
+- IzzyOnDroid: [apt.izzysoft.de/fdroid/index/apk/com.deepanjanxyz.notepad](https://apt.izzysoft.de/fdroid/index/apk/com.deepanjanxyz.notepad)
 
 ## Contributing
 

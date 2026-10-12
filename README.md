@@ -6,10 +6,11 @@
 
 <p align="center">
   <a href="https://apt.izzysoft.de/fdroid/index/apk/com.deepanjanxyz.notepad">
-    <img src=".github/assets/izzyondroid.png" alt="Get it on IzzyOnDroid" height="56">
+    <img src=".github/assets/izzyondroid.png" alt="Get it on IzzyOnDroid" height="52">
   </a>
+  &nbsp;&nbsp;
   <a href="https://github.com/deepanjanxyz/notepad/releases/latest">
-    <img src="https://img.shields.io/github/v/release/deepanjanxyz/notepad?style=for-the-badge&label=latest%20release&logo=github&color=3DDC84" alt="Latest release" height="56">
+    <img src=".github/assets/github-releases.png" alt="Get it on GitHub" height="52">
   </a>
 </p>
 
@@ -25,10 +26,11 @@ Elite Memo Pro is a local-first app — no account and no server, just the APK. 
 
 <p align="center">
   <a href="https://apt.izzysoft.de/fdroid/index/apk/com.deepanjanxyz.notepad">
-    <img src=".github/assets/izzyondroid.png" alt="Get it on IzzyOnDroid" height="56">
+    <img src=".github/assets/izzyondroid.png" alt="Get it on IzzyOnDroid" height="52">
   </a>
+  &nbsp;&nbsp;
   <a href="https://github.com/deepanjanxyz/notepad/releases/latest">
-    <img src="https://img.shields.io/github/v/release/deepanjanxyz/notepad?style=for-the-badge&label=latest%20release&logo=github&color=3DDC84" alt="Latest release" height="56">
+    <img src=".github/assets/github-releases.png" alt="Get it on GitHub" height="52">
   </a>
 </p>
 
@@ -123,11 +125,12 @@ Versions follow **Semantic Versioning** (`X.Y.Z`) with a `versionCode` that incr
 Every release is tagged `v<versionName>` and published as a GitHub release with a signed APK and SHA-256 checksums. The same builds are mirrored to the IzzyOnDroid F-Droid repository.
 
 <p align="center">
-  <a href="https://github.com/deepanjanxyz/notepad/releases">
-    <img src="https://img.shields.io/github/v/release/deepanjanxyz/notepad?style=for-the-badge&label=latest%20release&logo=github&color=3DDC84" alt="Latest release" height="56">
-  </a>
   <a href="https://apt.izzysoft.de/fdroid/index/apk/com.deepanjanxyz.notepad">
-    <img src=".github/assets/izzyondroid.png" alt="Get it on IzzyOnDroid" height="56">
+    <img src=".github/assets/izzyondroid.png" alt="Get it on IzzyOnDroid" height="52">
+  </a>
+  &nbsp;&nbsp;
+  <a href="https://github.com/deepanjanxyz/notepad/releases/latest">
+    <img src=".github/assets/github-releases.png" alt="Get it on GitHub" height="52">
   </a>
 </p>
 

@@ -1,28 +1,22 @@
 name: Custom issue
-description: Ask a question or report something that is not a bug or a feature request.
-title: ""
+description: Open a free-form issue when it is not a bug or a feature request.
 labels: ["question"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Anything that does not fit the other templates. Only the description below is required.
   - type: textarea
     id: description
     attributes:
       label: Description
-      description: Describe your question, problem, or suggestion clearly.
+      description: Describe your question, problem or suggestion.
     validations:
       required: true
-
-  - type: textarea
-    id: context
-    attributes:
-      label: Context
-      description: Provide any relevant background or information.
-    validations:
-      required: false
-
   - type: textarea
     id: additional
     attributes:
-      label: Additional information
-      description: Add screenshots, logs, links, or other details that may help us understand the issue.
+      label: Anything else
+      description: Optional. Background, screenshots, logs or links.
     validations:
       required: false

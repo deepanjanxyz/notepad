@@ -3,42 +3,35 @@ description: Suggest a feature or an improvement.
 title: "[Feature] "
 labels: ["enhancement"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion. Only the description below is required.
   - type: textarea
     id: description
     attributes:
-      label: Feature description
+      label: What would you like?
       description: Describe the feature or improvement you would like to see.
     validations:
       required: true
-
   - type: textarea
     id: problem
     attributes:
       label: Problem or use case
-      description: Explain what problem this feature would solve or why it would be useful.
+      description: Optional. What would this solve for you?
     validations:
-      required: true
-
+      required: false
   - type: textarea
     id: solution
     attributes:
       label: Proposed solution
-      description: Describe how you think the feature could work.
+      description: Optional. How you think it could work.
     validations:
       required: false
-
-  - type: textarea
-    id: alternatives
-    attributes:
-      label: Alternatives considered
-      description: Describe any alternative solutions or approaches you considered.
-    validations:
-      required: false
-
   - type: textarea
     id: additional
     attributes:
-      label: Additional information
-      description: Add screenshots, examples, references, or anything else that may help explain the proposal.
+      label: Anything else
+      description: Optional. Examples, references or screenshots.
     validations:
       required: false

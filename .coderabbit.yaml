@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+language: "en-US"
+early_access: false
+
+reviews:
+  profile: "chill"
+  high_level_summary: false
+  high_level_summary_in_walkthrough: false
+  poem: false
+  review_status: false
+
+  path_instructions:
+    - path: "**"
+      instructions: |
+        Keep reviews extremely concise.
+
+        Report only concrete, actionable bugs introduced by this PR.
+        Prioritize correctness, security, regressions, and data loss.
+
+        Present findings in a simple Markdown table:
+        Severity | File:Line | Problem | Risk
+
+        Keep each problem to one short sentence.
+        No long summaries, walkthroughs, branding, or repeated findings.
+
+        Provide code suggestions only when necessary to fix a real bug.
+        Include only the minimum changed lines, never an entire function
+        or file unless absolutely necessary.
+
+        Ignore speculative risks, style preferences, and optional refactoring.
+        If no actionable bugs exist, say so in one short sentence.

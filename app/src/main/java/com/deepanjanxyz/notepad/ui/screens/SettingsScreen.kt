@@ -96,6 +96,11 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * The Settings screen: theme, lock and backup controls, plus the restore and
+ * import flows. It also offers the backup folder grant when a backup from an
+ * earlier installation is blocking automatic backup from replacing it.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(

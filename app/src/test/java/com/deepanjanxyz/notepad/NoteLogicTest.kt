@@ -254,6 +254,7 @@ class NoteLogicTest {
         assertEquals(0, noMatch.size)
     }
 
+    /** A drawing note matches on its title and its typed caption, but not on its raw stroke JSON. */
     @Test
     fun testNoteFilterWithDrawingNote() {
         val stroke = com.deepanjanxyz.notepad.domain.model.DrawingStroke(

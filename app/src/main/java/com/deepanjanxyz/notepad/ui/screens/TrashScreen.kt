@@ -59,6 +59,11 @@ import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.ui.components.NoteCard
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 
+/**
+ * The Trash screen: lists trashed notes with restore, permanent-delete and
+ * empty-trash actions, including multi-select restore and deletion of the
+ * currently selected notes.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TrashScreen(

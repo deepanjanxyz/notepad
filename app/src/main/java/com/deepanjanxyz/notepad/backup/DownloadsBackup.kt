@@ -80,6 +80,7 @@ object DownloadsBackup {
         }
     }
 
+    /** Creates the backup folder through the media store when it does not exist yet. */
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun ensureMediaStoreFolder(context: Context) {
         if (readEntries(context).isNotEmpty()) return
@@ -194,6 +195,7 @@ object DownloadsBackup {
             .forEach { BackupFolder.delete(context, it.uri) }
     }
 
+    /** Removes the removable copies found through the media store. */
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun cleanUpMediaStoreCopies(context: Context) {
         val resolver = context.contentResolver
@@ -207,6 +209,7 @@ object DownloadsBackup {
         }
     }
 
+    /** Removes the removable copies found directly in the legacy Downloads directory. */
     private fun cleanUpLegacyCopies() {
         val files = legacyDir().listFiles().orEmpty()
         if (files.any { it.name == FILE_NAME }) {
@@ -273,6 +276,7 @@ object DownloadsBackup {
             .sortedByDescending { it.lastModified }
     }
 
+    /** Every `.json` file found in the backup folder, through the media store or directly. */
     private fun readEntries(context: Context): List<Entry> {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val resolver = context.contentResolver
@@ -399,6 +403,7 @@ object DownloadsBackup {
         error("The backup file's name is held by an older copy in Downloads")
     }
 
+    /** Publishes the pending file, deleting it instead when the write fails. */
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun publishOrDiscard(resolver: ContentResolver, uri: Uri, json: String) {
         val written = runCatching { publishNewFile(resolver, uri, json) }
@@ -409,6 +414,7 @@ object DownloadsBackup {
         }
     }
 
+    /** Writes [json] to the pending file, verifies it, and marks it no longer pending. */
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun publishNewFile(resolver: ContentResolver, uri: Uri, json: String) {
         writeTo(resolver, uri, json)
@@ -421,6 +427,7 @@ object DownloadsBackup {
         resolver.update(uri, published, null, null)
     }
 
+    /** Opens [uri] in truncating read-write mode and writes [json] to it. */
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun writeTo(resolver: ContentResolver, uri: Uri, json: String) {
         // The documented mode for replacing a file's contents: read-write, and
@@ -430,15 +437,18 @@ object DownloadsBackup {
         stream.use { it.write(json.toByteArray()) }
     }
 
+    /** Reads back the full contents of [uri], to verify a write or restore it on failure. */
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun readBack(resolver: ContentResolver, uri: Uri): String? =
         resolver.openInputStream(uri)?.use { it.readBytes().decodeToString() }
 
+    /** The current display name the media store has for [uri], or null if it cannot be read. */
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun displayName(resolver: ContentResolver, uri: Uri): String? =
         resolver.query(uri, arrayOf(MediaStore.MediaColumns.DISPLAY_NAME), null, null, null)
             ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
 
+    /** Deletes the file called [name] in the folder, if the media store can see one. */
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun clearBlockingFile(resolver: ContentResolver, collection: Uri, name: String) {
         runCatching { resolver.delete(collection, selection(), selectionArgs(name)) }

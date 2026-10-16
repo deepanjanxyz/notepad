@@ -43,6 +43,12 @@ class NotepadApplication : Application() {
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    /**
+     * Starts the background work the app needs for the whole process lifetime:
+     * keeping the home-screen widget in sync with the pinned notes, purging
+     * trash that has aged out, and clearing stray backup copies left in
+     * Downloads by earlier versions.
+     */
     override fun onCreate() {
         super.onCreate()
 

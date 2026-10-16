@@ -7,17 +7,20 @@ import org.junit.Test
 
 class BackupFileNamesTest {
 
+    /** The backup file's own name is recognised as this app's backup. */
     @Test
     fun testTheBackupFileItselfIsOurs() {
         assertTrue(BackupFileNames.isOurBackupName("elite-memo-backup.json"))
     }
 
+    /** The internal `.partial` and `.previous` working files are recognised as this app's. */
     @Test
     fun testWorkingFilesAreOurs() {
         assertTrue(BackupFileNames.isOurBackupName("elite-memo-backup.partial.json"))
         assertTrue(BackupFileNames.isOurBackupName("elite-memo-backup.previous.json"))
     }
 
+    /** The `(N)` copies the media store makes of the backup and its working files are recognised as this app's. */
     @Test
     fun testNumberedCopiesAreOurs() {
         assertTrue(BackupFileNames.isOurBackupName("elite-memo-backup (1).json"))
@@ -26,6 +29,7 @@ class BackupFileNamesTest {
         assertTrue(BackupFileNames.isOurBackupName("elite-memo-backup.previous (3).json"))
     }
 
+    /** Files that only resemble the backup's name, or are not JSON, are not recognised as this app's. */
     @Test
     fun testOtherFilesAreNotOurs() {
         assertFalse(BackupFileNames.isOurBackupName("notes.json"))
@@ -35,6 +39,7 @@ class BackupFileNamesTest {
         assertFalse(BackupFileNames.isOurBackupName("elite-memo-backup (1).txt"))
     }
 
+    /** Every numbered copy is removable once the real backup file is present. */
     @Test
     fun testEveryCopyGoesOnceTheRealBackupIsThere() {
         val found = listOf(
@@ -48,6 +53,7 @@ class BackupFileNamesTest {
         )
     }
 
+    /** When the real backup is missing, the newest copy is kept back as the only recoverable one. */
     @Test
     fun testTheNewestCopyIsKeptWhenTheRealBackupIsNotVisible() {
         val found = listOf(
@@ -61,6 +67,7 @@ class BackupFileNamesTest {
         )
     }
 
+    /** A single copy with no real backup present is never removed. */
     @Test
     fun testTheLastCopyIsNeverRemoved() {
         assertEquals(
@@ -69,6 +76,7 @@ class BackupFileNamesTest {
         )
     }
 
+    /** Files that are not this app's backup names are never proposed for removal. */
     @Test
     fun testFilesThatAreNotOursAreNeverRemoved() {
         assertEquals(
@@ -77,6 +85,7 @@ class BackupFileNamesTest {
         )
     }
 
+    /** The partial and previous working names keep the `.json` suffix. */
     @Test
     fun testWorkingNamesKeepTheJsonSuffix() {
         assertTrue(BackupFileNames.partialName("elite-memo-backup.json").endsWith(".json"))

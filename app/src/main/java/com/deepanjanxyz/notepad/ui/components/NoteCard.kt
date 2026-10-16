@@ -162,6 +162,11 @@ fun buildHighlightedText(
     }
 }
 
+/**
+ * A single note shown in a list or grid: title, content preview (or a scaled
+ * thumbnail when the note is a drawing), tags and metadata, with selection and
+ * swipe/long-press actions wired in for the trash, archive and active lists.
+ */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun NoteCard(

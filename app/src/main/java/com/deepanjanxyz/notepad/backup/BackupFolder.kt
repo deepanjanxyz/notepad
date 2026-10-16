@@ -40,6 +40,7 @@ object BackupFolder {
     fun treeUri(context: Context): Uri? =
         preferences(context).getString(KEY_TREE_URI, null)?.let(Uri::parse)
 
+    /** True when a backup folder has been granted. */
     fun hasAccess(context: Context): Boolean = treeUri(context) != null
 
     /**
@@ -49,6 +50,7 @@ object BackupFolder {
     fun initialUri(folder: String): Uri? =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) folderDocumentUri(folder) else null
 
+    /** The document URI of [folder] under Downloads, for the picker to open at. */
     @RequiresApi(Build.VERSION_CODES.O)
     private fun folderDocumentUri(folder: String): Uri =
         DocumentsContract.buildDocumentUri(
@@ -110,6 +112,7 @@ object BackupFolder {
             nameOf(context, treeDocumentUri(tree)) == FOLDER_NAME
         }
 
+    /** True when [tree] resolves to a path under Downloads/[FOLDER_NAME]. */
     @RequiresApi(Build.VERSION_CODES.O)
     private fun isUnderDownloads(context: Context, tree: Uri): Boolean {
         val path = runCatching {
@@ -174,6 +177,7 @@ object BackupFolder {
     fun find(context: Context, name: String): Child? =
         children(context).firstOrNull { it.name == name }
 
+    /** Reads the contents of a file in the granted folder, or null if it cannot be read. */
     fun read(context: Context, uri: Uri): String? =
         runCatching {
             context.contentResolver.openInputStream(uri)?.use { it.readBytes().decodeToString() }
@@ -201,6 +205,7 @@ object BackupFolder {
             ?: IOException("The backup could not be verified after writing")
     }
 
+    /** Opens [uri] in truncating read-write mode and writes [json] to it. */
     private fun writeTo(context: Context, uri: Uri, json: String) {
         val stream = context.contentResolver.openOutputStream(uri, WRITE_MODE)
             ?: throw IOException("Could not open the backup file for writing")
@@ -231,6 +236,7 @@ object BackupFolder {
         return usable
     }
 
+    /** The document URI of the tree's root document, used for reading and renaming. */
     private fun treeDocumentUri(tree: Uri): Uri =
         DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
 
@@ -246,10 +252,12 @@ object BackupFolder {
             )?.use { if (it.moveToFirst()) it.getString(0) else null }
         }.getOrNull()
 
+    /** Deletes a document in the granted folder. Returns true when it was removed. */
     fun delete(context: Context, uri: Uri): Boolean =
         runCatching { DocumentsContract.deleteDocument(context.contentResolver, uri) }
             .getOrDefault(false)
 
+    /** The preferences used to remember the granted folder and its adoption state. */
     private fun preferences(context: Context) =
         context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
 }

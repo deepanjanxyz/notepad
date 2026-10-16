@@ -43,6 +43,16 @@ class NoteReminderWorker(
         }
     }
 
+    /**
+     * Posts the reminder notification for the note identified in [inputData].
+     *
+     * The note is looked up fresh rather than relying on data carried with the
+     * work request, so a title or content edited (or a note trashed) since the
+     * reminder was scheduled is reflected rather than shown stale. Nothing is
+     * posted, and the reminder time is left untouched, when notifications are
+     * not currently deliverable; the work is retried instead so the reminder is
+     * not silently lost.
+     */
     override suspend fun doWork(): Result {
         val noteId = inputData.getLong(KEY_NOTE_ID, -1L)
         if (noteId == -1L) {

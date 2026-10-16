@@ -581,6 +581,11 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Restores the given trashed notes. Takes the selected ids as a parameter
+     * rather than reading them from state, so the selection passed by the caller
+     * cannot change under it between the click and the restore.
+     */
     fun restoreSelectedTrashNotes(selectedIds: List<Long>) {
         val ids = selectedIds.distinct()
         if (ids.isEmpty()) {
@@ -634,6 +639,12 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Permanently deletes the given trashed notes and cancels any reminder still
+     * scheduled for them. Takes the selected ids as a parameter rather than
+     * reading them from state, so the selection passed by the caller cannot
+     * change under it between the click and the deletion.
+     */
     fun permanentlyDeleteSelectedTrashNotes(selectedIds: List<Long>) {
         val ids = selectedIds.distinct()
         if (ids.isEmpty()) {
@@ -661,6 +672,11 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         return noteUseCases.getNoteById(noteId)
     }
 
+    /**
+     * Saves a note and, when it carries a future reminder, (re)schedules the
+     * alarm for it. The reminder is read back from the saved note rather than
+     * trusted from the caller, so it reflects whatever the save actually stored.
+     */
     suspend fun saveNote(
         id: Long,
         title: String,
@@ -692,6 +708,10 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         return saved
     }
 
+    /**
+     * Updates a note's reminder time and keeps the scheduled alarm in sync:
+     * schedules it when a time is set, or cancels it when cleared.
+     */
     fun setNoteReminder(noteId: Long, reminderTime: Long?) {
         viewModelScope.launch {
             noteUseCases.setNoteReminder(noteId, reminderTime)

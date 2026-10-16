@@ -32,6 +32,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.domain.model.DrawingSerializer
 
+/** A scaled, read-only preview of an embedded drawing shown inside the note editor. */
 @Composable
 fun EmbeddedDrawingCard(
     drawingPart: String,

@@ -25,6 +25,14 @@ object NoteReminderScheduler {
 
     fun getWorkName(noteId: Long): String = "note_reminder_$noteId"
 
+    /**
+     * Schedules a one-time reminder for [noteId] to fire at [triggerAtMillis].
+     *
+     * Only the note id is carried with the work request; the worker looks the
+     * note up fresh when it runs, so the title and content shown in the
+     * notification are never stale. Replaces any reminder already scheduled for
+     * the same note.
+     */
     fun scheduleReminder(
         context: Context,
         noteId: Long,

@@ -11,6 +11,11 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
 
+/**
+ * The bounding box around every point of the selected strokes, padded slightly
+ * so the selection handles sit outside the ink. Returns null when there is no
+ * selection or the selected strokes have no points.
+ */
 fun getSelectionBounds(strokes: List<DrawingStroke>, selectedIndices: Set<Int>): Rect? {
     if (selectedIndices.isEmpty()) return null
     // Float.MIN_VALUE is the smallest positive float, not the most negative, so a

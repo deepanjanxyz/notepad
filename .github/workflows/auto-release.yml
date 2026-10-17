@@ -1,15 +1,9 @@
 name: Auto Release
 
+
 on:
-  pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened]
   push:
     branches: [main]
-  # Lets the version-guard warning offer a one-command fix: commenting
-  # `/bump-version` on a `main` pull request bumps the version for you.
-  issue_comment:
-    types: [created]
 
 concurrency:
   group: release-${{ github.ref }}
@@ -19,416 +13,13 @@ permissions:
   contents: read
 
 jobs:
-  version-guard:
-    name: Guard - version bump required
-    needs: guard
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      pull-requests: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      # Reuse the shipping-file check from the `guard` job: a pull request that
-      # only touches documentation (README, *.md, *.txt, images, or any other
-      # non-shipping path) must not be forced to raise the version.
-      - name: Decide whether this pull request must bump the version
-        id: scope
-        env:
-          CODE_CHANGED: ${{ needs.guard.outputs.code_changed }}
-        run: |
-          if [ "$CODE_CHANGED" = "true" ]; then
-            echo "required=true" >> "$GITHUB_OUTPUT"
-            echo "Shipping files changed; a version bump is required."
-          else
-            echo "required=false" >> "$GITHUB_OUTPUT"
-            echo "Documentation-only change (README, .md, .txt, images or other non-shipping files); no version bump is required."
-          fi
-
-      - name: Note that a documentation-only change skips the version bump
-        if: steps.scope.outputs.required != 'true'
-        run: echo "::notice::Documentation-only change; the version bump requirement is skipped."
-
-      - name: Compare the PR version with the latest release
-        id: compare
-        if: steps.scope.outputs.required == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR: ${{ github.event.pull_request.number }}
-        run: |
-          set -euo pipefail
-
-          pr_name=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | sed -E 's/.*"(.*)"/\1/' | head -n1 || true)
-          pr_code=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+' | head -n1 || true)
-
-          if [ -z "$pr_name" ] || [ -z "$pr_code" ]; then
-            echo "Could not read versionName/versionCode from app/build.gradle.kts."
-            echo "bumped=false" >> "$GITHUB_OUTPUT"
-            echo "reason=missing" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          latest_tag=$(git tag --list 'v*' --sort=-v:refname | head -n1 || true)
-          latest_name=""
-          latest_code=""
-          if [ -n "$latest_tag" ]; then
-            latest_name="${latest_tag#v}"
-            # The versionCode as actually published in the latest release's APK names.
-            latest_code=$(gh release view "$latest_tag" --json assets --jq '.assets[].name' 2>/dev/null \
-              | sed -nE 's/.*-([0-9]+)-[^-]+\.apk$/\1/p' | sort -n | tail -n1 || true)
-            # Fall back to the versionCode committed at that tag.
-            if [ -z "$latest_code" ]; then
-              latest_code=$(git show "$latest_tag:app/build.gradle.kts" 2>/dev/null \
-                | grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | head -n1 || true)
-            fi
-          fi
-
-          echo "PR:             versionName=$pr_name versionCode=$pr_code"
-          echo "Latest release: tag=${latest_tag:-<none>} versionName=${latest_name:-<unknown>} versionCode=${latest_code:-<unknown>}"
-
-          {
-            echo "pr_name=$pr_name"
-            echo "pr_code=$pr_code"
-            echo "latest_tag=$latest_tag"
-            echo "latest_name=$latest_name"
-            echo "latest_code=$latest_code"
-          } >> "$GITHUB_OUTPUT"
-
-          # 1. versionCode must be greater than the latest release's versionCode.
-          if [ -z "$latest_code" ]; then
-            echo "No released versionCode found; skipping the numeric comparison."
-          elif [ "$pr_code" -le "$latest_code" ]; then
-            echo "versionCode not bumped: $pr_code <= $latest_code"
-            echo "bumped=false" >> "$GITHUB_OUTPUT"
-            echo "reason=code" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # 2. versionName must be strict SemVer and greater than the latest release's versionName.
-          if ! echo "$pr_name" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "versionName is not strict SemVer (X.Y.Z): $pr_name"
-            echo "bumped=false" >> "$GITHUB_OUTPUT"
-            echo "reason=name" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if [ -n "$latest_name" ]; then
-            highest=$(printf '%s\n%s\n' "$latest_name" "$pr_name" | sort -V | tail -n1)
-            if [ "$pr_name" = "$latest_name" ] || [ "$highest" != "$pr_name" ]; then
-              echo "versionName not bumped: $pr_name <= $latest_name"
-              echo "bumped=false" >> "$GITHUB_OUTPUT"
-              echo "reason=name" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-          fi
-
-          # 3. No other open pull request into main may claim the same versionCode.
-          collision=""
-          while read -r num oid; do
-            [ -z "$num" ] && continue
-            [ "$num" = "$PR" ] && continue
-            other_code=$(gh api "repos/${GITHUB_REPOSITORY}/contents/app/build.gradle.kts?ref=${oid}" \
-              -H "Accept: application/vnd.github.raw" 2>/dev/null \
-              | grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | head -n1 || true)
-            if [ -n "$other_code" ] && [ "$other_code" = "$pr_code" ]; then
-              collision="$num"
-              break
-            fi
-          done <<< "$(gh pr list --repo "${GITHUB_REPOSITORY}" --base main --state open --limit 100 \
-            --json number,headRefOid --jq '.[] | "\(.number) \(.headRefOid)"' 2>/dev/null || true)"
-
-          if [ -n "$collision" ]; then
-            echo "versionCode $pr_code collides with open pull request #$collision"
-            echo "bumped=false" >> "$GITHUB_OUTPUT"
-            echo "reason=collision" >> "$GITHUB_OUTPUT"
-            echo "collision_pr=$collision" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "Version bump OK: versionCode $pr_code > ${latest_code:-none}, versionName $pr_name > ${latest_name:-none}"
-          echo "bumped=true" >> "$GITHUB_OUTPUT"
-
-      - name: Comment on the pull request
-        if: steps.scope.outputs.required == 'true' && steps.compare.outputs.bumped != 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR: ${{ github.event.pull_request.number }}
-          PR_NAME: ${{ steps.compare.outputs.pr_name }}
-          PR_CODE: ${{ steps.compare.outputs.pr_code }}
-          LATEST_TAG: ${{ steps.compare.outputs.latest_tag }}
-          LATEST_NAME: ${{ steps.compare.outputs.latest_name }}
-          LATEST_CODE: ${{ steps.compare.outputs.latest_code }}
-          COLLISION_PR: ${{ steps.compare.outputs.collision_pr }}
-          REASON: ${{ steps.compare.outputs.reason }}
-        run: |
-          set -euo pipefail
-          marker='<!-- version-guard -->'
-
-          case "${REASON:-}" in
-            missing)
-              detail="Could not read \`versionCode\`/\`versionName\` from \`app/build.gradle.kts\`." ;;
-            code)
-              detail="This pull request declares \`versionCode = ${PR_CODE:-?}\`, but the latest release \`${LATEST_TAG:-<none>}\` already uses \`versionCode ${LATEST_CODE:-?}\`." ;;
-            name)
-              detail="\`versionName\` must be a strict \`X.Y.Z\` value greater than the latest release \`${LATEST_NAME:-?}\`, but this pull request declares \`${PR_NAME:-?}\`." ;;
-            collision)
-              detail="\`versionCode ${PR_CODE:-?}\` is also claimed by open pull request #${COLLISION_PR:-?}. Only one open pull request may use a given \`versionCode\`." ;;
-            *)
-              detail="The version in \`app/build.gradle.kts\` does not satisfy the release rules." ;;
-          esac
-
-          body=$(cat <<EOF
-          ${marker}
-          ## 🔴 Version bump required
-
-          ${detail}
-
-          Every pull request merged into \`main\` must raise \`versionCode\` above the
-          latest release and set a \`versionName\` that is a greater \`X.Y.Z\`, so the
-          release job can tag and publish the merge without rewriting the version.
-
-          ### 🛠️ Fix it in one step
-
-          Comment **\`/bump-version\`** on this pull request and the bot will raise
-          both values on this branch for you. This check then re-runs on its own —
-          once it is green, merge and the release starts automatically.
-
-          ### ✍️ Or do it by hand
-
-          \`\`\`kotlin
-          versionCode = <greater than ${LATEST_CODE:-the latest}>
-          versionName = "<greater than ${LATEST_NAME:-the latest}>"
-          \`\`\`
-          Then push — the check re-runs automatically.
-          EOF
-          )
-
-          existing=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate \
-            --jq ".[] | select(.body | contains(\"${marker}\")) | .id" 2>/dev/null | head -n1 || true)
-          if [ -n "$existing" ]; then
-            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" -f body="$body" > /dev/null
-          else
-            gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" -f body="$body" > /dev/null
-          fi
-
-      - name: Remove the guard comment once the version is bumped
-        if: steps.scope.outputs.required == 'true' && steps.compare.outputs.bumped == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR: ${{ github.event.pull_request.number }}
-        run: |
-          set -euo pipefail
-          marker='<!-- version-guard -->'
-          ids=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate \
-            --jq ".[] | select(.body | contains(\"${marker}\")) | .id" 2>/dev/null || true)
-          for id in $ids; do
-            gh api -X DELETE "repos/${GITHUB_REPOSITORY}/issues/comments/${id}" > /dev/null || true
-          done
-
-      - name: Fail the check when the version was not bumped
-        if: steps.scope.outputs.required == 'true' && steps.compare.outputs.bumped != 'true'
-        run: |
-          echo "::error::app/build.gradle.kts must set a versionCode and versionName greater than the latest release, with a unique versionCode across open pull requests."
-          exit 1
-
-  bump:
-    name: Bump version on /bump-version
-    if: >-
-      github.event_name == 'issue_comment'
-      && github.event.issue.pull_request
-      && startsWith(github.event.comment.body, '/bump-version')
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-      pull-requests: write
-      issues: write
-    steps:
-      - name: Authorize the command
-        id: gate
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            const issue = context.payload.issue;
-            const comment = context.payload.comment;
-            const out = (k, v) => core.setOutput(k, String(v ?? ''));
-            out('proceed', 'false');
-            out('reason', '');
-
-            const actor = comment?.user?.login || '';
-            if (!actor || actor === 'github-actions[bot]') {
-              out('reason', 'the command must come from a person, not a bot');
-              return;
-            }
-
-            const firstLine = String(comment.body || '').split(/\r?\n/, 1)[0].trim();
-            if (firstLine !== '/bump-version') {
-              out('reason', 'only a `/bump-version` command is recognised');
-              return;
-            }
-
-            const perm = await github.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username: actor });
-            if (!['admin', 'write'].includes(perm.data.permission)) {
-              out('reason', `@${actor} does not have write access to this repository`);
-              return;
-            }
-
-            let pr;
-            try {
-              pr = await github.rest.pulls.get({ owner, repo, pull_number: issue.number });
-            } catch (e) {
-              out('reason', 'the pull request could not be loaded');
-              return;
-            }
-
-            if (pr.data.state !== 'open') {
-              out('reason', 'the pull request is not open');
-              return;
-            }
-            if (pr.data.base.ref !== 'main') {
-              out('reason', `the pull request targets '${pr.data.base.ref}', not 'main'`);
-              return;
-            }
-            if (pr.data.head.repo?.full_name !== `${owner}/${repo}`) {
-              out('reason', 'the pull request comes from a fork; its author must bump the version');
-              return;
-            }
-
-            out('head_ref', pr.data.head.ref);
-            out('pr_number', String(issue.number));
-            out('proceed', 'true');
-            out('reason', 'ok');
-
-      - name: Checkout the pull request branch
-        if: steps.gate.outputs.proceed == 'true'
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ steps.gate.outputs.head_ref }}
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Compute and write the next version
-        if: steps.gate.outputs.proceed == 'true'
-        id: bump
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-
-          # The same rules the version guard enforces: above the latest release.
-          latest_tag=$(git tag --list 'v*' --sort=-v:refname | head -n1 || true)
-          latest_name=""
-          latest_code=""
-          if [ -n "$latest_tag" ]; then
-            latest_name="${latest_tag#v}"
-            latest_code=$(gh release view "$latest_tag" --json assets --jq '.assets[].name' 2>/dev/null \
-              | sed -nE 's/.*-([0-9]+)-[^-]+\.apk$/\1/p' | sort -n | tail -n1 || true)
-            if [ -z "$latest_code" ]; then
-              latest_code=$(git show "$latest_tag:app/build.gradle.kts" 2>/dev/null \
-                | grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | head -n1 || true)
-            fi
-          fi
-
-          cur_name=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | sed -E 's/.*"(.*)"/\1/' | head -n1)
-          cur_code=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+' | head -n1)
-
-          if [ -z "$cur_name" ] || [ -z "$cur_code" ]; then
-            echo "::error::Could not read versionName/versionCode from app/build.gradle.kts."
-            exit 1
-          fi
-
-          max_code="$cur_code"
-          if [ -n "$latest_code" ] && [ "$latest_code" -gt "$max_code" ]; then
-            max_code="$latest_code"
-          fi
-          next_code=$((max_code + 1))
-
-          base_name="$cur_name"
-          if [ -n "$latest_name" ]; then
-            base_name=$(printf '%s\n%s\n' "$latest_name" "$cur_name" | sort -V | tail -n1)
-          fi
-          IFS=. read -r major minor patch <<< "$base_name"
-          if ! [[ "$major" =~ ^[0-9]+$ && "$minor" =~ ^[0-9]+$ && "$patch" =~ ^[0-9]+$ ]]; then
-            echo "::error::versionName '$base_name' is not a strict X.Y.Z value."
-            exit 1
-          fi
-          next_name="$major.$minor.$((patch + 1))"
-
-          NEXT_CODE="$next_code" NEXT_NAME="$next_name" python3 - <<'PY'
-          import os
-          import re
-
-          code = os.environ["NEXT_CODE"]
-          name = os.environ["NEXT_NAME"]
-          path = "app/build.gradle.kts"
-          text = open(path).read()
-          text, n1 = re.subn(r"(versionCode\s*=\s*)\d+", r"\g<1>" + code, text, count=1)
-          text, n2 = re.subn(r'(versionName\s*=\s*)"[^"]*"', r'\g<1>"' + name + '"', text, count=1)
-          if n1 != 1 or n2 != 1:
-              raise SystemExit(f"expected one versionCode and one versionName, found {n1} and {n2}")
-          open(path, "w").write(text)
-          PY
-
-          git --no-pager diff -- app/build.gradle.kts
-          {
-            echo "next_name=$next_name"
-            echo "next_code=$next_code"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Commit and push to the pull request branch
-        if: steps.gate.outputs.proceed == 'true'
-        env:
-          HEAD_REF: ${{ steps.gate.outputs.head_ref }}
-          NEXT_NAME: ${{ steps.bump.outputs.next_name }}
-          NEXT_CODE: ${{ steps.bump.outputs.next_code }}
-        run: |
-          set -euo pipefail
-          if git diff --quiet -- app/build.gradle.kts; then
-            echo "Nothing to commit; the version is already current."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/build.gradle.kts
-          git commit -m "chore(release): bump to v${NEXT_NAME} (${NEXT_CODE})"
-          git push origin "HEAD:${HEAD_REF}"
-
-      - name: Report the outcome
-        if: always()
-        uses: actions/github-script@v9
-        env:
-          PROCEED: ${{ steps.gate.outputs.proceed }}
-          REASON: ${{ steps.gate.outputs.reason }}
-          NEXT_NAME: ${{ steps.bump.outputs.next_name }}
-          NEXT_CODE: ${{ steps.bump.outputs.next_code }}
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            const issue_number = context.issue.number;
-            const actor = context.payload.comment.user.login;
-            let body;
-            if (process.env.PROCEED !== 'true') {
-              body = `⚠️ I could not bump the version: ${process.env.REASON || 'the request was not valid'}.`;
-            } else {
-              body = [
-                '## ✅ Version bumped',
-                '',
-                `@${actor} asked me to bump the version, so I set \`versionName = "${process.env.NEXT_NAME}"\` and \`versionCode = ${process.env.NEXT_CODE}\` in \`app/build.gradle.kts\` on this branch and pushed the change.`,
-                '',
-                'The version guard re-runs on its own — once it is green, merge and the release starts automatically.',
-              ].join('\n');
-            }
-            await github.rest.issues.createComment({ owner, repo, issue_number, body });
-
   guard:
     name: Guard - application source check
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       code_changed: ${{ steps.diff.outputs.code_changed }}
     steps:
@@ -439,10 +30,17 @@ jobs:
 
       - name: Deep-check whether a shipping file changed
         id: diff
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # A workflow_dispatch re-check has no pull_request payload, so ask the API.
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             base="${{ github.event.pull_request.base.sha }}"
             head="${{ github.event.pull_request.head.sha }}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            pr="${{ inputs.pr }}"
+            base=$(gh api "repos/${{ github.repository }}/pulls/${pr}" --jq '.base.sha')
+            head=$(gh api "repos/${{ github.repository }}/pulls/${pr}" --jq '.head.sha')
           else
             base="${{ github.event.before }}"
             head="${{ github.sha }}"
@@ -512,7 +110,7 @@ jobs:
   release:
     name: Release on merge to main
     needs: guard
-    if: github.event_name == 'push' && needs.guard.outputs.code_changed == 'true'
+    if: needs.guard.outputs.code_changed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:

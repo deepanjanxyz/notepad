@@ -1,7 +1,0 @@
-A sturdier auto backup: one file, no clutter.
-
-- Backup keeps a single file and rewrites it in place; leftover copies like "elite-memo-backup (18).json" are cleared, and no new ones are made
-- If a backup from an earlier install is in the way, Settings asks you to allow access to the backup folder, then writes over that one and restores its notes first
-- If the backup cannot be rewritten, Settings says so instead of adding another copy
-
-Thank you for using Elite Memo Pro!

@@ -1,7 +1,0 @@
-Leaving the app is step by step now.
-
-- Back closes the side menu when it is open, then walks back through the screens you came from
-- Only at the home screen does a second press leave the app, with an Exit prompt in between
-- The same applies to the back button and to the swipe in from either edge
-
-Thank you for using Elite Memo Pro!

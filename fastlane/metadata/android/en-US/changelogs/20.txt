@@ -1,9 +1,0 @@
-Fixed five issues across the app.
-
-- Trash: Fixed bulk restore and permanent deletion.
-- Reminders: Preserved reminders when notifications are unavailable.
-- Search: Restored search for text written under drawings.
-- Labels: Enforced the 30-character limit when restoring backups.
-- Drawings: Fixed selection bounds and previews beyond the top or left edge.
-
-Thank you for using Elite Memo Pro!

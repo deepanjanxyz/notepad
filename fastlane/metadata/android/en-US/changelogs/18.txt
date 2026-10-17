@@ -1,9 +1,0 @@
-New home-screen widget, colourful search, and a safer Trash.
-
-- Pin checklist notes to your home screen and tick items off right from the widget
-- Search now highlights matches in vibrant, distinct colours
-- The redundant clear (X) button is gone from the search bar
-- Trashed notes are now cleared automatically after 30 days
-- A splash-screen crash on newer Android versions is fixed
-
-Thank you for using Elite Memo Pro!

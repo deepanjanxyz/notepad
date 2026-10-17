@@ -7,21 +7,23 @@ single responsibility, so it is easy to see what runs, when, and why.
 
 | Workflow file | Name | Trigger | What it does |
 |---|---|---|---|
-| [`ci.yml`](./ci.yml) | CI | `push` / `pull_request` to `dev` and `main`, plus manual | Runs the unit tests and a debug build, then uploads the test reports. This is the build-verification gate. |
-| [`android.yml`](./android.yml) | Build and Sign APK | manual (`workflow_dispatch`) | Builds the unsigned release APK, decodes the keystore from secrets, signs the APK, and uploads it as the `release-apk` artifact. |
-| [`mirror.yml`](./mirror.yml) | Multi-Platform Smart Auto Mirroring | `push` of any branch or tag | Materializes every branch locally, then mirrors all branches and tags to GitLab and Codeberg. It force-syncs only when a normal push is rejected as a divergence (non-fast-forward or an existing tag); any other failure (auth, network, hooks) is reported and fails the run instead of force-pushing. |
+| [`ci.yml`](./ci.yml) | CI | `push` to `dev` and `main`, `pull_request` to `main`, plus manual | Runs the unit tests and a debug build, then uploads the test reports. Pull requests into `dev` are left to `universal-pr-check.yml`, so the same build and tests are not run twice. |
+| [`mirror.yml`](./mirror.yml) | Multi-Platform Smart Auto Mirroring | `push` of any branch or tag | Materializes every branch locally, then mirrors all branches and tags to GitLab and Codeberg as two separate jobs. It force-syncs only when a normal push is rejected as a divergence (non-fast-forward or an existing tag); any other failure (auth, network, hooks) is reported instead of force-pushing. The run stays green while either host accepts the push and turns red only when both fail, and any failure opens (or comments on) a `bug` issue naming the host that failed; once both hosts are syncing again it closes that issue, and it only ever touches the issue it opened itself. |
 | [`universal-pr-check.yml`](./universal-pr-check.yml) | Universal PR Check | `pull_request` (opened, synchronize, reopened) to `dev` | Runs the build, unit tests, lint, detekt and a secret scan as parallel jobs on JDK 21, then posts a single status-table comment on the PR and blocks the merge if any check fails. |
-| [`auto-release.yml`](./auto-release.yml) | Auto Release | `pull_request` / `push` to `main`, plus `issue_comment` | Requires a version bump only when shipping files change (a deep diff check ignores docs, images, comments and whitespace-only edits); the warning offers a `/bump-version` command that raises the version on the branch for you; on merge to `main` it publishes a GitHub release tagged `v<versionName>` with the signed, renamed APKs and traced release notes. |
+| [`version-guard.yml`](./version-guard.yml) | Version Guard | `pull_request` (opened, synchronize, reopened) to `main`, plus `workflow_dispatch` | Requires a version bump only when shipping files change (a deep diff check ignores docs, images, comments and whitespace-only edits); otherwise it posts one sticky comment asking for a bump. |
+| [`version-bump.yml`](./version-bump.yml) | Version Bump | `issue_comment` (created) | Turns an authorised `/bump-version` comment on a `main` pull request into a version bump on that branch, then re-fires the guard. Any other comment does nothing. |
+| [`auto-release.yml`](./auto-release.yml) | Auto Release | `push` to `main` | On a merge that changes a shipping file, publishes a GitHub release tagged `v<versionName>` with the signed, renamed APKs and traced release notes. |
 | [`store-screenshots.yml`](./store-screenshots.yml) | Store Screenshots | manual (`workflow_dispatch`) | Builds a debug APK and captures the store screenshots on a headless Pixel 6 emulator, then uploads them as artifacts. |
 | [`pr-review-commands.yml`](./pr-review-commands.yml) | PR Review Commands | `issue_comment` (created) | Turns `/review`, `/test`, `/force-review`, `/add-approve-user` and `/remove-approve-user` comments on `main` pull requests into an automated review or an allowlist change, after checking the commenter against `.github/pr-reviewers.yml`. |
 
 ## In one line each
 
-- **Tests / verification** → `ci.yml`
-- **Release build + signing** → `android.yml`
+- **Tests / verification on push, and on pull requests into `main`** → `ci.yml`
 - **Mirroring (push) to other hosts (GitLab, Codeberg)** → `mirror.yml`
 - **Per-PR parallel gate with a unified status report** → `universal-pr-check.yml`
-- **Version bump + GitHub release for `main`** → `auto-release.yml`
+- **Is a version bump required?** → `version-guard.yml`
+- **`/bump-version` command** → `version-bump.yml`
+- **GitHub release for `main`** → `auto-release.yml`
 - **Store screenshots on an emulator** → `store-screenshots.yml`
 - **Slash-command reviews and reviewer allowlist** → `pr-review-commands.yml`
 
@@ -29,10 +31,10 @@ single responsibility, so it is easy to see what runs, when, and why.
 
 | Secret | Used by | Purpose |
 |---|---|---|
-| `KEYSTORE_BASE64` | `android.yml`, `universal-pr-check.yml`, `auto-release.yml` | Base64-encoded release keystore. |
-| `KEYSTORE_PASSWORD` | `android.yml`, `universal-pr-check.yml`, `auto-release.yml` | Release keystore password. |
-| `KEY_ALIAS` | `android.yml`, `universal-pr-check.yml`, `auto-release.yml` | Release key alias. |
-| `KEY_PASSWORD` | `android.yml`, `universal-pr-check.yml`, `auto-release.yml` | Release key password. |
+| `KEYSTORE_BASE64` | `universal-pr-check.yml`, `auto-release.yml` | Base64-encoded release keystore. |
+| `KEYSTORE_PASSWORD` | `universal-pr-check.yml`, `auto-release.yml` | Release keystore password. |
+| `KEY_ALIAS` | `universal-pr-check.yml`, `auto-release.yml` | Release key alias. |
+| `KEY_PASSWORD` | `universal-pr-check.yml`, `auto-release.yml` | Release key password. |
 | `GITLAB_TOKEN` | `mirror.yml` | Push access to the GitLab mirror. |
 | `CODEBERG_TOKEN` | `mirror.yml` | Push access to the Codeberg mirror. |
 | `COPILOT_TOKEN` | `auto-release.yml` | Optional. Enables the Copilot summary in the release notes. |
@@ -43,6 +45,10 @@ A branch-scoped gate that runs on every pull request targeting `dev`. All build,
 test and inspection tasks run as **parallel jobs**, so the suite finishes in the
 time of its slowest job rather than the sum of all of them, and the outcome is
 reported back onto the PR as a single status table.
+
+Runs for the same pull request share a concurrency group with
+`cancel-in-progress: true`, so a new push cancels the superseded run instead of
+leaving two six-job matrices racing over the same pull request.
 
 **Trigger.** `pull_request` events only, of type `opened`, `synchronize`, and
 `reopened`, limited to pull requests whose base branch is `dev`. It deliberately
@@ -82,36 +88,26 @@ indicator:
 When every check passes, a thumbs up (`+1`) reaction is added to the PR. If any
 check fails, its job fails and the merge button stays blocked until it is fixed.
 
-## Auto Release (`auto-release.yml`)
+## Version Guard (`version-guard.yml`)
 
-A `main`-only release pipeline that refuses to act unless real application code
-changed, and that owns the version number so contributors never touch it.
+The `main`-only gate that keeps the version honest. It runs on every pull
+request into `main` — path filtering is done inside the `guard` job, not at the
+trigger, so a docs-only PR never leaves a required status check waiting forever.
 
-**Trigger.** `pull_request` events (`opened`, `synchronize`, `reopened`) whose
-base branch is `main`, and `push` events to `main` (i.e. merges). The workflow
-runs on **every** such event — path filtering is done inside the `guard` job, not
-at the trigger, so a docs-only PR never leaves a required status check waiting
-forever. `code_changed` then drives both checks: a non-shipping change (README,
-`*.md`, `*.txt`, images, `.github/**`, `fastlane/**`, and the like) needs no
-version bump and cuts no release.
-
-**Concurrency.** `group: release-${{ github.ref }}` with
-`cancel-in-progress: false`, so runs for the same ref never overlap.
-
-**Guard (`guard` job).** Runs on both events and computes the single fact the
-release job needs:
+**Guard (`guard` job).** Computes the single fact the other jobs need:
 
 - `code_changed` — a **deep check** of the real diff against the base. A file
   counts only when it ships in the APK or affects how it is built: anything under
   `app/`, plus `*.gradle.kts`, `*.gradle`, `gradle.properties`,
   `settings.gradle.kts`, `gradle/libs.versions.toml` and `gradle/wrapper/*`. Even
-  then an edit is ignored when it only moves whitespace or blank lines, or
-  touches comment lines. A reformat or a comment tweak therefore does not cut a
-  release, while a one-line behaviour change does. When nothing qualifies, the
-  release job is skipped.
+  then an edit is ignored when it only moves whitespace or blank lines, or touches
+  comment lines. A reformat or a comment tweak therefore does not cut a release,
+  while a one-line behaviour change does.
 
-**Version guard (`version-guard` job).** Runs on `main` pull requests and consumes
-`needs.guard.outputs.code_changed`:
+The same `guard` job also lives in `auto-release.yml`, where it answers the same
+question for a merge. The two copies are kept byte-identical.
+
+**Version guard (`version-guard` job).** Consumes `needs.guard.outputs.code_changed`:
 
 - When a **shipping** file changed, it requires the pull request to raise both
   `versionCode` (above the latest release) and `versionName` (a greater strict
@@ -121,6 +117,38 @@ release job needs:
   `README`, `*.md`, `*.txt`, images or any other non-shipping path — the bump
   requirement is skipped: the job logs a notice and passes, so documentation can
   be merged without touching the version.
+
+**Trigger.** `pull_request` events (`opened`, `synchronize`, `reopened`) whose base
+branch is `main`, plus a `workflow_dispatch` re-check that takes the pull request
+number as its `pr` input (see Version Bump below).
+
+**Concurrency.** `group: version-guard-<pull request number>`,
+`cancel-in-progress: false`.
+
+## Version Bump (`version-bump.yml`)
+
+The one-step fix the guard's warning offers. Commenting `/bump-version` on a
+`main` pull request — from a person with write access, on a branch of this
+repository rather than a fork — raises `versionCode` and `versionName` on that
+branch (always above the latest release) and pushes the change. Any other
+comment, or a comment from someone without write access, does nothing.
+
+GitHub comments cannot carry a real button, so this command is the closest
+equivalent; the guard's warning spells it out.
+
+**Why it re-fires the guard.** A commit pushed with the built-in `GITHUB_TOKEN`
+does **not** start workflow runs, so the guard would never see the new version on
+its own. `workflow_dispatch` is one of the two events exempt from that rule, so
+after a successful bump this workflow asks `version-guard.yml` to run again for
+that pull request. Without it, the guard's check would stay red on an
+already-bumped pull request.
+
+## Auto Release (`auto-release.yml`)
+
+Publishes the release when a merge to `main` actually changes application code.
+
+**Trigger.** `push` events to `main` (i.e. merges). It runs on **every** such
+push — path filtering is done inside the `guard` job, not at the trigger.
 
 **Release (`release` job).** On a merge to `main` with code changes it:
 
@@ -152,13 +180,32 @@ optional Copilot summary when `COPILOT_TOKEN` is configured.
 **Permissions.** Least privilege: the workflow default is `contents: read`; only
 the `release` job is elevated to `contents: write`.
 
-**Auto-bump on command (`bump` job).** The version-guard warning offers a one-step
-fix. Commenting `/bump-version` on a `main` pull request — from a person with
-write access, on a branch of this repository rather than a fork — makes the `bump`
-job raise `versionCode` and `versionName` on that branch (always above the latest
-release) and push the change. The guard then re-runs on its own, and the release
-starts on merge as usual. GitHub comments cannot carry a real button, so this
-command is the closest equivalent; the warning spells it out.
+**Concurrency.** `group: release-${{ github.ref }}` with
+`cancel-in-progress: false`, so runs for the same ref never overlap.
+
+## Mirror (`mirror.yml`)
+
+Mirrors every branch and tag to GitLab and Codeberg on each push, as two
+independent jobs, so the run page shows a green tick for the host that accepted
+the push and a red cross for the one that did not.
+
+Each host's push step is `continue-on-error`, so one host failing never fails the
+run on its own. A final `report` job reads both results, writes a ✅/❌ table into
+the run summary, and opens (or comments on) a single `bug` issue naming the host
+that failed, with the ref, the commit, the run link and the last 200 lines of the
+log. The run is green when at least one host accepted the push, and red only when
+both failed.
+
+It only ever touches the issue it opened itself — the same title, authored by
+this bot — so it never comments on anything a person filed. Once both hosts are
+syncing again it closes that issue with a short note, and because a closed issue
+is not found by the lookup, a problem that comes back after being fixed opens a
+fresh issue instead of commenting on the old one.
+
+A force-push happens only when the remote refused a ref update because it
+genuinely diverged (a non-fast-forward or an existing tag). An authentication,
+network or pre-receive-hook failure is reported and never triggers a force-push,
+which could rewrite or delete branches and tags on the mirror.
 
 ## Store screenshots (`store-screenshots.yml`)
 

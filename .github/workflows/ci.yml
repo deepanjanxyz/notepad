@@ -3,8 +3,9 @@ name: CI
 on:
   push:
     branches: [ dev, main ]
+  # Pull requests into dev are covered by universal-pr-check.yml, so they are left out.
   pull_request:
-    branches: [ dev, main ]
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:

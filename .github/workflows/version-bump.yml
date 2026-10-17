@@ -1,0 +1,217 @@
+name: Version Bump
+
+
+on:
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: version-bump-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    name: Bump version on /bump-version
+    if: >-
+      github.event_name == 'issue_comment'
+      && github.event.issue.pull_request
+      && startsWith(github.event.comment.body, '/bump-version')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Authorize the command
+        id: gate
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const issue = context.payload.issue;
+            const comment = context.payload.comment;
+            const out = (k, v) => core.setOutput(k, String(v ?? ''));
+            out('proceed', 'false');
+            out('reason', '');
+
+            const actor = comment?.user?.login || '';
+            if (!actor || actor === 'github-actions[bot]') {
+              out('reason', 'the command must come from a person, not a bot');
+              return;
+            }
+
+            const firstLine = String(comment.body || '').split(/\r?\n/, 1)[0].trim();
+            if (firstLine !== '/bump-version') {
+              out('reason', 'only a `/bump-version` command is recognised');
+              return;
+            }
+
+            const perm = await github.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username: actor });
+            if (!['admin', 'write'].includes(perm.data.permission)) {
+              out('reason', `@${actor} does not have write access to this repository`);
+              return;
+            }
+
+            let pr;
+            try {
+              pr = await github.rest.pulls.get({ owner, repo, pull_number: issue.number });
+            } catch (e) {
+              out('reason', 'the pull request could not be loaded');
+              return;
+            }
+
+            if (pr.data.state !== 'open') {
+              out('reason', 'the pull request is not open');
+              return;
+            }
+            if (pr.data.base.ref !== 'main') {
+              out('reason', `the pull request targets '${pr.data.base.ref}', not 'main'`);
+              return;
+            }
+            if (pr.data.head.repo?.full_name !== `${owner}/${repo}`) {
+              out('reason', 'the pull request comes from a fork; its author must bump the version');
+              return;
+            }
+
+            out('head_ref', pr.data.head.ref);
+            out('pr_number', String(issue.number));
+            out('proceed', 'true');
+            out('reason', 'ok');
+
+      - name: Checkout the pull request branch
+        if: steps.gate.outputs.proceed == 'true'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.gate.outputs.head_ref }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute and write the next version
+        if: steps.gate.outputs.proceed == 'true'
+        id: bump
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # The same rules the version guard enforces: above the latest release.
+          latest_tag=$(git tag --list 'v*' --sort=-v:refname | head -n1 || true)
+          latest_name=""
+          latest_code=""
+          if [ -n "$latest_tag" ]; then
+            latest_name="${latest_tag#v}"
+            latest_code=$(gh release view "$latest_tag" --json assets --jq '.assets[].name' 2>/dev/null \
+              | sed -nE 's/.*-([0-9]+)-[^-]+\.apk$/\1/p' | sort -n | tail -n1 || true)
+            if [ -z "$latest_code" ]; then
+              latest_code=$(git show "$latest_tag:app/build.gradle.kts" 2>/dev/null \
+                | grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | head -n1 || true)
+            fi
+          fi
+
+          cur_name=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | sed -E 's/.*"(.*)"/\1/' | head -n1)
+          cur_code=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+' | head -n1)
+
+          if [ -z "$cur_name" ] || [ -z "$cur_code" ]; then
+            echo "::error::Could not read versionName/versionCode from app/build.gradle.kts."
+            exit 1
+          fi
+
+          max_code="$cur_code"
+          if [ -n "$latest_code" ] && [ "$latest_code" -gt "$max_code" ]; then
+            max_code="$latest_code"
+          fi
+          next_code=$((max_code + 1))
+
+          base_name="$cur_name"
+          if [ -n "$latest_name" ]; then
+            base_name=$(printf '%s\n%s\n' "$latest_name" "$cur_name" | sort -V | tail -n1)
+          fi
+          IFS=. read -r major minor patch <<< "$base_name"
+          if ! [[ "$major" =~ ^[0-9]+$ && "$minor" =~ ^[0-9]+$ && "$patch" =~ ^[0-9]+$ ]]; then
+            echo "::error::versionName '$base_name' is not a strict X.Y.Z value."
+            exit 1
+          fi
+          next_name="$major.$minor.$((patch + 1))"
+
+          NEXT_CODE="$next_code" NEXT_NAME="$next_name" python3 - <<'PY'
+          import os
+          import re
+
+          code = os.environ["NEXT_CODE"]
+          name = os.environ["NEXT_NAME"]
+          path = "app/build.gradle.kts"
+          text = open(path).read()
+          text, n1 = re.subn(r"(versionCode\s*=\s*)\d+", r"\g<1>" + code, text, count=1)
+          text, n2 = re.subn(r'(versionName\s*=\s*)"[^"]*"', r'\g<1>"' + name + '"', text, count=1)
+          if n1 != 1 or n2 != 1:
+              raise SystemExit(f"expected one versionCode and one versionName, found {n1} and {n2}")
+          open(path, "w").write(text)
+          PY
+
+          git --no-pager diff -- app/build.gradle.kts
+          {
+            echo "next_name=$next_name"
+            echo "next_code=$next_code"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push to the pull request branch
+        if: steps.gate.outputs.proceed == 'true'
+        env:
+          HEAD_REF: ${{ steps.gate.outputs.head_ref }}
+          NEXT_NAME: ${{ steps.bump.outputs.next_name }}
+          NEXT_CODE: ${{ steps.bump.outputs.next_code }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- app/build.gradle.kts; then
+            echo "Nothing to commit; the version is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/build.gradle.kts
+          git commit -m "chore(release): bump to v${NEXT_NAME} (${NEXT_CODE})"
+          git push origin "HEAD:${HEAD_REF}"
+
+      - name: Re-fire the version guard
+        if: steps.gate.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.issue.number }}
+        run: |
+          # A GITHUB_TOKEN push starts no workflows, so re-fire the guard by hand.
+          gh workflow run version-guard.yml \
+            --ref "${{ github.event.repository.default_branch }}" \
+            -f pr="$PR"
+
+      - name: Report the outcome
+        if: always()
+        uses: actions/github-script@v9
+        env:
+          PROCEED: ${{ steps.gate.outputs.proceed }}
+          REASON: ${{ steps.gate.outputs.reason }}
+          NEXT_NAME: ${{ steps.bump.outputs.next_name }}
+          NEXT_CODE: ${{ steps.bump.outputs.next_code }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const actor = context.payload.comment.user.login;
+            let body;
+            if (process.env.PROCEED !== 'true') {
+              body = `⚠️ I could not bump the version: ${process.env.REASON || 'the request was not valid'}.`;
+            } else {
+              body = [
+                '## ✅ Version bumped',
+                '',
+                `@${actor} asked me to bump the version, so I set \`versionName = "${process.env.NEXT_NAME}"\` and \`versionCode = ${process.env.NEXT_CODE}\` in \`app/build.gradle.kts\` on this branch and pushed the change.`,
+                '',
+                'I also re-fired the version guard, so its check on this pull request runs again with the new version — once it is green, merge and the release starts automatically.',
+              ].join('\n');
+            }
+            await github.rest.issues.createComment({ owner, repo, issue_number, body });
+

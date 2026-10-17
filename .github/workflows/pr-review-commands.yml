@@ -17,6 +17,11 @@ concurrency:
 jobs:
   gate:
     name: Authorize command
+    # Only pull request comments that open with a slash command can be ours.
+    if: >-
+      github.event.issue.pull_request != null
+      && startsWith(github.event.comment.body, '/')
+      && github.event.comment.user.login != 'github-actions[bot]'
     runs-on: ubuntu-latest
     outputs:
       valid: ${{ steps.parse.outputs.valid }}

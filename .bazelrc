@@ -1,0 +1,17 @@
+# Bazel flags for Elite Memo Pro.
+
+# bzlmod is the dependency system (no WORKSPACE file).
+common --enable_bzlmod
+
+# Java 21 everywhere, matching the JDK the old Gradle build used.
+build --java_language_version=21
+build --tool_java_language_version=21
+build --java_runtime_version=remotejdk_21
+build --tool_java_runtime_version=remotejdk_21
+
+# Release builds produce one APK per ABI plus a universal APK, like the old
+# `splits { abi { ... } }` block did.
+build:release --android_platforms=//:arm64_v8a,//:armeabi_v7a,//:x86,//:x86_64
+
+# A little less noise from the test runner.
+test --test_output=errors

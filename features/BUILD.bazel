@@ -1,0 +1,11 @@
+# :features — feature-slice Android library. Currently manifest-only (no Kotlin
+# sources), kept as a target so the app's dependency graph stays the same.
+
+load("@rules_android//android:rules.bzl", "android_library")
+
+android_library(
+    name = "features",
+    custom_package = "com.deepanjanxyz.notepad.features",
+    manifest = "src/main/AndroidManifest.xml",
+    visibility = ["//visibility:public"],
+)

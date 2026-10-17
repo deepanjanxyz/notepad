@@ -189,21 +189,17 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
-          cache: 'gradle'
 
       - name: Set up Android SDK (platform 37)
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
-
-      - name: Make gradlew executable
-        run: chmod +x gradlew
 
       - name: Run unit tests and debug build
         id: run
         run: |
           set +e
-          ./gradlew test --stacktrace
+          bazel test //... --test_output=errors
           tests_rc=$?
-          ./gradlew assembleDebug --stacktrace
+          bazel build //app:app
           build_rc=$?
           set -e
           echo "tests_rc=$tests_rc" >> "$GITHUB_OUTPUT"
@@ -315,8 +311,8 @@ jobs:
             if (forced) {
               body.push('- Not run: `/force-review` bypasses the test-based decision.');
             } else {
-              body.push('- `./gradlew test --stacktrace`');
-              body.push('- `./gradlew assembleDebug --stacktrace`');
+              body.push('- `bazel test //... --test_output=errors`');
+              body.push('- `bazel build //app:app`');
             }
             body.push('');
             body.push('### Test results');

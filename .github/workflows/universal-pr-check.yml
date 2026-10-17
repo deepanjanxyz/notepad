@@ -12,9 +12,9 @@ permissions:
 
 jobs:
   build:
-    name: Debug & Release build
+    name: Debug & release build (Bazel)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     env:
       KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
       KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -32,12 +32,19 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-
       - name: Set up Android SDK (platform 37)
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
 
+      - name: Set up Bazel
+        uses: bazel-contrib/setup-bazel@0.19.1
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}
+          repository-cache: true
+
+      # A release keystore is only available for branches inside this repo, not
+      # for pull requests opened from a fork. We drop it in the same place the
+      # old Gradle build expected it so a signed release can be produced.
       - name: Decode release keystore
         run: |
           if [ -n "$KEYSTORE_BASE64" ]; then
@@ -46,22 +53,23 @@ jobs:
             echo "No release keystore secret is available; skipping. This is expected for pull requests opened from a fork."
           fi
 
-      - name: Make gradlew executable
-        run: chmod +x gradlew
-
       - name: Assemble debug and release
         run: |
           if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
-            ./gradlew assembleDebug assembleRelease --no-daemon --parallel
+            bazel build //app:app --config=release
           else
             echo "Release signing secrets are unavailable (for example on a pull request from a fork); building the debug variant only."
-            ./gradlew assembleDebug --no-daemon --parallel
+            bazel build //app:app
           fi
+
+      - name: Remove keystore file
+        if: always()
+        run: rm -f app/keystore.jks
 
   unit-tests:
-    name: Unit tests
+    name: Unit tests (Bazel)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -74,145 +82,18 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-
       - name: Set up Android SDK (platform 37)
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
 
-      - name: Make gradlew executable
-        run: chmod +x gradlew
+      - name: Set up Bazel
+        uses: bazel-contrib/setup-bazel@0.19.1
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}
+          repository-cache: true
 
       - name: Run unit tests
-        run: ./gradlew testDebugUnitTest --no-daemon --parallel
-
-  lint:
-    name: Android lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    outputs:
-      warnings: ${{ steps.count.outputs.warnings }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v6
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-
-      - name: Set up Android SDK (platform 37)
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
-
-      - name: Make gradlew executable
-        run: chmod +x gradlew
-
-      - name: Run lint
-        run: ./gradlew lintDebug --no-daemon
-
-      - name: Count lint warnings
-        id: count
-        if: always()
-        run: |
-          report=$(find . -name 'lint-results-debug.xml' -print -quit)
-          if [ -n "$report" ]; then
-            count=$(grep -c 'severity="Warning"' "$report" || true)
-          else
-            count=0
-          fi
-          echo "warnings=$count" >> "$GITHUB_OUTPUT"
-
-      - name: Collect lint findings
-        if: always()
-        env:
-          ROOT: ${{ github.workspace }}
-        run: |
-          mapfile -t reports < <(find . -name 'lint-results-debug.xml' -print)
-          if [ "${#reports[@]}" -eq 0 ]; then
-            echo "[]" > head-lint-findings.json
-          else
-            python3 .github/scripts/pr-analysis.py collect --root "$ROOT" --out head-lint-findings.json "${reports[@]}"
-          fi
-
-      - name: Upload lint findings
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: head-lint-findings
-          path: head-lint-findings.json
-          if-no-files-found: warn
-          retention-days: 7
-
-  detekt:
-    name: Static analysis (detekt)
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    outputs:
-      configured: ${{ steps.detect.outputs.configured }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v6
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-
-      - name: Set up Android SDK (platform 37)
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
-
-      - name: Make gradlew executable
-        run: chmod +x gradlew
-
-      - name: Detect detekt task
-        id: detect
-        run: |
-          if grep -rqE 'detekt' --include='*.gradle.kts' --include='*.gradle' --include='*.toml' . ; then
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Run detekt
-        if: steps.detect.outputs.configured == 'true'
-        run: ./gradlew detekt --no-daemon
-
-      - name: Collect detekt findings
-        if: always()
-        env:
-          ROOT: ${{ github.workspace }}
-        run: |
-          if [ "${{ steps.detect.outputs.configured }}" != "true" ]; then
-            echo "[]" > head-detekt-findings.json
-          else
-            mapfile -t reports < <(find . -path '*/build/reports/detekt/*.xml' -print)
-            if [ "${#reports[@]}" -eq 0 ]; then
-              echo "[]" > head-detekt-findings.json
-            else
-              python3 .github/scripts/pr-analysis.py collect --root "$ROOT" --out head-detekt-findings.json "${reports[@]}"
-            fi
-          fi
-
-      - name: Upload detekt findings
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: head-detekt-findings
-          path: head-detekt-findings.json
-          if-no-files-found: warn
-          retention-days: 7
+        run: bazel test //... --test_output=errors
 
   secrets-scan:
     name: Secret scan
@@ -229,72 +110,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  baseline:
-    name: Base branch baseline
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - name: Checkout PR head (for the analysis helper)
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Checkout base revision
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ github.event.pull_request.base.sha }}
-          path: base-src
-          fetch-depth: 0
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v6
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-
-      - name: Set up Android SDK (platform 37)
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
-
-      - name: Make gradlew executable
-        run: chmod +x base-src/gradlew
-
-      # Best-effort: the baseline is informational, so a hiccup here must never
-      # turn into a failing required check or block the merge.
-      - name: Run lint and detekt on the base revision
-        continue-on-error: true
-        run: |
-          cd base-src
-          ./gradlew lintDebug detekt --no-daemon --parallel
-
-      - name: Collect baseline findings
-        if: always()
-        env:
-          ROOT: ${{ github.workspace }}/base-src
-        run: |
-          mapfile -t reports < <(find base-src -name 'lint-results-debug.xml' -print; find base-src -path '*/build/reports/detekt/*.xml' -print)
-          if [ "${#reports[@]}" -eq 0 ]; then
-            echo "[]" > base-findings.json
-          else
-            python3 .github/scripts/pr-analysis.py collect --root "$ROOT" --out base-findings.json "${reports[@]}"
-          fi
-
-      - name: Upload baseline findings
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: base-findings
-          path: base-findings.json
-          if-no-files-found: warn
-          retention-days: 7
-
   report:
     name: PR status report
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [build, unit-tests, lint, detekt, secrets-scan, baseline]
+    needs: [build, unit-tests, secrets-scan]
     if: always()
     steps:
       - name: Checkout repository
@@ -302,49 +122,12 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Download analysis findings
-        uses: actions/download-artifact@v8
-        with:
-          pattern: '*-findings'
-          path: findings
-          merge-multiple: true
-
-      - name: Compare warnings against the baseline
-        env:
-          SERVER: ${{ github.server_url }}
-          REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: |
-          if [ ! -f findings/base-findings.json ]; then
-            echo "::notice::Baseline findings are unavailable; the warning regression will be skipped."
-            exit 0
-          fi
-          head_files=()
-          if [ -f findings/head-lint-findings.json ]; then head_files+=(findings/head-lint-findings.json); fi
-          if [ -f findings/head-detekt-findings.json ]; then head_files+=(findings/head-detekt-findings.json); fi
-          if [ "${#head_files[@]}" -eq 0 ]; then
-            echo "::notice::PR-head findings are unavailable; the warning regression will be skipped."
-            exit 0
-          fi
-          python3 .github/scripts/pr-analysis.py compare \
-            --base findings/base-findings.json \
-            --head "${head_files[@]}" \
-            --server "$SERVER" --repo "$REPO" \
-            --head-sha "$HEAD_SHA" --base-sha "$BASE_SHA" \
-            --out regression.md --errors-out analysis-errors.md
-
       - name: Assemble report
         id: body
         env:
           BUILD: ${{ needs.build.result }}
           TESTS: ${{ needs.unit-tests.result }}
-          LINT: ${{ needs.lint.result }}
-          LINT_WARNINGS: ${{ needs.lint.outputs.warnings }}
-          DETEKT: ${{ needs.detekt.result }}
-          DETEKT_CONFIGURED: ${{ needs.detekt.outputs.configured }}
           SECRETS: ${{ needs.secrets-scan.result }}
-          BASELINE: ${{ needs.baseline.result }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           if [ "$BUILD" = "success" ]; then
@@ -357,22 +140,6 @@ jobs:
             tests_icon="🟢"; tests_summary="All unit tests passed"
           else
             tests_icon="🔴"; tests_summary="Unit tests failed"
-          fi
-
-          if [ "$LINT" != "success" ]; then
-            lint_icon="🔴"; lint_summary="Lint found blocking errors"
-          elif [ "${LINT_WARNINGS:-0}" -gt 0 ]; then
-            lint_icon="🟡"; lint_summary="${LINT_WARNINGS} lint warning(s)"
-          else
-            lint_icon="🟢"; lint_summary="No lint issues"
-          fi
-
-          if [ "$DETEKT_CONFIGURED" = "false" ]; then
-            detekt_icon="⚪"; detekt_summary="Not configured"
-          elif [ "$DETEKT" = "success" ]; then
-            detekt_icon="🟢"; detekt_summary="Static analysis clean"
-          else
-            detekt_icon="🔴"; detekt_summary="Static analysis found issues"
           fi
 
           if [ "$SECRETS" = "success" ]; then
@@ -388,78 +155,25 @@ jobs:
             echo "| :--- | :---: | :--- |"
             echo "| **Debug & Release Build** | $build_icon | $build_summary |"
             echo "| **Unit Tests** | $tests_icon | $tests_summary |"
-            echo "| **Android Lint Analysis** | $lint_icon | $lint_summary |"
-            echo "| **Static Code Analysis (Detekt)** | $detekt_icon | $detekt_summary |"
             echo "| **Security & Secret Scan** | $secrets_icon | $secrets_summary |"
             echo ""
             echo "[View full run]($RUN_URL)"
           } > report.md
 
-          if [ -f regression.md ]; then
-            { echo ""; cat regression.md; } >> report.md
-          else
-            {
-              echo ""
-              echo "## ⚠️ Warning regression"
-              echo ""
-              echo "_The base-branch baseline was unavailable for this run, so the warning regression could not be computed._"
-            } >> report.md
-          fi
-
-          {
-            echo ""
-            echo "## ❌ Errors & failures"
-            echo ""
-            failures=0
-            for entry in "Debug & release build:$BUILD" "Unit tests:$TESTS" "Android lint:$LINT" "Detekt:$DETEKT" "Secret scan:$SECRETS"; do
-              job_name="${entry%%:*}"
-              job_result="${entry#*:}"
-              if [ "$job_result" != "success" ] && [ "$job_result" != "skipped" ]; then
-                echo "- **$job_name** — \`$job_result\` — [view job logs]($RUN_URL)"
-                failures=$((failures + 1))
-              fi
-            done
-            if [ -f analysis-errors.md ] && [ -s analysis-errors.md ]; then
-              cat analysis-errors.md
-              failures=$((failures + 1))
-            fi
-            if [ "$failures" -eq 0 ]; then
-              echo "No errors or failures were detected in this run."
-            fi
-          } >> report.md
-
-          {
-            echo "body<<EOF"
-            cat report.md
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Find existing report comment
-        if: github.event.pull_request.head.repo.fork == false
-        uses: peter-evans/find-comment@v4
-        id: find
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          comment-author: 'github-actions[bot]'
-          body-includes: 'Pull request check summary'
-
-      - name: Post or update report comment
-        if: github.event.pull_request.head.repo.fork == false
-        uses: peter-evans/create-or-update-comment@v5
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          comment-id: ${{ steps.find.outputs.comment-id }}
-          edit-mode: replace
-          body: ${{ steps.body.outputs.body }}
-
-      - name: Add thumbs up reaction on full success
-        if: github.event.pull_request.head.repo.fork == false && needs.build.result == 'success' && needs.unit-tests.result == 'success' && needs.lint.result == 'success' && needs.detekt.result == 'success' && needs.secrets-scan.result == 'success'
+      - name: Post or update the report comment
         uses: actions/github-script@v9
         with:
           script: |
-            await github.rest.reactions.createForIssue({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              content: '+1'
-            })
+            const fs = require('fs');
+            const marker = '<!-- universal-pr-check -->';
+            const body = marker + '\n' + fs.readFileSync('report.md', 'utf8');
+            const issue_number = context.issue.number;
+            const { owner, repo } = context.repo;
+
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }

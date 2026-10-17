@@ -1,0 +1,94 @@
+# Elite Memo Pro — Bazel workspace root.
+#
+# This replaces the old Gradle build. Everything the app needs (rules, the
+# Android SDK, and third-party libraries) is declared here with bzlmod, so a
+# fresh checkout only needs a JDK 21 and an Android SDK pointed at by
+# ANDROID_HOME to build.
+
+module(
+    name = "elite_memo_pro",
+    version = "0.0.0",
+    compatibility_level = 1,
+)
+
+# --- Build rules -------------------------------------------------------------------
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
+bazel_dep(name = "platforms", version = "0.0.11")
+bazel_dep(name = "rules_java", version = "9.9.0")
+bazel_dep(name = "rules_android", version = "0.8.0")
+
+# rules_kotlin tracks the Kotlin compiler version, so 2.4.21 == Kotlin 2.4.21.
+bazel_dep(name = "rules_kotlin", version = "2.4.21")
+bazel_dep(name = "rules_jvm_external", version = "7.2")
+
+# --- Android SDK -------------------------------------------------------------------
+# rules_android finds the SDK through ANDROID_HOME (highest installed API level by
+# default). CI sets ANDROID_HOME for us; if you build locally, export it too.
+remote_android_extensions = use_extension(
+    "@rules_android//bzlmod_extensions:android_extensions.bzl",
+    "remote_android_tools_extensions",
+)
+use_repo(remote_android_extensions, "android_tools")
+
+android_sdk_repository_extension = use_extension(
+    "@rules_android//rules/android_sdk_repository:rule.bzl",
+    "android_sdk_repository_extension",
+)
+use_repo(android_sdk_repository_extension, "androidsdk")
+
+register_toolchains("@androidsdk//:sdk-toolchain", "@androidsdk//:all")
+
+# The Kotlin toolchain defined in the root BUILD file (Java 21).
+register_toolchains("//:kotlin_toolchain")
+
+# --- Third-party libraries (Maven) -------------------------------------------------
+# One maven_install for the whole repo. Compose versions come from the BOM, so
+# those coordinates are deliberately written without a version.
+maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+maven.install(
+    name = "maven",
+    artifacts = [
+        # Compose (versions come from the BOM below)
+        "androidx.compose.runtime:runtime",
+        "androidx.compose.foundation:foundation",
+        "androidx.compose.ui:ui",
+        "androidx.compose.ui:ui-graphics",
+        "androidx.compose.ui:ui-tooling-preview",
+        "androidx.compose.ui:ui-tooling",
+        "androidx.compose.material3:material3",
+        "androidx.compose.material:material-icons-extended",
+        # AndroidX
+        "androidx.activity:activity-compose:1.13.0",
+        "androidx.lifecycle:lifecycle-runtime-ktx:2.11.0",
+        "androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0",
+        "androidx.lifecycle:lifecycle-runtime-compose:2.11.0",
+        "androidx.core:core-ktx:1.19.1",
+        "androidx.core:core-splashscreen:1.2.0",
+        "androidx.fragment:fragment-ktx:1.9.1",
+        "androidx.biometric:biometric:1.4.0-alpha07",
+        "androidx.work:work-runtime-ktx:2.12.0",
+        # Room
+        "androidx.room:room-runtime:2.8.5",
+        "androidx.room:room-ktx:2.8.5",
+        "androidx.room:room-compiler:2.8.5",
+        # DataStore
+        "androidx.datastore:datastore-preferences:1.2.1",
+        # Supabase + Ktor
+        "io.github.jan-tennert.supabase:auth-kt:3.8.0",
+        "io.github.jan-tennert.supabase:postgrest-kt:3.8.0",
+        "io.ktor:ktor-client-android:3.6.0",
+        # Kotlin + tests
+        "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0",
+        "junit:junit:4.13.2",
+        # Compose compiler plugin — must match the Kotlin version (2.4.21).
+        "org.jetbrains.kotlin:kotlin-compose-compiler-plugin-embeddable:2.4.21",
+    ],
+    boms = [
+        "androidx.compose:compose-bom:2026.09.00",
+    ],
+    repositories = [
+        "https://maven.google.com",
+        "https://repo1.maven.org/maven2",
+    ],
+)
+use_repo(maven, "maven", "unpinned_maven")

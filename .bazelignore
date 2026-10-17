@@ -1,0 +1,5 @@
+# Directories Bazel should not look inside for packages.
+# (Keeps `bazel build //...` from wandering into tooling and CI scratch space.)
+fastlane
+scripts
+.github

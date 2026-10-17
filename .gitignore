@@ -19,9 +19,12 @@ app/build/
 core/build/
 features/build/
 
-# Gradle files
-.gradle/
-buildOutputCleanup/
+# Bazel
+/bazel-*
+bazel-out
+bazel-bin
+bazel-testlogs
+bazel-*
 
 # Local configuration & environment variables
 local.properties

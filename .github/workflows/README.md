@@ -52,18 +52,16 @@ does not run on plain `push`.
 
 | Job | Command / action | Notes |
 |---|---|---|
-| Debug & Release build | `./gradlew assembleDebug assembleRelease --no-daemon --parallel` | Decodes the release keystore from `KEYSTORE_BASE64` and exposes `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` to Gradle so the release variant is signed, not just assembled. |
-| Unit tests | `./gradlew testDebugUnitTest --no-daemon --parallel` | |
-| Android lint | `./gradlew lintDebug --no-daemon` | Counts lint warnings so the report can flag non-blocking issues. |
-| Static analysis (detekt) | `./gradlew detekt --no-daemon` | Runs only when detekt is configured in the project; skipped otherwise. |
+| Debug & Release build | `bazel build //app:app --config=release` | Decodes the release keystore from `KEYSTORE_BASE64` and exposes `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` so the release variant is signed, not just assembled. |
+| Unit tests | `bazel test //... --test_output=errors` | |
 | Secret scan | `gitleaks/gitleaks-action@v3` | Scans the checkout for hardcoded secrets. |
 
 **Environment.** Every job runs on `ubuntu-latest`, checks out with full history
 (`fetch-depth: 0`), sets up Temurin **JDK 21**, and configures Gradle caching via
-`gradle/actions/setup-gradle`. The JDK matches the project: every module compiles
+`bazel-contrib/setup-bazel`. The JDK matches the project: every module compiles
 against `sourceCompatibility`/`targetCompatibility` `JavaVersion.VERSION_21`. The
 Android SDK platform the project builds against (`compileSdk`) is installed
-before the Gradle build.
+before the Bazel build.
 
 **Permissions.** `contents: read`, `pull-requests: write`, and `issues: write` —
 just enough to read the code and write feedback back onto the pull request.
@@ -103,8 +101,8 @@ release job needs:
 
 - `code_changed` — a **deep check** of the real diff against the base. A file
   counts only when it ships in the APK or affects how it is built: anything under
-  `app/`, plus `*.gradle.kts`, `*.gradle`, `gradle.properties`,
-  `settings.gradle.kts`, `gradle/libs.versions.toml` and `gradle/wrapper/*`. Even
+  `app/`, plus `BUILD.bazel`, `MODULE.bazel`, `*.bzl`, `version.bzl` and
+  `.bazelrc`. Even
   then an edit is ignored when it only moves whitespace or blank lines, or
   touches comment lines. A reformat or a comment tweak therefore does not cut a
   release, while a one-line behaviour change does. When nothing qualifies, the
@@ -125,7 +123,7 @@ release job needs:
 **Release (`release` job).** On a merge to `main` with code changes it:
 
 1. Reads the app name and takes `versionName`/`versionCode` straight from
-   `app/build.gradle.kts`. The version guard already forced the bump at
+   `version.bzl`. The version guard already forced the bump at
    pull-request time, so the committed values are the single source of truth and
    the release job never rewrites the version.
 2. Validates them — `versionName` must match `^[0-9]+\.[0-9]+\.[0-9]+$` and
@@ -173,7 +171,7 @@ on `push` or `pull_request`.
 
 1. Checks out the app from `dev` and the screenshot automation scripts from the
    `ci/screenshots` branch into `.ci/`.
-2. Builds the debug APK with `./gradlew assembleDebug`.
+2. Builds the debug APK with `bazel build //app:app`.
 3. Boots a headless Pixel 6 emulator (API 34, x86_64, google_apis) with KVM.
 4. Installs the APK, seeds realistic notes through the real UI, and captures a
    full-resolution screenshot of each feature.

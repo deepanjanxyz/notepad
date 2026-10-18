@@ -30,8 +30,12 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+      - name: Set up Bazel
+        uses: bazel-contrib/setup-bazel@0.19.1
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}
+          repository-cache: true
 
       - name: Enable KVM
         run: |
@@ -49,11 +53,8 @@ jobs:
           # AGP resolves compileSdk 37 as "android-37" while sdkmanager installs it as "android-37.0".
           ln -sfn "$SDK/platforms/android-37.0" "$SDK/platforms/android-37"
 
-      - name: Make gradlew executable
-        run: chmod +x gradlew
-
       - name: Build debug APK
-        run: ./gradlew assembleDebug --no-daemon
+        run: bazel build //app:app
 
       - name: Capture screenshots on emulator
         uses: reactivecircus/android-emulator-runner@v2

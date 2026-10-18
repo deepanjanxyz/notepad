@@ -1,7 +1,7 @@
 # detekt configuration for Elite Memo Pro.
 #
-# The Gradle setup applies this on top of detekt's bundled default rule set
-# (`buildUponDefaultConfig = true` in the root build.gradle.kts), so only the
+# This applies on top of detekt's bundled default rule set (`buildUponDefaultConfig`),
+# so only the
 # deliberate deviations from the defaults are recorded here. Any rule that is
 # not mentioned below keeps its default detekt configuration.
 

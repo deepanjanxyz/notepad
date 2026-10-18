@@ -1,0 +1,32 @@
+load("@rules_kotlin//kotlin:android.bzl", "kt_android_library")
+load("@rules_kotlin//kotlin:core.bzl", "kt_ksp_plugin")
+
+kt_ksp_plugin(
+    name = "room_ksp",
+    processor_class = "androidx.room.RoomProcessor",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@maven//:androidx_room_room_compiler",
+        "@maven//:androidx_room_room_ktx",
+        "@maven//:androidx_room_room_runtime",
+    ],
+)
+
+kt_android_library(
+    name = "data",
+    srcs = glob(["src/main/java/**/*.kt"]),
+    custom_package = "com.deepanjanxyz.notepad.data",
+    plugins = [":room_ksp"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//domain",
+        "@maven//:androidx_core_core_ktx",
+        "@maven//:androidx_datastore_datastore_preferences",
+        "@maven//:androidx_room_room_ktx",
+        "@maven//:androidx_room_room_runtime",
+        "@maven//:androidx_work_work_runtime_ktx",
+        "@maven//:io_github_jan_tennert_supabase_auth_kt",
+        "@maven//:io_github_jan_tennert_supabase_postgrest_kt",
+        "@maven//:io_ktor_ktor_client_android",
+    ],
+)

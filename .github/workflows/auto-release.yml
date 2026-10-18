@@ -63,11 +63,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          pr_name=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | sed -E 's/.*"(.*)"/\1/' | head -n1 || true)
-          pr_code=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+' | head -n1 || true)
+          pr_name=$(grep -oE 'VERSION_NAME[[:space:]]*=[[:space:]]*"[^"]*"' version.bzl | sed -E 's/.*"(.*)"/\1/' | head -n1 || true)
+          pr_code=$(grep -oE 'VERSION_CODE[[:space:]]*=[[:space:]]*[0-9]+' version.bzl | grep -oE '[0-9]+' | head -n1 || true)
 
           if [ -z "$pr_name" ] || [ -z "$pr_code" ]; then
-            echo "Could not read versionName/versionCode from app/build.gradle.kts."
+            echo "Could not read versionName/versionCode from version.bzl."
             echo "bumped=false" >> "$GITHUB_OUTPUT"
             echo "reason=missing" >> "$GITHUB_OUTPUT"
             exit 0
@@ -83,8 +83,8 @@ jobs:
               | sed -nE 's/.*-([0-9]+)-[^-]+\.apk$/\1/p' | sort -n | tail -n1 || true)
             # Fall back to the versionCode committed at that tag.
             if [ -z "$latest_code" ]; then
-              latest_code=$(git show "$latest_tag:app/build.gradle.kts" 2>/dev/null \
-                | grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | head -n1 || true)
+              latest_code=$(git show "$latest_tag:version.bzl" 2>/dev/null \
+                | grep -oE 'VERSION_CODE[[:space:]]*=[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | head -n1 || true)
             fi
           fi
 
@@ -131,9 +131,9 @@ jobs:
           while read -r num oid; do
             [ -z "$num" ] && continue
             [ "$num" = "$PR" ] && continue
-            other_code=$(gh api "repos/${GITHUB_REPOSITORY}/contents/app/build.gradle.kts?ref=${oid}" \
+            other_code=$(gh api "repos/${GITHUB_REPOSITORY}/contents/version.bzl?ref=${oid}" \
               -H "Accept: application/vnd.github.raw" 2>/dev/null \
-              | grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | head -n1 || true)
+              | grep -oE 'VERSION_CODE[[:space:]]*=[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | head -n1 || true)
             if [ -n "$other_code" ] && [ "$other_code" = "$pr_code" ]; then
               collision="$num"
               break
@@ -170,7 +170,7 @@ jobs:
 
           case "${REASON:-}" in
             missing)
-              detail="Could not read \`versionCode\`/\`versionName\` from \`app/build.gradle.kts\`." ;;
+              detail="Could not read \`versionCode\`/\`versionName\` from \`version.bzl\`." ;;
             code)
               detail="This pull request declares \`versionCode = ${PR_CODE:-?}\`, but the latest release \`${LATEST_TAG:-<none>}\` already uses \`versionCode ${LATEST_CODE:-?}\`." ;;
             name)
@@ -178,7 +178,7 @@ jobs:
             collision)
               detail="\`versionCode ${PR_CODE:-?}\` is also claimed by open pull request #${COLLISION_PR:-?}. Only one open pull request may use a given \`versionCode\`." ;;
             *)
-              detail="The version in \`app/build.gradle.kts\` does not satisfy the release rules." ;;
+              detail="The version in \`version.bzl\` does not satisfy the release rules." ;;
           esac
 
           body=$(cat <<EOF
@@ -187,8 +187,8 @@ jobs:
 
           ${detail}
 
-          Every pull request merged into \`main\` must raise \`versionCode\` above the
-          latest release and set a \`versionName\` that is a greater \`X.Y.Z\`, so the
+          Every pull request merged into \`main\` must raise \`VERSION_CODE\` above the
+          latest release and set a \`VERSION_NAME\` that is a greater \`X.Y.Z\`, so the
           release job can tag and publish the merge without rewriting the version.
 
           ### 🛠️ Fix it in one step
@@ -199,9 +199,9 @@ jobs:
 
           ### ✍️ Or do it by hand
 
-          \`\`\`kotlin
-          versionCode = <greater than ${LATEST_CODE:-the latest}>
-          versionName = "<greater than ${LATEST_NAME:-the latest}>"
+          \`\`\`starlark
+          VERSION_CODE = <greater than ${LATEST_CODE:-the latest}>
+          VERSION_NAME = "<greater than ${LATEST_NAME:-the latest}>"
           \`\`\`
           Then push — the check re-runs automatically.
           EOF
@@ -232,7 +232,7 @@ jobs:
       - name: Fail the check when the version was not bumped
         if: steps.scope.outputs.required == 'true' && steps.compare.outputs.bumped != 'true'
         run: |
-          echo "::error::app/build.gradle.kts must set a versionCode and versionName greater than the latest release, with a unique versionCode across open pull requests."
+          echo "::error::version.bzl must set a versionCode and versionName greater than the latest release, with a unique versionCode across open pull requests."
           exit 1
 
   bump:
@@ -329,16 +329,16 @@ jobs:
             latest_code=$(gh release view "$latest_tag" --json assets --jq '.assets[].name' 2>/dev/null \
               | sed -nE 's/.*-([0-9]+)-[^-]+\.apk$/\1/p' | sort -n | tail -n1 || true)
             if [ -z "$latest_code" ]; then
-              latest_code=$(git show "$latest_tag:app/build.gradle.kts" 2>/dev/null \
-                | grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | head -n1 || true)
+              latest_code=$(git show "$latest_tag:version.bzl" 2>/dev/null \
+                | grep -oE 'VERSION_CODE[[:space:]]*=[[:space:]]*[0-9]+' | grep -oE '[0-9]+' | head -n1 || true)
             fi
           fi
 
-          cur_name=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | sed -E 's/.*"(.*)"/\1/' | head -n1)
-          cur_code=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+' | head -n1)
+          cur_name=$(grep -oE 'VERSION_NAME[[:space:]]*=[[:space:]]*"[^"]*"' version.bzl | sed -E 's/.*"(.*)"/\1/' | head -n1)
+          cur_code=$(grep -oE 'VERSION_CODE[[:space:]]*=[[:space:]]*[0-9]+' version.bzl | grep -oE '[0-9]+' | head -n1)
 
           if [ -z "$cur_name" ] || [ -z "$cur_code" ]; then
-            echo "::error::Could not read versionName/versionCode from app/build.gradle.kts."
+            echo "::error::Could not read versionName/versionCode from version.bzl."
             exit 1
           fi
 
@@ -365,16 +365,16 @@ jobs:
 
           code = os.environ["NEXT_CODE"]
           name = os.environ["NEXT_NAME"]
-          path = "app/build.gradle.kts"
+          path = "version.bzl"
           text = open(path).read()
-          text, n1 = re.subn(r"(versionCode\s*=\s*)\d+", r"\g<1>" + code, text, count=1)
-          text, n2 = re.subn(r'(versionName\s*=\s*)"[^"]*"', r'\g<1>"' + name + '"', text, count=1)
+          text, n1 = re.subn(r"(VERSION_CODE\s*=\s*)\d+", r"\g<1>" + code, text, count=1)
+          text, n2 = re.subn(r'(VERSION_NAME\s*=\s*)"[^"]*"', r'\g<1>"' + name + '"', text, count=1)
           if n1 != 1 or n2 != 1:
               raise SystemExit(f"expected one versionCode and one versionName, found {n1} and {n2}")
           open(path, "w").write(text)
           PY
 
-          git --no-pager diff -- app/build.gradle.kts
+          git --no-pager diff -- version.bzl
           {
             echo "next_name=$next_name"
             echo "next_code=$next_code"
@@ -388,13 +388,13 @@ jobs:
           NEXT_CODE: ${{ steps.bump.outputs.next_code }}
         run: |
           set -euo pipefail
-          if git diff --quiet -- app/build.gradle.kts; then
+          if git diff --quiet -- version.bzl; then
             echo "Nothing to commit; the version is already current."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/build.gradle.kts
+          git add version.bzl
           git commit -m "chore(release): bump to v${NEXT_NAME} (${NEXT_CODE})"
           git push origin "HEAD:${HEAD_REF}"
 
@@ -418,7 +418,7 @@ jobs:
               body = [
                 '## ✅ Version bumped',
                 '',
-                `@${actor} asked me to bump the version, so I set \`versionName = "${process.env.NEXT_NAME}"\` and \`versionCode = ${process.env.NEXT_CODE}\` in \`app/build.gradle.kts\` on this branch and pushed the change.`,
+                `@${actor} asked me to bump the version, so I set \`VERSION_NAME = "${process.env.NEXT_NAME}"\` and \`VERSION_CODE = ${process.env.NEXT_CODE}\` in \`version.bzl\` on this branch and pushed the change.`,
                 '',
                 'The version guard re-runs on its own — once it is green, merge and the release starts automatically.',
               ].join('\n');
@@ -462,7 +462,7 @@ jobs:
           is_shipping() {
             case "$1" in
               app/*) return 0 ;;
-              *.gradle.kts|*.gradle|gradle.properties|settings.gradle.kts|gradle/libs.versions.toml|gradle/wrapper/*) return 0 ;;
+              BUILD.bazel|MODULE.bazel|*.bzl|version.bzl|.bazelrc) return 0 ;;
             esac
             return 1
           }
@@ -529,18 +529,22 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+      - name: Set up Bazel
+        uses: bazel-contrib/setup-bazel@0.19.1
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}
+          repository-cache: true
 
       - name: Set up Android SDK (platform 37)
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
 
-      - name: Read the version from app/build.gradle.kts
+      - name: Read the version from version.bzl
         id: version
         run: |
           set -euo pipefail
 
-          app_name=$(grep -oE 'rootProject.name[[:space:]]*=[[:space:]]*"[^"]*"' settings.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
+          app_name="EliteMemoPro"
           if [ -z "$app_name" ]; then
             echo "🔴 Release failed: app name could not be resolved."
             exit 1
@@ -549,11 +553,11 @@ jobs:
           # The version guard on pull requests guarantees that every merge into
           # main already carries a bumped versionCode/versionName, so the
           # committed values are the single source of truth for the release.
-          vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | sed -E 's/.*"(.*)"/\1/' | head -n1)
-          vc=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+' | head -n1)
+          vn=$(grep -oE 'VERSION_NAME[[:space:]]*=[[:space:]]*"[^"]*"' version.bzl | sed -E 's/.*"(.*)"/\1/' | head -n1)
+          vc=$(grep -oE 'VERSION_CODE[[:space:]]*=[[:space:]]*[0-9]+' version.bzl | grep -oE '[0-9]+' | head -n1)
 
           if [ -z "$vn" ] || [ -z "$vc" ]; then
-            echo "🔴 Release failed: could not read versionName/versionCode from app/build.gradle.kts."
+            echo "🔴 Release failed: could not read versionName/versionCode from version.bzl."
             exit 1
           fi
 
@@ -658,7 +662,7 @@ jobs:
               ("Tests", lambda p: "/src/test/" in p or "/src/androidTest/" in p),
               ("Resources", lambda p: p.startswith("app/src/main/res/")),
               ("Manifest", lambda p: p.endswith("AndroidManifest.xml")),
-              ("Build and dependencies", lambda p: p.endswith((".gradle.kts", ".gradle", ".toml")) or p.endswith("gradle.properties")),
+              ("Build and dependencies", lambda p: p.endswith(("BUILD.bazel", "MODULE.bazel", ".bzl", ".bazelrc"))),
               ("CI and workflows", lambda p: p.startswith(".github/")),
               ("Documentation", lambda p: p.lower().endswith((".md", ".txt"))),
               ("Other", lambda p: True),
@@ -795,14 +799,14 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           echo "$KEYSTORE_BASE64" | base64 -d > app/keystore.jks
-          ./gradlew assembleRelease --no-daemon
+          bazel build //app:app --config=release
 
       - name: Rename release APKs
         run: |
           app_name="${{ steps.version.outputs.app_name }}"
           vn="${{ steps.version.outputs.version }}"
           vc="${{ steps.version.outputs.version_code }}"
-          out="app/build/outputs/apk/release"
+          out="bazel-bin/app"
 
           shopt -s nullglob
           apks=("$out"/*.apk)
@@ -813,9 +817,11 @@ jobs:
 
           for apk in "${apks[@]}"; do
             name=$(basename "$apk")
-            abi="${name#app-}"
-            abi="${abi%-release.apk}"
-            if [ "$abi" = "$name" ] || [ -z "$abi" ] || [ "$abi" = "release" ]; then
+            # app_arm64_v8a.apk, or plain app.apk for the universal one
+            abi="${name%.apk}"
+            abi="${abi#app_}"
+            abi="${abi#app}"
+            if [ -z "$abi" ] || [ "$abi" = "$name" ]; then
               abi="universal"
             fi
             mv "$apk" "$out/${app_name}-v${vn}-${vc}-${abi}.apk"
@@ -827,7 +833,7 @@ jobs:
         run: |
           build_tools="$ANDROID_HOME/build-tools/36.0.0"
           shopt -s nullglob
-          apks=(app/build/outputs/apk/release/*.apk)
+          apks=(bazel-bin/app/*.apk)
           if [ "${#apks[@]}" -eq 0 ]; then
             echo "🔴 No APK found to verify."
             exit 1
@@ -844,7 +850,7 @@ jobs:
             echo "### SHA-256 checksums"
             echo ""
             echo '```'
-            (cd app/build/outputs/apk/release && sha256sum ./*.apk)
+            (cd bazel-bin/app && sha256sum ./*.apk)
             echo '```'
           } >> /tmp/release-notes.md
 
@@ -853,7 +859,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "v${{ steps.version.outputs.version }}" \
-            app/build/outputs/apk/release/*.apk \
+            bazel-bin/app/*.apk \
             --target "${{ github.sha }}" \
             --title "v${{ steps.version.outputs.version }}" \
             --notes-file /tmp/release-notes.md

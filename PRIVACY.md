@@ -1,6 +1,6 @@
 # Privacy Policy — Elite Memo Pro
 
-This policy describes how **Elite Memo Pro** (`com.deepanjanxyz.notepad`) handles your data. It reflects how the app actually behaves as built from this repository: every statement below is based on the app's source code, its `AndroidManifest.xml` files, its Gradle configuration and the signed APK published in the Releases section.
+This policy describes how **Elite Memo Pro** (`com.deepanjanxyz.notepad`) handles your data. It reflects how the app actually behaves as built from this repository: every statement below is based on the app's source code, its `AndroidManifest.xml` files, its Bazel build files (`MODULE.bazel` and the `BUILD.bazel` files) and the signed APK published in the Releases section.
 
 Last updated: 12 October 2026
 
@@ -40,7 +40,7 @@ The app can hand a web address to another app: the Settings screen offers "GitHu
 
 ## Analytics, advertising, tracking and crash reporting
 
-None. The app bundles no analytics, advertising, tracking or crash-reporting SDK — there is no Firebase, Crashlytics, Google Play Services, ads, Sentry or comparable dependency in the Gradle files — and no such code exists in the source.
+None. The app bundles no analytics, advertising, tracking or crash-reporting SDK — there is no Firebase, Crashlytics, Google Play Services, ads, Sentry or comparable dependency in the build files — and no such code exists in the source.
 
 ## Android permissions
 
@@ -115,4 +115,4 @@ Each claim above can be checked against the repository:
 - App lock — `app/src/main/java/com/deepanjanxyz/notepad/MainActivity.kt`
 - Reminders — `app/src/main/java/com/deepanjanxyz/notepad/worker/`
 - Backup rules — `app/src/main/res/xml/backup_rules.xml` and `app/src/main/res/xml/data_extraction_rules.xml`
-- Dependencies — `app/build.gradle.kts`, `core/build.gradle.kts`, `data/build.gradle.kts`, `features/build.gradle.kts`
+- Dependencies — `MODULE.bazel`, `app/BUILD.bazel`, `core/BUILD.bazel`, `data/BUILD.bazel`, `features/BUILD.bazel`

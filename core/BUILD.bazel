@@ -1,0 +1,8 @@
+load("@rules_android//android:rules.bzl", "android_library")
+
+android_library(
+    name = "core",
+    custom_package = "com.deepanjanxyz.notepad.core",
+    manifest = "src/main/AndroidManifest.xml",
+    visibility = ["//visibility:public"],
+)

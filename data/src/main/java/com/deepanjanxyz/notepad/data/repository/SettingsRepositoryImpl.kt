@@ -1,65 +1,63 @@
 package com.deepanjanxyz.notepad.data.repository
 
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.emptyPreferences
-import androidx.datastore.preferences.core.stringPreferencesKey
+import android.content.SharedPreferences
 import com.deepanjanxyz.notepad.domain.model.AppSettings
 import com.deepanjanxyz.notepad.domain.model.ThemeMode
 import com.deepanjanxyz.notepad.domain.repository.SettingsRepository
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.map
-import java.io.IOException
+import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
- * DataStore-backed implementation of [SettingsRepository].
+ * SharedPreferences-backed implementation of [SettingsRepository].
  *
- * The preference keys are preserved from the legacy SharedPreferences
- * implementation so that values already written by older builds are picked up
- * unchanged.
+ * The key names are the ones the settings have always used, so a value written
+ * by an older build is still read unchanged.
  */
 class SettingsRepositoryImpl(
-    private val dataStore: DataStore<Preferences>
+    private val prefs: SharedPreferences
 ) : SettingsRepository {
 
-    private object Keys {
-        val THEME_MODE = stringPreferencesKey("pref_theme")
-        val GRID_LAYOUT = booleanPreferencesKey("pref_grid_layout")
-        val LOCK_ENABLED = booleanPreferencesKey("pref_lock")
-        val AUTO_BACKUP = booleanPreferencesKey("pref_auto_backup")
+    private val state = MutableStateFlow(read())
+
+    // SharedPreferences keeps only a weak reference to listeners, so the field
+    // holds the strong one.
+    private val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+        state.value = read()
     }
 
-    override val settings: Flow<AppSettings> = dataStore.data
-        .catch { throwable ->
-            // A corrupt or unreadable file should fall back to defaults rather
-            // than crash the app; genuine errors are rethrown.
-            if (throwable is IOException) emit(emptyPreferences()) else throw throwable
-        }
-        .map { preferences ->
-            AppSettings(
-                themeMode = preferences[Keys.THEME_MODE] ?: ThemeMode.DARK,
-                isGridLayout = preferences[Keys.GRID_LAYOUT] ?: true,
-                lockEnabled = preferences[Keys.LOCK_ENABLED] ?: false,
-                autoBackup = preferences[Keys.AUTO_BACKUP] ?: false
-            )
-        }
+    init {
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+    }
+
+    override val settings: Flow<AppSettings> = state
 
     override suspend fun setThemeMode(themeMode: String) {
-        dataStore.edit { preferences -> preferences[Keys.THEME_MODE] = themeMode }
+        prefs.edit().putString(KEY_THEME_MODE, themeMode).apply()
     }
 
     override suspend fun setGridLayout(isGridLayout: Boolean) {
-        dataStore.edit { preferences -> preferences[Keys.GRID_LAYOUT] = isGridLayout }
+        prefs.edit().putBoolean(KEY_GRID_LAYOUT, isGridLayout).apply()
     }
 
     override suspend fun setLockEnabled(enabled: Boolean) {
-        dataStore.edit { preferences -> preferences[Keys.LOCK_ENABLED] = enabled }
+        prefs.edit().putBoolean(KEY_LOCK_ENABLED, enabled).apply()
     }
 
     override suspend fun setAutoBackup(enabled: Boolean) {
-        dataStore.edit { preferences -> preferences[Keys.AUTO_BACKUP] = enabled }
+        prefs.edit().putBoolean(KEY_AUTO_BACKUP, enabled).apply()
+    }
+
+    private fun read(): AppSettings = AppSettings(
+        themeMode = prefs.getString(KEY_THEME_MODE, null) ?: ThemeMode.DARK,
+        isGridLayout = prefs.getBoolean(KEY_GRID_LAYOUT, true),
+        lockEnabled = prefs.getBoolean(KEY_LOCK_ENABLED, false),
+        autoBackup = prefs.getBoolean(KEY_AUTO_BACKUP, false)
+    )
+
+    private companion object {
+        const val KEY_THEME_MODE = "pref_theme"
+        const val KEY_GRID_LAYOUT = "pref_grid_layout"
+        const val KEY_LOCK_ENABLED = "pref_lock"
+        const val KEY_AUTO_BACKUP = "pref_auto_backup"
     }
 }

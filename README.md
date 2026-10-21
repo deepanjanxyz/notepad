@@ -80,7 +80,7 @@ The app is **local-first**: notes, labels, and settings live in an on-device Roo
 |---|---|
 | Language | Kotlin 2.4.21 |
 | UI | Jetpack Compose with Material 3 (Compose BOM `2026.09.00`) |
-| Local storage | Room (notes & labels) and DataStore Preferences (settings) |
+| Local storage | Room (notes & labels) and SharedPreferences (settings) |
 | Background work | WorkManager (note reminders) |
 | Security | AndroidX Biometric (optional app lock) |
 | Async | Kotlin Coroutines and Flow |

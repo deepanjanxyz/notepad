@@ -16,7 +16,7 @@ All app data is written to storage that is private to the app:
 | :--- | :--- |
 | Notes — text, checklists and serialised drawings, including pin state, colour, labels, archive, trash and reminder times | Room database `notes.db` |
 | Labels | Room database `notes.db` (`labels_table`) |
-| Theme, grid/list layout, and whether the app lock is enabled | Preferences DataStore `notepad_settings` |
+| Theme, grid/list layout, and whether the app lock is enabled | SharedPreferences `notepad_prefs` |
 
 Notes are not encrypted at rest by the app. They are protected by Android's app sandbox — another app cannot read this app's private storage — and by any device encryption you have enabled.
 

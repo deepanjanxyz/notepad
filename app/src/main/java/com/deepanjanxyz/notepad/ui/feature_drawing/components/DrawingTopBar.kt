@@ -12,13 +12,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ColorLens
-import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -38,9 +36,16 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.deepanjanxyz.notepad.domain.model.CanvasGridType
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 
+/**
+ * The drawing screen's app bar.
+ *
+ * Only the actions a drawing session needs constantly stay on the bar: leaving the
+ * screen, the title, and undo/redo. Canvas-level settings and the destructive
+ * "clear" command sit in the overflow menu, so the bar stays quiet and the canvas
+ * keeps the vertical space.
+ */
 @Composable
 fun DrawingTopBar(
     title: String,
@@ -51,8 +56,6 @@ fun DrawingTopBar(
     onRedo: () -> Unit,
     onNavigateBack: () -> Unit,
     onClearCanvas: () -> Unit,
-    currentGridType: CanvasGridType,
-    onGridTypeChange: (CanvasGridType) -> Unit,
     onOpenBackgroundDialog: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -84,14 +87,6 @@ fun DrawingTopBar(
         )
 
         DrawingTopBarIcon(
-            tooltip = "Canvas Background & Grid",
-            icon = Icons.Default.ColorLens,
-            tint = enabledTint,
-            testTag = "drawing_background_button",
-            onClick = onOpenBackgroundDialog
-        )
-
-        DrawingTopBarIcon(
             tooltip = "Undo",
             icon = Icons.AutoMirrored.Filled.Undo,
             tint = if (canUndo) enabledTint else disabledTint,
@@ -110,10 +105,9 @@ fun DrawingTopBar(
         )
 
         DrawingOverflowMenu(
+            canClearCanvas = canUndo,
             onOpenBackgroundDialog = onOpenBackgroundDialog,
-            onClearCanvas = onClearCanvas,
-            currentGridType = currentGridType,
-            onGridTypeChange = onGridTypeChange
+            onClearCanvas = onClearCanvas
         )
     }
 }
@@ -178,19 +172,24 @@ private fun DrawingTitleField(
     }
 }
 
-/** The drawing top bar's overflow menu. */
+/**
+ * The drawing top bar's overflow menu.
+ *
+ * It holds the canvas-level actions that do not belong on every session's path.
+ * The grid pattern is chosen inside the canvas dialog rather than repeated here,
+ * so each setting has exactly one place to change it.
+ */
 @Composable
 private fun DrawingOverflowMenu(
+    canClearCanvas: Boolean,
     onOpenBackgroundDialog: () -> Unit,
-    onClearCanvas: () -> Unit,
-    currentGridType: CanvasGridType,
-    onGridTypeChange: (CanvasGridType) -> Unit
+    onClearCanvas: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
     Box {
         DrawingTopBarIcon(
-            tooltip = "More options",
+            tooltip = "Drawing options",
             icon = Icons.Default.MoreVert,
             tint = MaterialTheme.colorScheme.onSurface,
             testTag = "drawing_more_button",
@@ -203,10 +202,10 @@ private fun DrawingOverflowMenu(
             shape = RoundedCornerShape(16.dp)
         ) {
             DropdownMenuItem(
-                text = { Text("Canvas Background & Grid") },
+                text = { Text("Canvas background & grid") },
                 leadingIcon = {
                     Icon(
-                        imageVector = Icons.Default.ColorLens,
+                        imageVector = Icons.Default.Dashboard,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -222,65 +221,18 @@ private fun DrawingOverflowMenu(
                 text = { Text("Clear canvas") },
                 leadingIcon = {
                     Icon(
-                        imageVector = Icons.Default.DeleteOutline,
+                        imageVector = Icons.Default.DeleteSweep,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.error
                     )
                 },
+                enabled = canClearCanvas,
                 onClick = {
                     showMenu = false
                     onClearCanvas()
                 },
                 modifier = Modifier.testTag("menu_clear_canvas")
             )
-
-            HorizontalDivider()
-
-            GridTypeMenuItems(
-                currentGridType = currentGridType,
-                onGridTypeSelected = { gridType ->
-                    onGridTypeChange(gridType)
-                    showMenu = false
-                }
-            )
         }
-    }
-}
-
-/** The "Background grid" heading and the grid choices under it. */
-@Composable
-private fun GridTypeMenuItems(
-    currentGridType: CanvasGridType,
-    onGridTypeSelected: (CanvasGridType) -> Unit
-) {
-    Text(
-        text = "Background grid",
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-    )
-
-    CanvasGridType.entries.forEach { gridType ->
-        DropdownMenuItem(
-            text = {
-                val label = when (gridType) {
-                    CanvasGridType.NONE -> "Blank"
-                    CanvasGridType.RULED -> "Ruled"
-                    CanvasGridType.GRID -> "Grid"
-                    CanvasGridType.DOTS -> "Dots"
-                }
-                Text(label)
-            },
-            trailingIcon = {
-                if (currentGridType == gridType) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "Selected",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-            },
-            onClick = { onGridTypeSelected(gridType) }
-        )
     }
 }

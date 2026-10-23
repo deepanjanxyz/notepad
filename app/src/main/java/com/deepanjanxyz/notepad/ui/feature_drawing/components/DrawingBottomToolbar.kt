@@ -26,6 +26,11 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.domain.model.DrawingTool
 import com.deepanjanxyz.notepad.ui.theme.AppColors
@@ -40,16 +45,22 @@ fun DockToolButton(
     isSelected: Boolean,
     onClick: () -> Unit,
     testTag: String,
+    label: String,
     content: @Composable () -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
         modifier = Modifier
-            .width(54.dp)
-            .height(54.dp)
+            .width(56.dp)
+            .height(56.dp)
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
+            .semantics {
+                contentDescription = label
+                selected = isSelected
+                role = Role.RadioButton
+            }
             .testTag(testTag)
     ) {
         content()
@@ -214,53 +225,44 @@ fun DrawingBottomToolbar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceAround
     ) {
-        DockToolButton(
-            isSelected = activeTool == DrawingTool.SELECT,
-            onClick = { onToolClick(DrawingTool.SELECT) },
-            testTag = "tool_select"
-        ) {
-            SelectionToolIcon(isSelected = activeTool == DrawingTool.SELECT)
+        ToolDockItem(DrawingTool.SELECT, activeTool, "tool_select", "Select", onToolClick) {
+            SelectionToolIcon(isSelected = it)
         }
+        ToolDockItem(DrawingTool.ERASER, activeTool, "tool_eraser", "Eraser", onToolClick) {
+            EraserToolIcon(isSelected = it)
+        }
+        ToolDockItem(DrawingTool.PEN, activeTool, "tool_pen", "Pen", onToolClick) {
+            PenToolIcon(tipColor = Color(penColor), isSelected = it)
+        }
+        ToolDockItem(DrawingTool.MARKER, activeTool, "tool_marker", "Marker", onToolClick) {
+            MarkerToolIcon(tipColor = Color(markerColor), isSelected = it)
+        }
+        ToolDockItem(DrawingTool.HIGHLIGHTER, activeTool, "tool_highlighter", "Highlighter", onToolClick) {
+            HighlighterToolIcon(tipColor = Color(highlighterColor), isSelected = it)
+        }
+    }
+}
 
-        DockToolButton(
-            isSelected = activeTool == DrawingTool.ERASER,
-            onClick = { onToolClick(DrawingTool.ERASER) },
-            testTag = "tool_eraser"
-        ) {
-            EraserToolIcon(isSelected = activeTool == DrawingTool.ERASER)
-        }
-
-        DockToolButton(
-            isSelected = activeTool == DrawingTool.PEN,
-            onClick = { onToolClick(DrawingTool.PEN) },
-            testTag = "tool_pen"
-        ) {
-            PenToolIcon(
-                tipColor = Color(penColor),
-                isSelected = activeTool == DrawingTool.PEN
-            )
-        }
-
-        DockToolButton(
-            isSelected = activeTool == DrawingTool.MARKER,
-            onClick = { onToolClick(DrawingTool.MARKER) },
-            testTag = "tool_marker"
-        ) {
-            MarkerToolIcon(
-                tipColor = Color(markerColor),
-                isSelected = activeTool == DrawingTool.MARKER
-            )
-        }
-
-        DockToolButton(
-            isSelected = activeTool == DrawingTool.HIGHLIGHTER,
-            onClick = { onToolClick(DrawingTool.HIGHLIGHTER) },
-            testTag = "tool_highlighter"
-        ) {
-            HighlighterToolIcon(
-                tipColor = Color(highlighterColor),
-                isSelected = activeTool == DrawingTool.HIGHLIGHTER
-            )
-        }
+/**
+ * One entry in the tool dock. Keeps the selected state, the click target and the
+ * icon in sync so each tool is declared once rather than repeated inline.
+ */
+@Composable
+private fun ToolDockItem(
+    tool: DrawingTool,
+    activeTool: DrawingTool,
+    testTag: String,
+    label: String,
+    onToolClick: (DrawingTool) -> Unit,
+    icon: @Composable (Boolean) -> Unit
+) {
+    val isSelected = activeTool == tool
+    DockToolButton(
+        isSelected = isSelected,
+        onClick = { onToolClick(tool) },
+        testTag = testTag,
+        label = label
+    ) {
+        icon(isSelected)
     }
 }

@@ -150,6 +150,37 @@ class NoteLogicTest {
     }
 
     @Test
+    fun testDrawingGridTypeRoundTrip() {
+        // A canvas pattern must survive a save and reload, otherwise the choice is
+        // lost the moment the drawing is reopened.
+        com.deepanjanxyz.notepad.domain.model.CanvasGridType.entries.forEach { grid ->
+            val serialized = com.deepanjanxyz.notepad.domain.model.DrawingSerializer.serialize(
+                strokes = emptyList(),
+                backgroundColor = 0xFFFDFBF7L,
+                gridType = grid
+            )
+            val parsed = com.deepanjanxyz.notepad.domain.model.DrawingSerializer.parse(serialized)
+            assertEquals(grid, parsed.gridType)
+            assertEquals(0xFFFDFBF7L, parsed.backgroundColor)
+        }
+    }
+
+    @Test
+    fun testDrawingWithoutGridLineParsesAsBlank() {
+        // Payloads written before the grid was stored have no GRID: line, and must
+        // still load as an unruled canvas rather than failing.
+        val legacyPayload = "[DRAWING_V1]\nBG:ffffffff\n" +
+            "S:ff00b0ff,6.0,1.00,0:10.0,20.0;30.0,40.0\n"
+
+        val parsed = com.deepanjanxyz.notepad.domain.model.DrawingSerializer.parse(legacyPayload)
+
+        assertEquals(com.deepanjanxyz.notepad.domain.model.CanvasGridType.NONE, parsed.gridType)
+        assertEquals(0xFFFFFFFFL, parsed.backgroundColor)
+        assertEquals(1, parsed.strokes.size)
+        assertEquals(2, parsed.strokes[0].points.size)
+    }
+
+    @Test
     fun testDrawingAndTextExtractionAndCombine() {
         val serializedDrawing = com.deepanjanxyz.notepad.domain.model.DrawingSerializer.serialize(
             strokes = emptyList(),

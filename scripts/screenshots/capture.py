@@ -378,7 +378,7 @@ def open_drawing(title):
         clear_search()
         return False
     tap_node(found[0])
-    return bool(wait_find(lambda x: find(x, desc="Canvas Background & Grid"), timeout=10))
+    return bool(wait_find(lambda x: find(x, desc="Drawing options"), timeout=10))
 
 
 # ---------------------------------------------------------------- app flow
@@ -483,7 +483,9 @@ def create_drawing_note(title, shot=None):
     if not tap_text("Drawing Note"):
         return False
     # The drawing canvas is ready only once the drawing top bar is on screen.
-    if not wait_find(lambda x: find(x, desc="Canvas Background & Grid") or
+    # Canvas settings now live in the "Drawing options" overflow menu, so the
+    # readiness probe looks for that menu button or the bar's own controls.
+    if not wait_find(lambda x: find(x, desc="Drawing options") or
                      (find(x, desc="Back") and find(x, text="Title")), timeout=20):
         log("   create_drawing_note: drawing canvas did not open")
         return False

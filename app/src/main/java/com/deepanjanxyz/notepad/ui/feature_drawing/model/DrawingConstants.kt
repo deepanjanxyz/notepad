@@ -1,18 +1,18 @@
 package com.deepanjanxyz.notepad.ui.feature_drawing.model
 
-// 4-row x 7-color matrix matching Google Keep Drawing palette
+// The 4-row x 7-colour palette offered by the drawing tools.
 val KeepColorGrid = listOf(
-    // Row 1 (Primary / Quick Row)
+    // Row 1 (primary / quick row)
     listOf(
         0xFF1B1B1FL, // Black
         0xFFEA4335L, // Coral Red
         0xFFFBBC04L, // Amber Yellow
         0xFF34A853L, // Emerald Green
-        0xFF00B0FFL, // Electric Cyan / Sky Blue (Default active)
+        0xFF00B0FFL, // Electric Cyan / Sky Blue (default active)
         0xFFAB47BCL, // Magenta Purple
         0xFF8D6E63L  // Warm Brown
     ),
-    // Row 2 (7 colors)
+    // Row 2
     listOf(
         0xFFFFFFFFL, // Pure White
         0xFF880E4FL, // Dark Wine / Burgundy
@@ -22,7 +22,7 @@ val KeepColorGrid = listOf(
         0xFF6A1B9AL, // Deep Violet
         0xFF3E2723L  // Dark Roast Brown
     ),
-    // Row 3 (7 colors)
+    // Row 3
     listOf(
         0xFFB0BEC5L, // Cool Grey
         0xFFC2185BL, // Medium Pink
@@ -32,7 +32,7 @@ val KeepColorGrid = listOf(
         0xFFBA68C8L, // Soft Orchid
         0xFFBCAAA4L  // Pale Taupe
     ),
-    // Row 4 (7 colors)
+    // Row 4
     listOf(
         0xFF37474FL, // Charcoal Slate
         0xFFF06292L, // Flamingo Pink
@@ -44,7 +44,7 @@ val KeepColorGrid = listOf(
     )
 )
 
-// Google Keep 7-step thickness dot scale
+// The seven quick stroke thicknesses offered as presets, in pixels.
 val KeepThicknessLevels = listOf(
     Pair(3f, "Fine"),
     Pair(6f, "Thin"),

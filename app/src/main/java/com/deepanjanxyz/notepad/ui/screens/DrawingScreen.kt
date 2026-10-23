@@ -176,6 +176,7 @@ fun DrawingScreen(
                     val parsed = DrawingSerializer.parse(drawingPart)
                     strokes = parsed.strokes
                     canvasBackgroundColor = parsed.backgroundColor
+                    canvasGridType = parsed.gridType
                 } else {
                     noteDescription = content
                 }
@@ -185,14 +186,14 @@ fun DrawingScreen(
     }
 
     LaunchedEffect(
-        strokes, canvasBackgroundColor, title, noteDescription, colorIndex,
+        strokes, canvasBackgroundColor, canvasGridType, title, noteDescription, colorIndex,
         tags, isPinned, inArchive, isLoaded
     ) {
         val hasSomethingToSave =
             strokes.isNotEmpty() || title.isNotBlank() || noteDescription.isNotBlank()
         if (isLoaded && hasSomethingToSave) {
             delay(AUTO_SAVE_DELAY_MS)
-            val drawingJson = DrawingSerializer.serialize(strokes, canvasBackgroundColor)
+            val drawingJson = DrawingSerializer.serialize(strokes, canvasBackgroundColor, canvasGridType)
             val combined = DrawingSerializer.combine(drawingJson, noteDescription)
             val savedId = onSaveNote(currentNoteId, title, combined, colorIndex, tags, isPinned, inArchive)
             if (currentNoteId <= 0L && savedId > 0L) {
@@ -203,7 +204,7 @@ fun DrawingScreen(
 
     fun forceSaveAndExit() {
         if (isLoaded) {
-            val drawingJson = DrawingSerializer.serialize(strokes, canvasBackgroundColor)
+            val drawingJson = DrawingSerializer.serialize(strokes, canvasBackgroundColor, canvasGridType)
             val combined = DrawingSerializer.combine(drawingJson, noteDescription)
             coroutineScope.launch {
                 val savedId = onSaveNote(currentNoteId, title, combined, colorIndex, tags, isPinned, inArchive)
@@ -286,8 +287,6 @@ fun DrawingScreen(
                 strokes = emptyList()
                 selectedStrokeIndices = emptySet()
             },
-            currentGridType = canvasGridType,
-            onGridTypeChange = { canvasGridType = it },
             onOpenBackgroundDialog = { showBackgroundDialog = true }
         )
 
@@ -391,12 +390,7 @@ fun DrawingScreen(
                 currentMode = eraserMode,
                 onModeSelected = { eraserMode = it },
                 currentRadiusPx = eraserRadiusPx,
-                onRadiusChanged = { eraserRadiusPx = it },
-                onClearCanvas = {
-                    pushHistory()
-                    strokes = emptyList()
-                    selectedStrokeIndices = emptySet()
-                }
+                onRadiusChanged = { eraserRadiusPx = it }
             )
         }
 

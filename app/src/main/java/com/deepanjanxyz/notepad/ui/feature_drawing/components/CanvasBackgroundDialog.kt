@@ -35,6 +35,9 @@ import androidx.compose.ui.unit.sp
 import com.deepanjanxyz.notepad.domain.model.CanvasGridType
 import com.deepanjanxyz.notepad.ui.theme.AppColors
 
+// Radix used when a colour value is folded into a test tag.
+private const val HEX_RADIX = 16
+
 // The canvas background colours offered in the dialog, with their spoken names.
 val CanvasBackgroundOptions = listOf(
     AppColors.OPAQUE_WHITE to "Pure white",
@@ -131,7 +134,7 @@ private fun BackgroundOptionCircle(
                 selected = isSelected
                 role = Role.RadioButton
             }
-            .testTag("canvas_color_${colorValue.toString(16)}"),
+            .testTag("canvas_color_${colorValue.toString(HEX_RADIX)}"),
         contentAlignment = Alignment.Center
     ) {
         Box(

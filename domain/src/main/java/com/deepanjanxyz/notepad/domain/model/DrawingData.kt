@@ -118,26 +118,25 @@ object DrawingSerializer {
     /** One `S:` line turned into a stroke, or null when the line is malformed. */
     private fun parseStroke(line: String): DrawingStroke? {
         val parts = line.substring(STROKE_KEY.length).split(":", limit = 2)
-        if (parts.size != 2) return null
-        val meta = parts[0].split(",")
-        val color = meta.getOrNull(0)?.toLongOrNull(16) ?: 0xFF000000L
-        val width = meta.getOrNull(1)?.toFloatOrNull() ?: 6f
-        val alpha = meta.getOrNull(2)?.toFloatOrNull() ?: 1f
-        val isHighlighter = meta.getOrNull(3) == "1"
-        val points = parts[1].split(";").mapNotNull { pointString ->
+        val meta = parts.getOrNull(0).orEmpty().split(",")
+        val points = parts.getOrNull(1).orEmpty().split(";").mapNotNull { pointString ->
             val coords = pointString.split(",")
             if (coords.size != 2) return@mapNotNull null
             val x = coords[0].toFloatOrNull() ?: return@mapNotNull null
             val y = coords[1].toFloatOrNull() ?: return@mapNotNull null
             DrawingPoint(x, y)
         }
-        if (points.isEmpty()) return null
-        return DrawingStroke(
-            points = points,
-            color = color,
-            strokeWidth = width,
-            alpha = alpha,
-            isHighlighter = isHighlighter
-        )
+        // A line with no metadata/points separator, or with no readable points, is skipped.
+        return if (parts.size != 2 || points.isEmpty()) {
+            null
+        } else {
+            DrawingStroke(
+                points = points,
+                color = meta.getOrNull(0)?.toLongOrNull(16) ?: 0xFF000000L,
+                strokeWidth = meta.getOrNull(1)?.toFloatOrNull() ?: 6f,
+                alpha = meta.getOrNull(2)?.toFloatOrNull() ?: 1f,
+                isHighlighter = meta.getOrNull(3) == "1"
+            )
+        }
     }
 }

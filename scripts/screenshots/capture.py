@@ -288,3 +288,446 @@ def close_overlays(max_presses=4):
 def close_drawer(max_presses=3):
     for _ in range(max_presses):
         if not find(dump(), text="Source on GitHub"):
+            return True
+        press_back()
+    return False
+
+
+def clear_search():
+    for _ in range(3):
+        if find(dump(), desc="Clear search text"):
+            tap_desc("Clear search text", timeout=3)
+            time.sleep(0.5)
+        else:
+            return
+
+
+def open_drawer():
+    return tap_desc("Open navigation menu", timeout=5) or tap_desc("Open drawer", timeout=5)
+
+
+def relaunch_to_home():
+    adb("shell", "am", "force-stop", PKG)
+    adb("shell", "am", "start", "-W", "-n", ACTIVITY)
+    time.sleep(2.5)
+    dismiss_dialogs()
+    return bool(wait_find(lambda x: at_home(x), timeout=30))
+
+
+def nav_to(name):
+    if not ensure_home():
+        relaunch_to_home()
+    clear_search()
+    if not open_drawer():
+        relaunch_to_home()
+        if not open_drawer():
+            return False
+    time.sleep(0.6)
+    found = wait_find(lambda x: find(x, text=name), timeout=5)
+    return tap_node(found[0]) if found else False
+
+
+def dismiss_dialogs():
+    for _ in range(4):
+        if "responding" in dump():
+            log("dismissing a system dialog")
+            if not tap_text("Wait", timeout=3):
+                tap_text("Close app", timeout=3)
+            time.sleep(1.2)
+        else:
+            return
+
+
+def open_editor(title):
+    """Open a note through the app's search field (no list scrolling needed)."""
+    ensure_home()
+    clear_search()
+    if not find(dump(), text=SEARCH_HINT):
+        log("   open_editor: search field missing; relaunching")
+        relaunch_to_home()
+    if not type_into(SEARCH_HINT, title):
+        log("   open_editor: search field not found")
+        return False
+    time.sleep(1.0)
+    hide_ime()
+    found = wait_find(lambda x: find(x, text=title), timeout=8)
+    if not found:
+        log("   open_editor: '%s' not in search results" % title)
+        clear_search()
+        return False
+    tap_node(found[0])
+    ok = wait_find(lambda x: find(x, desc="Save and Close"), timeout=10)
+    if not ok:
+        log("   open_editor: editor did not open for '%s'" % title)
+    return ok
+
+
+def open_drawing(title):
+    """Open a drawing note through search and confirm the drawing canvas loaded."""
+    ensure_home()
+    clear_search()
+    if not find(dump(), text=SEARCH_HINT):
+        relaunch_to_home()
+    if not type_into(SEARCH_HINT, title):
+        return False
+    time.sleep(1.0)
+    hide_ime()
+    found = wait_find(lambda x: find(x, text=title), timeout=8)
+    if not found:
+        log("   open_drawing: '%s' not in search results" % title)
+        clear_search()
+        return False
+    tap_node(found[0])
+    return bool(wait_find(lambda x: find(x, desc="Drawing options"), timeout=10))
+
+
+# ---------------------------------------------------------------- app flow
+
+def launch_app():
+    adb("shell", "am", "force-stop", PKG)
+    adb("shell", "am", "start", "-W", "-n", ACTIVITY)
+    time.sleep(3.0)
+    dismiss_dialogs()
+    log("pidof=%s focus=%s" % (adb("shell", "pidof", PKG).strip(), current_focus()))
+    log("launch: home markers found=%s" % bool(wait_find(lambda x: at_home(x), timeout=40)))
+    time.sleep(1.5)
+
+
+def add_label(label):
+    if tap_any(desc="Add label", text="Add label"):
+        type_into("Create new label", label)
+        tap_desc("Create label", timeout=10)
+        time.sleep(0.5)
+        close_overlays()
+
+
+def create_text_note(title, content, pin=False, label=None, archive=False,
+                     shot_editor=None, shot_sheets=False):
+    if not tap_desc("New Note"):
+        return False
+    if not tap_text("Text Note"):
+        return False
+    if not type_into("Title", title):
+        return False
+    type_into("Note", content)
+    if shot_editor:
+        hide_ime()
+        time.sleep(0.6)
+        screenshot(shot_editor,
+                   "Note editor with title, body text, labels, and the editing toolbar.")
+    if shot_sheets:
+        if tap_any(desc="Add label", text="Add label"):
+            time.sleep(1.0)
+            screenshot("06-labels-sheet-dark.png",
+                       "Labels bottom sheet for applying and creating labels on a note.")
+            close_overlays()
+        if tap_desc("Color palette", timeout=10):
+            time.sleep(1.0)
+            screenshot("07-color-picker-dark.png",
+                       "Color picker bottom sheet with the note color options.")
+            close_overlays()
+    if label:
+        add_label(label)
+    if pin:
+        tap_desc("Pin Note", timeout=8)
+    if archive:
+        tap_desc("Archive Note", timeout=8)
+    else:
+        tap_desc("Save and Close")
+    return ensure_home()
+
+
+def create_checklist_note(title, items, shot=None):
+    if not tap_desc("New Note"):
+        return False
+    if not tap_text("Text Note"):
+        return False
+    if not type_into("Title", title):
+        return False
+    tap_desc("Checklist format")
+    time.sleep(0.8)
+    for item in items:
+        type_into("List item", item)
+        tap_desc("Add list item")
+        time.sleep(0.3)
+    if shot:
+        hide_ime()
+        time.sleep(0.6)
+        screenshot(shot, "Checklist editor showing the list items and the add item row.")
+    tap_desc("Save and Close")
+    return ensure_home()
+
+
+def draw_star(cx, cy, radius):
+    """Draw a five-pointed star outline as five straight pen strokes.
+
+    The five outer vertices are computed from the canvas centre and radius, and
+    each point of the star is one straight stroke, so the result is a clean,
+    recognisable star rather than scattered lines.
+    """
+    verts = []
+    for k in range(5):
+        angle = math.radians(-90 + k * 72)
+        verts.append((cx + radius * math.cos(angle), cy + radius * math.sin(angle)))
+    for a, b in ((0, 2), (2, 4), (4, 1), (1, 3), (3, 0)):
+        x1, y1 = verts[a]
+        x2, y2 = verts[b]
+        adb("shell", "input", "swipe", str(int(x1)), str(int(y1)),
+            str(int(x2)), str(int(y2)), "300")
+        time.sleep(0.35)
+
+
+def create_drawing_note(title, shot=None):
+    if not tap_desc("New Note"):
+        return False
+    if not tap_text("Drawing Note"):
+        return False
+    # The drawing canvas is ready only once the drawing top bar is on screen.
+    # Canvas settings now live in the "Drawing options" overflow menu, so the
+    # readiness probe looks for that menu button or the bar's own controls.
+    if not wait_find(lambda x: find(x, desc="Drawing options") or
+                     (find(x, desc="Back") and find(x, text="Title")), timeout=20):
+        log("   create_drawing_note: drawing canvas did not open")
+        return False
+    w, h = screen_size()
+    draw_star(w * 0.5, h * 0.46, h * 0.18)
+    type_into("Title", title)
+    type_into_field(0, title)
+    if shot:
+        hide_ime()
+        time.sleep(0.6)
+        screenshot(shot, "Drawing note showing a star drawn on the canvas with the pen toolbar.")
+    time.sleep(0.5)
+    tap_desc("Back")
+    wait_find(lambda x: find(x, desc="Save and Close"), timeout=15)
+    tap_desc("Save and Close")
+    return ensure_home()
+
+
+def create_and_trash(title, content):
+    if not create_text_note(title, content):
+        return False
+    # The newest note is the first card in the list (ORDER BY PINNED DESC, ID DESC).
+    node = wait_find(lambda x: find(x, text=title), timeout=8)
+    if not node:
+        log("   create_and_trash: '%s' not on top of the list" % title)
+        return False
+    long_press(node[0])
+    if not wait_find(lambda x: find(x, text="Selected", exact=False), timeout=8):
+        return False
+    ok = tap_desc("Move to Trash", timeout=8)
+    return ensure_home() and ok
+
+
+def write_readme():
+    lines = [
+        "# Elite Memo Pro - screenshot run",
+        "",
+        "Automated, full resolution screenshots of the app, captured on a Pixel 6",
+        "(1080x2400) API 34 emulator from a debug build of the `dev` branch.",
+        "",
+        "## Screenshots",
+        "",
+    ]
+    if captures:
+        for name, description in sorted(captures):
+            lines.append("- `%s` - %s" % (name, description))
+    else:
+        lines.append("_No screenshots were captured._")
+    lines += [
+        "",
+        "## Notes",
+        "",
+        "- All screenshots are captured in dark mode only.",
+        "- The note editor and the drawing canvas are dark by design regardless of the",
+        "  selected theme.",
+        "- The status bar is normalised with Android demo mode (fixed 12:00 clock, full",
+        "  battery, Wi-Fi on) and animations are disabled for stable captures.",
+        "- Notes are seeded through the real UI; nothing is written to the database directly.",
+        "",
+    ]
+    with open(os.path.join(LOGS_DIR, "README.md"), "w") as fh:
+        fh.write("\n".join(lines) + "\n")
+
+
+def safe(label, fn, *args):
+    try:
+        result = fn(*args)
+        log("%s -> %s" % (label, result))
+        return result
+    except Exception:
+        log("ERROR in %s:\n%s" % (label, traceback.format_exc()))
+        return False
+
+
+def handle_notification_permission(timeout=8):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        allow = find(dump(), text="Allow")
+        if allow:
+            log("   reminder: granting notification permission")
+            tap_node(allow[0])
+            time.sleep(1.0)
+            return True
+        time.sleep(0.6)
+    return False
+
+
+def open_note_by_title(title):
+    """Open a note that is already visible on the home screen (e.g. a pinned note)."""
+    ensure_home()
+    clear_search()
+    for _ in range(3):
+        found = wait_find(lambda x: find(x, text=title), timeout=6)
+        if not found:
+            return False
+        tap_node(found[0])
+        if wait_find(lambda x: find(x, desc="Save and Close"), timeout=5):
+            return True
+    log("   open_note_by_title: editor did not open for '%s'" % title)
+    return False
+
+
+def reminder_flow():
+    if not open_note_by_title("Weekly Goals"):
+        return False
+    if not tap_desc("Add reminder", timeout=10):
+        log("   reminder: 'Add reminder' button not found")
+        return False
+    if not wait_find(lambda x: find(x, text="Add Reminder"), timeout=10):
+        log("   reminder: dialog did not open")
+        return False
+    if not (tap_text("Tomorrow Morning (9:00 AM)", timeout=6) or
+            tap_text("Later Today (6:00 PM)", timeout=3)):
+        log("   reminder: preset chip not found")
+        return False
+    time.sleep(0.6)
+    screenshot("13-reminder-dialog-dark.png",
+               "Reminder dialog with a preset time selected, before saving.")
+    if not tap_text("Save", timeout=8):
+        log("   reminder: Save button not found")
+        return False
+    handle_notification_permission()
+    if not wait_find(lambda x: find(x, desc="Edit reminder"), timeout=10):
+        log("   reminder: reminder was not applied")
+        return False
+    time.sleep(0.8)
+    screenshot("14-reminder-applied-dark.png",
+               "Note editor showing the reminder applied to the note.")
+    tap_desc("Save and Close")
+    return ensure_home()
+
+
+def capture_dark():
+    ensure_home()
+    clear_search()
+    scroll_top()
+    screenshot("01-home-grid-dark.png",
+               "Home screen, two column grid layout, dark theme, with pinned notes and labels.")
+    if tap_desc("Switch to Single Column List", timeout=10):
+        time.sleep(1.0)
+        screenshot("02-home-list-dark.png",
+                   "Home screen, single column list layout, dark theme.")
+        tap_desc("Switch to Grid View", timeout=10)
+        time.sleep(0.8)
+
+    if type_into(SEARCH_HINT, "project"):
+        time.sleep(1.0)
+        hide_ime()
+        screenshot("03-search-results-dark.png",
+                   "Search results filtering notes by the keyword project, dark theme.")
+        clear_search()
+        time.sleep(0.5)
+
+    if open_drawer():
+        time.sleep(1.0)
+        screenshot("04-navigation-drawer-dark.png",
+                   "Navigation drawer with notes, labels, archive, trash, and settings.")
+        close_drawer()
+        relaunch_to_home()
+
+    if nav_to("Archive"):
+        time.sleep(1.2)
+        screenshot("10-archive-dark.png",
+                   "Archive screen listing archived notes, dark theme.")
+        nav_to("Notes")
+        ensure_home()
+
+    if nav_to("Trash"):
+        time.sleep(1.2)
+        screenshot("11-trash-dark.png",
+                   "Trash screen with restore and delete options on each note, dark theme.")
+        nav_to("Notes")
+        ensure_home()
+
+    if nav_to("Settings"):
+        time.sleep(1.2)
+        screenshot("12-settings-dark.png",
+                   "Settings screen with workspace statistics, appearance, and security, dark theme.")
+
+
+def main():
+    launch_app()
+    debug_save("after-launch")
+
+    safe("note Meeting Notes", create_text_note, "Meeting Notes",
+         "Q3 planning sync with the product and design leads. Agenda covers roadmap, hiring, and the launch window.",
+         True, "Work", False, "05-note-editor-dark.png", True)
+    safe("note Project Roadmap", create_text_note, "Project Roadmap",
+         "Milestones for the next two quarters: private beta in August and the public launch in October.",
+         False, "Work", False)
+    safe("note Book Summary", create_text_note, "Book Summary",
+         "Key ideas from Atomic Habits: small changes compound and systems beat goals every time.",
+         False, None, True)
+    safe("note Recipe", create_text_note, "Recipe",
+         "One pan lemon chicken with roasted vegetables, garlic, and fresh herbs.",
+         False, None, True)
+    safe("note Reading List", create_text_note, "Reading List",
+         "Three books queued for the month, one finished each week.",
+         False, None, True)
+    safe("note Travel Itinerary", create_text_note, "Travel Itinerary",
+         "Three days in Kyoto: temples in the morning, markets in the afternoon, and a quiet dinner each evening.",
+         False, "Travel", False)
+    safe("note Workout Plan", create_text_note, "Workout Plan",
+         "Push, pull, legs split across four sessions a week with one full rest day in between.",
+         False, None, False)
+    safe("note Weekly Goals", create_text_note, "Weekly Goals",
+         "Ship the settings redesign, review the open pull requests, and write the release notes.",
+         True, None, False)
+    safe("note Ideas", create_text_note, "Ideas",
+         "A calm reading app, a gentle habit tracker, and a simple monthly budgeting tool.",
+         False, None, False)
+    safe("note Grocery List", create_checklist_note, "Grocery List",
+         ["Milk", "Eggs", "Sourdough bread", "Coffee beans", "Olive oil"],
+         "08-checklist-editor-dark.png")
+    safe("note Product Launch", create_checklist_note, "Product Launch",
+         ["Finalise marketing copy", "Prepare store screenshots", "Submit for review"])
+    safe("note Sketch", create_drawing_note, "Sketch", "09-drawing-note-dark.png")
+    safe("trash Client Feedback", create_and_trash, "Client Feedback",
+         "Summary of the latest review: clearer onboarding, faster search, and larger note previews.")
+    safe("trash Meeting Recap", create_and_trash, "Meeting Recap",
+         "Follow-ups from the design review: adjust spacing and refine the empty states.")
+
+    ensure_home()
+    clear_search()
+    scroll_top()
+    debug_save("before-captures")
+
+    try:
+        capture_dark()
+    except Exception:
+        log("ERROR during dark captures:\n%s" % traceback.format_exc())
+
+    safe("reminder flow", reminder_flow)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception:
+        log("FATAL:\n%s" % traceback.format_exc())
+    finally:
+        write_readme()
+        log("done: %d screenshots" % len(captures))
+        with open(LOG_PATH, "w") as fh:
+            fh.write("\n".join(log_lines) + "\n")

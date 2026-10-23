@@ -1,7 +1,7 @@
 package com.deepanjanxyz.notepad.ui.feature_drawing.model
 
 // The 4-row x 7-colour palette offered by the drawing tools.
-val ToolColorGrid = listOf(
+val KeepColorGrid = listOf(
     // Row 1 (primary / quick row)
     listOf(
         0xFF1B1B1FL, // Black
@@ -45,7 +45,7 @@ val ToolColorGrid = listOf(
 )
 
 // The seven quick stroke thicknesses offered as presets, in pixels.
-val ThicknessLevels = listOf(
+val KeepThicknessLevels = listOf(
     Pair(3f, "Fine"),
     Pair(6f, "Thin"),
     Pair(10f, "Medium-Light"),

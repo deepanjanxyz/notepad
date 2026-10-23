@@ -35,8 +35,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deepanjanxyz.notepad.domain.model.DrawingTool
-import com.deepanjanxyz.notepad.ui.feature_drawing.model.ToolColorGrid
-import com.deepanjanxyz.notepad.ui.feature_drawing.model.ThicknessLevels
+import com.deepanjanxyz.notepad.ui.feature_drawing.model.KeepColorGrid
+import com.deepanjanxyz.notepad.ui.feature_drawing.model.KeepThicknessLevels
 import com.deepanjanxyz.notepad.ui.theme.AppColors
 import kotlin.math.roundToInt
 
@@ -268,7 +268,7 @@ private fun ThicknessPresetRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        ThicknessLevels.forEach { (thick, _) ->
+        KeepThicknessLevels.forEach { (thick, _) ->
             val isSelected = (selectedThickness - thick).let { it >= -2f && it <= 2f }
             ThicknessPresetDot(
                 thick = thick,
@@ -338,7 +338,7 @@ private fun ThicknessPresetDot(
 /** The four rows of seven colours. */
 @Composable
 private fun ColorGrid(selectedColor: Long, onColorSelected: (Long) -> Unit) {
-    ToolColorGrid.forEach { colorRow ->
+    KeepColorGrid.forEach { colorRow ->
         Row(
             modifier = Modifier
                 .fillMaxWidth()

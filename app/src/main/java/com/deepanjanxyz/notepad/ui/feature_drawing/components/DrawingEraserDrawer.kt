@@ -81,14 +81,14 @@ private fun EraserModeRow(currentMode: EraserMode, onModeSelected: (EraserMode) 
     ) {
         EraserModeChip(
             label = "Precision",
-            contentDescription = "Precision eraser, erases where you touch",
+            spokenLabel = "Precision eraser, erases where you touch",
             isSelected = currentMode == EraserMode.SEGMENT,
             testTag = "eraser_mode_precision",
             onClick = { onModeSelected(EraserMode.SEGMENT) }
         )
         EraserModeChip(
             label = "Whole stroke",
-            contentDescription = "Whole stroke eraser, removes the entire line it touches",
+            spokenLabel = "Whole stroke eraser, removes the entire line it touches",
             isSelected = currentMode == EraserMode.STROKE,
             testTag = "eraser_mode_stroke",
             onClick = { onModeSelected(EraserMode.STROKE) }
@@ -99,7 +99,7 @@ private fun EraserModeRow(currentMode: EraserMode, onModeSelected: (EraserMode) 
 @Composable
 private fun RowScope.EraserModeChip(
     label: String,
-    contentDescription: String,
+    spokenLabel: String,
     isSelected: Boolean,
     testTag: String,
     onClick: () -> Unit
@@ -132,7 +132,7 @@ private fun RowScope.EraserModeChip(
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                     color = if (isSelected) Color.White else AppColors.TextIdle
                 ),
-                modifier = Modifier.semantics { contentDescription = contentDescription }
+                modifier = Modifier.semantics { contentDescription = spokenLabel }
             )
         }
     }

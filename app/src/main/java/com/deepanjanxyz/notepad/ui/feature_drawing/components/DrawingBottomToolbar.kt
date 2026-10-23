@@ -1,6 +1,5 @@
 package com.deepanjanxyz.notepad.ui.feature_drawing.components
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,42 +13,115 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.deepanjanxyz.notepad.domain.model.DrawingTool
 import com.deepanjanxyz.notepad.ui.theme.AppColors
 
-// Dash pattern of the guide line drawn across the canvas, in pixels.
-private const val GUIDE_DASH_LENGTH_PX = 4f
-private const val GUIDE_DASH_GAP_PX = 3f
+/**
+ * The tool dock along the bottom of the drawing screen.
+ *
+ * Every drawing tool stays visible in the dock: switching tools is the most
+ * frequent action in a session, so none of them is pushed behind a menu. Each
+ * button carries its name and its selected state, since the tool icons are drawn
+ * as shapes rather than sourced from an icon font.
+ */
+@Composable
+fun DrawingBottomToolbar(
+    activeTool: DrawingTool,
+    onToolSelected: (DrawingTool) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(AppColors.DockSurface)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        DockToolButton(
+            isSelected = activeTool == DrawingTool.SELECT,
+            onClick = { onToolSelected(DrawingTool.SELECT) },
+            testTag = "tool_select",
+            label = "Select"
+        ) {
+            SelectionToolIcon(isSelected = activeTool == DrawingTool.SELECT)
+        }
 
+        DockToolButton(
+            isSelected = activeTool == DrawingTool.ERASER,
+            onClick = { onToolSelected(DrawingTool.ERASER) },
+            testTag = "tool_eraser",
+            label = "Eraser"
+        ) {
+            EraserToolIcon(isSelected = activeTool == DrawingTool.ERASER)
+        }
 
+        DockToolButton(
+            isSelected = activeTool == DrawingTool.PEN,
+            onClick = { onToolSelected(DrawingTool.PEN) },
+            testTag = "tool_pen",
+            label = "Pen"
+        ) {
+            PenToolIcon(isSelected = activeTool == DrawingTool.PEN)
+        }
+
+        DockToolButton(
+            isSelected = activeTool == DrawingTool.MARKER,
+            onClick = { onToolSelected(DrawingTool.MARKER) },
+            testTag = "tool_marker",
+            label = "Marker"
+        ) {
+            MarkerToolIcon(isSelected = activeTool == DrawingTool.MARKER)
+        }
+
+        DockToolButton(
+            isSelected = activeTool == DrawingTool.HIGHLIGHTER,
+            onClick = { onToolSelected(DrawingTool.HIGHLIGHTER) },
+            testTag = "tool_highlighter",
+            label = "Highlighter"
+        ) {
+            HighlighterToolIcon(isSelected = activeTool == DrawingTool.HIGHLIGHTER)
+        }
+    }
+}
+
+/** One tool in the dock: its icon, plus the bar that marks the active tool. */
 @Composable
 fun DockToolButton(
     isSelected: Boolean,
     onClick: () -> Unit,
     testTag: String,
+    label: String,
     content: @Composable () -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
         modifier = Modifier
-            .width(54.dp)
-            .height(54.dp)
+            .width(56.dp)
+            .height(56.dp)
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
+            .semantics {
+                contentDescription = label
+                selected = isSelected
+                role = Role.RadioButton
+            }
             .testTag(testTag)
     ) {
         content()
@@ -64,203 +136,58 @@ fun DockToolButton(
     }
 }
 
+/** Selection tool: a dashed marquee. */
 @Composable
-fun SelectionToolIcon(isSelected: Boolean) {
-    Canvas(modifier = Modifier.size(24.dp)) {
-        val color = if (isSelected) AppColors.Accent else AppColors.TextMuted
-        val strokeW = 1.6.dp.toPx()
-        val w = size.width
-        val h = size.height
-        val pad = 3.dp.toPx()
+private fun SelectionToolIcon(isSelected: Boolean) {
+    val tint = if (isSelected) AppColors.Accent else AppColors.DockIconIdle
+    Text(
+        text = "\u2b1a",
+        style = TextStyle(fontSize = 20.sp, color = tint)
+    )
+}
 
-        drawRect(
-            color = color,
-            topLeft = Offset(pad, pad),
-            size = Size(w - pad * 2, h - pad * 2),
-            style = Stroke(
-                width = strokeW,
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(GUIDE_DASH_LENGTH_PX, GUIDE_DASH_GAP_PX))
+/** Eraser tool: a filled rounded block. */
+@Composable
+private fun EraserToolIcon(isSelected: Boolean) {
+    Box(
+        modifier = Modifier
+            .size(width = 24.dp, height = 20.dp)
+            .clip(RoundedCornerShape(3.dp))
+            .background(if (isSelected) AppColors.Accent else AppColors.DockIconIdle)
+    )
+}
+
+/** Pen tool: a slim vertical stroke. */
+@Composable
+private fun PenToolIcon(isSelected: Boolean) {
+    Box(
+        modifier = Modifier
+            .size(width = 4.dp, height = 22.dp)
+            .clip(RoundedCornerShape(2.dp))
+            .background(if (isSelected) AppColors.Accent else AppColors.DockIconIdle)
+    )
+}
+
+/** Marker tool: a broad block. */
+@Composable
+private fun MarkerToolIcon(isSelected: Boolean) {
+    Box(
+        modifier = Modifier
+            .size(width = 14.dp, height = 22.dp)
+            .clip(RoundedCornerShape(4.dp))
+            .background(if (isSelected) AppColors.Accent else AppColors.DockIconIdle)
+    )
+}
+
+/** Highlighter tool: a wide, softly tinted block. */
+@Composable
+private fun HighlighterToolIcon(isSelected: Boolean) {
+    Box(
+        modifier = Modifier
+            .size(width = 24.dp, height = 14.dp)
+            .clip(RoundedCornerShape(7.dp))
+            .background(
+                if (isSelected) AppColors.Accent else AppColors.DockIconIdle.copy(alpha = 0.55f)
             )
-        )
-
-        val arrowPath = Path().apply {
-            moveTo(pad + 1f, h - pad - 6.dp.toPx())
-            lineTo(pad + 1f, h - pad - 1f)
-            lineTo(pad + 6.dp.toPx(), h - pad - 1f)
-            moveTo(pad + 1f, h - pad - 1f)
-            lineTo(pad + 5.dp.toPx(), h - pad - 5.dp.toPx())
-        }
-        drawPath(arrowPath, color, style = Stroke(width = strokeW, cap = StrokeCap.Round))
-    }
-}
-
-@Composable
-fun EraserToolIcon(isSelected: Boolean) {
-    Canvas(modifier = Modifier.size(24.dp)) {
-        val bodyColor = if (isSelected) AppColors.Accent else AppColors.TextMuted
-        val capColor = if (isSelected) Color.White else AppColors.IconIdleOnTool
-
-        val path = Path().apply {
-            moveTo(size.width * 0.22f, size.height * 0.78f)
-            lineTo(size.width * 0.38f, size.height * 0.90f)
-            lineTo(size.width * 0.88f, size.height * 0.40f)
-            lineTo(size.width * 0.65f, size.height * 0.20f)
-            close()
-        }
-        drawPath(path, bodyColor)
-
-        val divider = Path().apply {
-            moveTo(size.width * 0.32f, size.height * 0.84f)
-            lineTo(size.width * 0.54f, size.height * 0.52f)
-        }
-        drawPath(divider, capColor, style = Stroke(width = 1.5.dp.toPx()))
-    }
-}
-
-@Composable
-fun PenToolIcon(tipColor: Color, isSelected: Boolean) {
-    Canvas(modifier = Modifier.size(24.dp)) {
-        val bodyColor = if (isSelected) Color.White else AppColors.TextMuted
-
-        val body = Path().apply {
-            moveTo(size.width * 0.45f, size.height * 0.42f)
-            lineTo(size.width * 0.85f, size.height * 0.05f)
-            lineTo(size.width * 0.95f, size.height * 0.15f)
-            lineTo(size.width * 0.55f, size.height * 0.52f)
-            close()
-        }
-        drawPath(body, bodyColor)
-
-        val tip = Path().apply {
-            moveTo(size.width * 0.45f, size.height * 0.42f)
-            lineTo(size.width * 0.12f, size.height * 0.78f)
-            lineTo(size.width * 0.08f, size.height * 0.92f)
-            lineTo(size.width * 0.22f, size.height * 0.88f)
-            lineTo(size.width * 0.55f, size.height * 0.52f)
-            close()
-        }
-        drawPath(tip, tipColor)
-    }
-}
-
-@Composable
-fun MarkerToolIcon(tipColor: Color, isSelected: Boolean) {
-    Canvas(modifier = Modifier.size(24.dp)) {
-        val bodyColor = if (isSelected) Color.White else AppColors.TextMuted
-
-        val barrel = Path().apply {
-            moveTo(size.width * 0.40f, size.height * 0.45f)
-            lineTo(size.width * 0.80f, size.height * 0.05f)
-            lineTo(size.width * 0.95f, size.height * 0.20f)
-            lineTo(size.width * 0.55f, size.height * 0.60f)
-            close()
-        }
-        drawPath(barrel, bodyColor)
-
-        val tip = Path().apply {
-            moveTo(size.width * 0.40f, size.height * 0.45f)
-            lineTo(size.width * 0.22f, size.height * 0.65f)
-            lineTo(size.width * 0.12f, size.height * 0.90f)
-            lineTo(size.width * 0.35f, size.height * 0.78f)
-            lineTo(size.width * 0.55f, size.height * 0.60f)
-            close()
-        }
-        drawPath(tip, tipColor)
-    }
-}
-
-@Composable
-fun HighlighterToolIcon(tipColor: Color, isSelected: Boolean) {
-    Canvas(modifier = Modifier.size(24.dp)) {
-        val bodyColor = if (isSelected) Color.White else AppColors.TextMuted
-
-        val barrel = Path().apply {
-            moveTo(size.width * 0.38f, size.height * 0.42f)
-            lineTo(size.width * 0.78f, size.height * 0.02f)
-            lineTo(size.width * 0.98f, size.height * 0.22f)
-            lineTo(size.width * 0.58f, size.height * 0.62f)
-            close()
-        }
-        drawPath(barrel, bodyColor)
-
-        val tip = Path().apply {
-            moveTo(size.width * 0.38f, size.height * 0.42f)
-            lineTo(size.width * 0.15f, size.height * 0.65f)
-            lineTo(size.width * 0.10f, size.height * 0.92f)
-            lineTo(size.width * 0.38f, size.height * 0.82f)
-            lineTo(size.width * 0.58f, size.height * 0.62f)
-            close()
-        }
-        drawPath(tip, tipColor.copy(alpha = 0.85f))
-    }
-}
-
-@Composable
-fun DrawingBottomToolbar(
-    activeTool: DrawingTool,
-    onToolClick: (DrawingTool) -> Unit,
-    selectedColor: Long,
-    penColor: Long = selectedColor,
-    markerColor: Long = selectedColor,
-    highlighterColor: Long = selectedColor,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(60.dp)
-            .background(AppColors.PanelDeep)
-            .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceAround
-    ) {
-        DockToolButton(
-            isSelected = activeTool == DrawingTool.SELECT,
-            onClick = { onToolClick(DrawingTool.SELECT) },
-            testTag = "tool_select"
-        ) {
-            SelectionToolIcon(isSelected = activeTool == DrawingTool.SELECT)
-        }
-
-        DockToolButton(
-            isSelected = activeTool == DrawingTool.ERASER,
-            onClick = { onToolClick(DrawingTool.ERASER) },
-            testTag = "tool_eraser"
-        ) {
-            EraserToolIcon(isSelected = activeTool == DrawingTool.ERASER)
-        }
-
-        DockToolButton(
-            isSelected = activeTool == DrawingTool.PEN,
-            onClick = { onToolClick(DrawingTool.PEN) },
-            testTag = "tool_pen"
-        ) {
-            PenToolIcon(
-                tipColor = Color(penColor),
-                isSelected = activeTool == DrawingTool.PEN
-            )
-        }
-
-        DockToolButton(
-            isSelected = activeTool == DrawingTool.MARKER,
-            onClick = { onToolClick(DrawingTool.MARKER) },
-            testTag = "tool_marker"
-        ) {
-            MarkerToolIcon(
-                tipColor = Color(markerColor),
-                isSelected = activeTool == DrawingTool.MARKER
-            )
-        }
-
-        DockToolButton(
-            isSelected = activeTool == DrawingTool.HIGHLIGHTER,
-            onClick = { onToolClick(DrawingTool.HIGHLIGHTER) },
-            testTag = "tool_highlighter"
-        ) {
-            HighlighterToolIcon(
-                tipColor = Color(highlighterColor),
-                isSelected = activeTool == DrawingTool.HIGHLIGHTER
-            )
-        }
-    }
+    )
 }

@@ -25,13 +25,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deepanjanxyz.notepad.domain.model.DrawingTool
-import com.deepanjanxyz.notepad.ui.feature_drawing.model.KeepColorGrid
-import com.deepanjanxyz.notepad.ui.feature_drawing.model.KeepThicknessLevels
+import com.deepanjanxyz.notepad.ui.feature_drawing.model.ToolColorGrid
+import com.deepanjanxyz.notepad.ui.feature_drawing.model.ThicknessLevels
 import com.deepanjanxyz.notepad.ui.theme.AppColors
 import kotlin.math.roundToInt
 
@@ -50,11 +55,16 @@ fun ColorCircleItem(
     isSelected: Boolean,
     onSelect: () -> Unit
 ) {
-    val size = if (isSelected) 36.dp else 26.dp
+    val size = if (isSelected) 36.dp else 28.dp
     Box(
         modifier = Modifier
             .size(40.dp)
             .clickable(onClick = onSelect)
+            .semantics {
+                contentDescription = "Colour ${color.toString(HEX_RADIX)}"
+                selected = isSelected
+                role = Role.RadioButton
+            }
             .testTag("color_item_${color.toString(HEX_RADIX)}"),
         contentAlignment = Alignment.Center
     ) {
@@ -258,7 +268,7 @@ private fun ThicknessPresetRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        KeepThicknessLevels.forEach { (thick, _) ->
+        ThicknessLevels.forEach { (thick, _) ->
             val isSelected = (selectedThickness - thick).let { it >= -2f && it <= 2f }
             ThicknessPresetDot(
                 thick = thick,
@@ -291,6 +301,11 @@ private fun ThicknessPresetDot(
             .size(44.dp)
             .clip(CircleShape)
             .clickable { onThicknessSelected(thick) }
+            .semantics {
+                contentDescription = "Stroke width ${thick.roundToInt()} pixels"
+                selected = isSelected
+                role = Role.RadioButton
+            }
             .testTag("thickness_option_${thick.toInt()}"),
         contentAlignment = Alignment.Center
     ) {
@@ -323,7 +338,7 @@ private fun ThicknessPresetDot(
 /** The four rows of seven colours. */
 @Composable
 private fun ColorGrid(selectedColor: Long, onColorSelected: (Long) -> Unit) {
-    KeepColorGrid.forEach { colorRow ->
+    ToolColorGrid.forEach { colorRow ->
         Row(
             modifier = Modifier
                 .fillMaxWidth()

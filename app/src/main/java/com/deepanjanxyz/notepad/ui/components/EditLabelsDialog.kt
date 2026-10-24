@@ -1,5 +1,6 @@
 package com.deepanjanxyz.notepad.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,12 +37,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
@@ -49,8 +52,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.delay
 
 private const val MAX_LABEL_LENGTH = 30
+
+// How long the field stays red after a keystroke that goes past the limit.
+private val LIMIT_FLASH_DURATION = 1.seconds
 
 @Composable
 fun EditLabelsDialog(
@@ -185,7 +193,7 @@ private fun NewLabelField(
     val cleaned = newLabelText.trim().replace("#", "")
     val isDuplicate = cleaned.isNotBlank() && labels.any { it.equals(cleaned, ignoreCase = true) }
     val canAdd = newLabelText.isNotBlank() && !isDuplicate
-    val atLimit = newLabelText.length >= MAX_LABEL_LENGTH
+    var limitFlash by remember { mutableStateOf(false) }
     val addIfValid = {
         if (cleaned.isNotBlank() && !isDuplicate) {
             onAddLabel(cleaned)
@@ -193,19 +201,30 @@ private fun NewLabelField(
         }
     }
 
+    // Clear the red wash a moment after the last over-limit keystroke, so it reads
+    // as a reaction to that keystroke rather than a standing error on the field.
+    LaunchedEffect(limitFlash) {
+        if (limitFlash) {
+            delay(LIMIT_FLASH_DURATION.inWholeMilliseconds)
+            limitFlash = false
+        }
+    }
+
     val haptics = LocalHapticFeedback.current
+    val limitWash = if (limitFlash) MaterialTheme.colorScheme.error.copy(alpha = 0.4f) else Color.Transparent
 
     OutlinedTextField(
         value = newLabelText,
         onValueChange = { raw ->
-            // take() drops anything past the limit; buzz and redden the field.
+            // take() drops anything past the limit; buzz and flash the field red.
             if (raw.length > MAX_LABEL_LENGTH) {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                limitFlash = true
             }
             onInputChange(raw.take(MAX_LABEL_LENGTH))
         },
         placeholder = { Text("Create new label") },
-        isError = isDuplicate || atLimit,
+        isError = isDuplicate || limitFlash,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
         keyboardActions = KeyboardActions(onDone = { addIfValid() }),
         trailingIcon = {
@@ -218,6 +237,7 @@ private fun NewLabelField(
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier
             .fillMaxWidth()
+            .background(limitWash, RoundedCornerShape(12.dp))
             .testTag("create_label_input")
     )
 }
@@ -273,7 +293,8 @@ private fun LabelFieldSupportingText(length: Int, isDuplicate: Boolean) {
             atLimit -> Text(
                 text = "Character limit reached",
                 color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.labelSmall
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium
             )
             else -> Spacer(modifier = Modifier.weight(1f))
         }

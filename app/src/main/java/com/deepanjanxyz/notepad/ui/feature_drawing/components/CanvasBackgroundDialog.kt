@@ -35,6 +35,9 @@ import androidx.compose.ui.unit.sp
 import com.deepanjanxyz.notepad.domain.model.CanvasGridType
 import com.deepanjanxyz.notepad.ui.theme.AppColors
 
+// Base of the hexadecimal colour written into the swatch test tag.
+private const val HEX_RADIX = 16
+
 val CanvasBackgroundOptions = listOf(
     AppColors.OPAQUE_WHITE to "Pure White",
     0xFFFDFBF7L to "Warm Ivory",
@@ -111,7 +114,7 @@ private fun BackgroundOptionCircle(
                 contentDescription = name
                 selected = isSelected
             }
-            .testTag("background_option_${colorVal.toString(16)}"),
+            .testTag("background_option_${colorVal.toString(HEX_RADIX)}"),
         contentAlignment = Alignment.Center
     ) {
         Box(

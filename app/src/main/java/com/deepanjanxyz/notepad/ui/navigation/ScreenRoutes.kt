@@ -91,6 +91,8 @@ private fun EditorRoute(routes: ScreenRouteState, screen: Screen.Editor) {
 private fun DrawingRoute(routes: ScreenRouteState, screen: Screen.Drawing) {
     DrawingScreen(
         noteId = screen.noteId,
+        initialToolPrefs = routes.viewModel.currentDrawingToolPrefs(),
+        onToolPrefsChange = { routes.viewModel.saveDrawingToolPrefs(it) },
         onGetNote = { id -> routes.viewModel.getNote(id) },
         onSaveNote = {
             id, title, content, colorIndex, tags, isPinned,

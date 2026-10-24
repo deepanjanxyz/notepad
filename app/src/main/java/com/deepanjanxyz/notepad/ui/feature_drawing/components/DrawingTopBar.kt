@@ -34,12 +34,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deepanjanxyz.notepad.domain.model.CanvasGridType
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
+
+// Spoken name of the drawing's title field.
+private const val TITLE_CONTENT_DESCRIPTION = "Drawing title"
 
 @Composable
 fun DrawingTopBar(
@@ -81,14 +86,6 @@ fun DrawingTopBar(
             modifier = Modifier
                 .weight(1f)
                 .padding(horizontal = 8.dp)
-        )
-
-        DrawingTopBarIcon(
-            tooltip = "Canvas Background & Grid",
-            icon = Icons.Default.ColorLens,
-            tint = enabledTint,
-            testTag = "drawing_background_button",
-            onClick = onOpenBackgroundDialog
         )
 
         DrawingTopBarIcon(
@@ -173,6 +170,7 @@ private fun DrawingTitleField(
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             modifier = Modifier
                 .fillMaxWidth()
+                .semantics { contentDescription = TITLE_CONTENT_DESCRIPTION }
                 .testTag("drawing_title_input")
         )
     }

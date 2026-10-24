@@ -24,6 +24,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -70,6 +73,7 @@ fun CanvasBackgroundDialog(
                     CanvasBackgroundOptions.forEach { (colorVal, name) ->
                         BackgroundOptionCircle(
                             colorVal = colorVal,
+                            name = name,
                             isSelected = selectedColor == colorVal,
                             onClick = { onColorSelected(colorVal) }
                         )
@@ -95,13 +99,19 @@ fun CanvasBackgroundDialog(
 @Composable
 private fun BackgroundOptionCircle(
     colorVal: Long,
+    name: String,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .size(44.dp)
-            .clickable(onClick = onClick),
+            .clickable(onClick = onClick)
+            .semantics {
+                contentDescription = name
+                selected = isSelected
+            }
+            .testTag("background_option_${colorVal.toString(16)}"),
         contentAlignment = Alignment.Center
     ) {
         Box(
@@ -135,6 +145,7 @@ private fun GridPatternRow(
                 modifier = Modifier
                     .weight(1f)
                     .clickable { onGridSelected(grid) }
+                    .semantics { selected = isSelected }
                     .testTag("grid_option_${grid.name.lowercase()}")
             ) {
                 Text(

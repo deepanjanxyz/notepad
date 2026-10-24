@@ -26,6 +26,9 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.domain.model.DrawingTool
 import com.deepanjanxyz.notepad.ui.theme.AppColors
@@ -40,6 +43,7 @@ fun DockToolButton(
     isSelected: Boolean,
     onClick: () -> Unit,
     testTag: String,
+    label: String,
     content: @Composable () -> Unit
 ) {
     Column(
@@ -50,6 +54,10 @@ fun DockToolButton(
             .height(54.dp)
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
+            .semantics {
+                contentDescription = label
+                selected = isSelected
+            }
             .testTag(testTag)
     ) {
         content()
@@ -217,7 +225,8 @@ fun DrawingBottomToolbar(
         DockToolButton(
             isSelected = activeTool == DrawingTool.SELECT,
             onClick = { onToolClick(DrawingTool.SELECT) },
-            testTag = "tool_select"
+            testTag = "tool_select",
+            label = "Select"
         ) {
             SelectionToolIcon(isSelected = activeTool == DrawingTool.SELECT)
         }
@@ -225,7 +234,8 @@ fun DrawingBottomToolbar(
         DockToolButton(
             isSelected = activeTool == DrawingTool.ERASER,
             onClick = { onToolClick(DrawingTool.ERASER) },
-            testTag = "tool_eraser"
+            testTag = "tool_eraser",
+            label = "Eraser"
         ) {
             EraserToolIcon(isSelected = activeTool == DrawingTool.ERASER)
         }
@@ -233,7 +243,8 @@ fun DrawingBottomToolbar(
         DockToolButton(
             isSelected = activeTool == DrawingTool.PEN,
             onClick = { onToolClick(DrawingTool.PEN) },
-            testTag = "tool_pen"
+            testTag = "tool_pen",
+            label = "Pen"
         ) {
             PenToolIcon(
                 tipColor = Color(penColor),
@@ -244,7 +255,8 @@ fun DrawingBottomToolbar(
         DockToolButton(
             isSelected = activeTool == DrawingTool.MARKER,
             onClick = { onToolClick(DrawingTool.MARKER) },
-            testTag = "tool_marker"
+            testTag = "tool_marker",
+            label = "Marker"
         ) {
             MarkerToolIcon(
                 tipColor = Color(markerColor),
@@ -255,7 +267,8 @@ fun DrawingBottomToolbar(
         DockToolButton(
             isSelected = activeTool == DrawingTool.HIGHLIGHTER,
             onClick = { onToolClick(DrawingTool.HIGHLIGHTER) },
-            testTag = "tool_highlighter"
+            testTag = "tool_highlighter",
+            label = "Highlighter"
         ) {
             HighlighterToolIcon(
                 tipColor = Color(highlighterColor),

@@ -15,7 +15,8 @@ internal class DrawingCanvasCallbacks(
     val onSelectionMarqueeChange: (Rect?) -> Unit,
     val onPushHistory: () -> Unit,
     val onEraseNear: (Offset, Offset?) -> Unit,
-    val onCanvasTouchDown: () -> Unit = {}
+    val onCanvasTouchDown: () -> Unit = {},
+    val onEraserCursorChange: (Offset?) -> Unit = {}
 )
 
 /**
@@ -28,5 +29,7 @@ internal class DrawingCanvasInputs(
     val bounds: Rect?,
     val alpha: Float,
     val isHighlighter: Boolean,
+    val eraserRadiusPx: Float,
+    val eraserCursor: Offset?,
     val callbacks: DrawingCanvasCallbacks
 )

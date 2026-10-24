@@ -3,10 +3,10 @@ package com.deepanjanxyz.notepad.ui.screens
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,6 +47,7 @@ import com.deepanjanxyz.notepad.ui.feature_drawing.components.DrawingColorPalett
 import com.deepanjanxyz.notepad.ui.feature_drawing.components.DrawingEraserDrawer
 import com.deepanjanxyz.notepad.ui.feature_drawing.components.DrawingTopBar
 import com.deepanjanxyz.notepad.ui.feature_drawing.components.FloatingSelectionBar
+import com.deepanjanxyz.notepad.ui.feature_drawing.model.DrawingToolPrefs
 import com.deepanjanxyz.notepad.ui.feature_drawing.util.eraseSegmentAt
 import com.deepanjanxyz.notepad.ui.feature_drawing.util.getSelectionBounds as utilGetSelectionBounds
 import com.deepanjanxyz.notepad.ui.feature_drawing.util.isStrokeHit
@@ -79,6 +80,8 @@ fun getSelectionBounds(strokes: List<DrawingStroke>, selectedIndices: Set<Int>):
 @Composable
 fun DrawingScreen(
     noteId: Long,
+    initialToolPrefs: DrawingToolPrefs?,
+    onToolPrefsChange: (DrawingToolPrefs) -> Unit,
     onGetNote: suspend (Long) -> Note?,
     onSaveNote: suspend (Long, String, String, Int, List<String>, Boolean?, Boolean?) -> Long,
     onNavigateBack: (Long) -> Unit,
@@ -101,12 +104,12 @@ fun DrawingScreen(
     var currentStroke by remember { mutableStateOf<DrawingStroke?>(null) }
 
     var activeTool by remember { mutableStateOf(DrawingTool.PEN) }
-    var penColor by remember { mutableLongStateOf(0xFF00B0FFL) }
-    var penThickness by remember { mutableFloatStateOf(6f) }
-    var markerColor by remember { mutableLongStateOf(0xFF34A853L) }
-    var markerThickness by remember { mutableFloatStateOf(20f) }
-    var highlighterColor by remember { mutableLongStateOf(0xFFFBBC04L) }
-    var highlighterThickness by remember { mutableFloatStateOf(34f) }
+    var penColor by remember { mutableLongStateOf(initialToolPrefs?.penColor ?: 0xFF00B0FFL) }
+    var penThickness by remember { mutableFloatStateOf(initialToolPrefs?.penSize ?: 6f) }
+    var markerColor by remember { mutableLongStateOf(initialToolPrefs?.markerColor ?: 0xFF34A853L) }
+    var markerThickness by remember { mutableFloatStateOf(initialToolPrefs?.markerSize ?: 20f) }
+    var highlighterColor by remember { mutableLongStateOf(initialToolPrefs?.highlighterColor ?: 0xFFFBBC04L) }
+    var highlighterThickness by remember { mutableFloatStateOf(initialToolPrefs?.highlighterSize ?: 34f) }
     var showColorPalette by remember { mutableStateOf(false) }
     var showEraserOptions by remember { mutableStateOf(false) }
     var showBackgroundDialog by remember { mutableStateOf(false) }
@@ -267,6 +270,21 @@ fun DrawingScreen(
         selectedStrokeIndices = emptySet()
     }
 
+    // Hand the current per-tool colour and size back to the caller so they can be
+    // restored the next time this screen is opened.
+    fun publishToolPrefs() {
+        onToolPrefsChange(
+            DrawingToolPrefs(
+                penColor = penColor,
+                penSize = penThickness,
+                markerColor = markerColor,
+                markerSize = markerThickness,
+                highlighterColor = highlighterColor,
+                highlighterSize = highlighterThickness
+            )
+        )
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -352,9 +370,9 @@ fun DrawingScreen(
                 (activeTool == DrawingTool.PEN ||
                     activeTool == DrawingTool.MARKER ||
                     activeTool == DrawingTool.HIGHLIGHTER),
-            enter = slideInVertically(animationSpec = tween(PANEL_ENTER_DURATION_MS)) { it } +
+            enter = expandVertically(animationSpec = tween(PANEL_ENTER_DURATION_MS)) +
                 fadeIn(animationSpec = tween(PANEL_ENTER_DURATION_MS)),
-            exit = slideOutVertically(animationSpec = tween(PANEL_EXIT_DURATION_MS)) { it } +
+            exit = shrinkVertically(animationSpec = tween(PANEL_EXIT_DURATION_MS)) +
                 fadeOut(animationSpec = tween(PANEL_FADE_OUT_DURATION_MS))
         ) {
             DrawingColorPaletteSheet(
@@ -368,6 +386,7 @@ fun DrawingScreen(
                         DrawingTool.HIGHLIGHTER -> highlighterColor = c
                         else -> {}
                     }
+                    publishToolPrefs()
                 },
                 onThicknessSelected = { thick ->
                     when (activeTool) {
@@ -376,15 +395,16 @@ fun DrawingScreen(
                         DrawingTool.HIGHLIGHTER -> highlighterThickness = thick
                         else -> {}
                     }
+                    publishToolPrefs()
                 }
             )
         }
 
         AnimatedVisibility(
             visible = showEraserOptions && activeTool == DrawingTool.ERASER,
-            enter = slideInVertically(animationSpec = tween(PANEL_ENTER_DURATION_MS)) { it } +
+            enter = expandVertically(animationSpec = tween(PANEL_ENTER_DURATION_MS)) +
                 fadeIn(animationSpec = tween(PANEL_ENTER_DURATION_MS)),
-            exit = slideOutVertically(animationSpec = tween(PANEL_EXIT_DURATION_MS)) { it } +
+            exit = shrinkVertically(animationSpec = tween(PANEL_EXIT_DURATION_MS)) +
                 fadeOut(animationSpec = tween(PANEL_FADE_OUT_DURATION_MS))
         ) {
             DrawingEraserDrawer(

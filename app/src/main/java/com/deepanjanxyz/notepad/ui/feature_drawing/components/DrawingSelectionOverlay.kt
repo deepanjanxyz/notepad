@@ -52,6 +52,9 @@ import com.deepanjanxyz.notepad.ui.theme.AppColors
 private const val RECOLOR_SWATCH_DP = 30
 private const val RECOLOR_SWATCH_GAP_DP = 8
 
+// Base of the hexadecimal colour written into the swatch test tag.
+private const val HEX_RADIX = 16
+
 fun DrawScope.drawSelectionBoundingBox(b: Rect) {
     val blueColor = AppColors.Accent
     val handleSizePx = 9.dp.toPx()
@@ -138,44 +141,13 @@ fun FloatingSelectionBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(
-                    text = "$selectedCount selected",
-                    style = TextStyle(color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                )
-                SelectionAction(
-                    tooltip = "Select all",
-                    icon = Icons.Default.SelectAll,
-                    tint = AppColors.TextIdle,
-                    testTag = "drawing_select_all_button",
-                    onClick = onSelectAll
-                )
-                SelectionAction(
-                    tooltip = "Recolor selected",
-                    icon = Icons.Default.Palette,
-                    tint = AppColors.Accent,
-                    testTag = "drawing_recolor_selected_button",
-                    onClick = { showRecolorRow = !showRecolorRow }
-                )
-                SelectionAction(
-                    tooltip = "Duplicate selected",
-                    icon = Icons.Default.ContentCopy,
-                    tint = AppColors.Accent,
-                    testTag = "drawing_duplicate_selected_button",
-                    onClick = onDuplicate
-                )
-                SelectionAction(
-                    tooltip = "Delete selected",
-                    icon = Icons.Default.Delete,
-                    tint = AppColors.Danger,
-                    testTag = "drawing_delete_selected_button",
-                    onClick = onDelete
-                )
-                SelectionAction(
-                    tooltip = "Deselect",
-                    icon = Icons.Default.Close,
-                    tint = AppColors.TextMuted,
-                    testTag = "drawing_deselect_button",
-                    onClick = onClearSelection
+                SelectionActions(
+                    selectedCount = selectedCount,
+                    onToggleRecolor = { showRecolorRow = !showRecolorRow },
+                    onSelectAll = onSelectAll,
+                    onDuplicate = onDuplicate,
+                    onDelete = onDelete,
+                    onClearSelection = onClearSelection
                 )
             }
 
@@ -189,6 +161,57 @@ fun FloatingSelectionBar(
             }
         }
     }
+}
+
+/** The selection count and the five actions shown along the bar. */
+@Composable
+private fun SelectionActions(
+    selectedCount: Int,
+    onToggleRecolor: () -> Unit,
+    onSelectAll: () -> Unit,
+    onDuplicate: () -> Unit,
+    onDelete: () -> Unit,
+    onClearSelection: () -> Unit
+) {
+    Text(
+        text = "$selectedCount selected",
+        style = TextStyle(color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+    )
+    SelectionAction(
+        tooltip = "Select all",
+        icon = Icons.Default.SelectAll,
+        tint = AppColors.TextIdle,
+        testTag = "drawing_select_all_button",
+        onClick = onSelectAll
+    )
+    SelectionAction(
+        tooltip = "Recolor selected",
+        icon = Icons.Default.Palette,
+        tint = AppColors.Accent,
+        testTag = "drawing_recolor_selected_button",
+        onClick = onToggleRecolor
+    )
+    SelectionAction(
+        tooltip = "Duplicate selected",
+        icon = Icons.Default.ContentCopy,
+        tint = AppColors.Accent,
+        testTag = "drawing_duplicate_selected_button",
+        onClick = onDuplicate
+    )
+    SelectionAction(
+        tooltip = "Delete selected",
+        icon = Icons.Default.Delete,
+        tint = AppColors.Danger,
+        testTag = "drawing_delete_selected_button",
+        onClick = onDelete
+    )
+    SelectionAction(
+        tooltip = "Deselect",
+        icon = Icons.Default.Close,
+        tint = AppColors.TextMuted,
+        testTag = "drawing_deselect_button",
+        onClick = onClearSelection
+    )
 }
 
 /** One action in the selection bar, at the 48dp touch target the guidelines ask for. */
@@ -241,7 +264,7 @@ private fun RecolorRow(onRecolor: (Long) -> Unit) {
                         shape = CircleShape
                     )
                     .clickable { onRecolor(color) }
-                    .testTag("recolor_swatch_${color.toString(16)}")
+                    .testTag("recolor_swatch_${color.toString(HEX_RADIX)}")
             )
         }
     }

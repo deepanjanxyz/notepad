@@ -73,7 +73,7 @@ internal fun DrawingCanvas(
             selectedIndices = selectedStrokeIndices,
             bounds = selectionBounds,
             alpha = currentAlpha,
-            isHighlighter = currentAlpha < 1f,
+            isHighlighter = isCurrentHighlighter,
             eraserRadiusPx = eraserRadiusPx,
             eraserCursor = eraserCursor,
             callbacks = callbacks

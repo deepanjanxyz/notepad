@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Add
@@ -44,6 +46,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 
@@ -182,6 +185,7 @@ private fun NewLabelField(
     val cleaned = newLabelText.trim().replace("#", "")
     val isDuplicate = cleaned.isNotBlank() && labels.any { it.equals(cleaned, ignoreCase = true) }
     val canAdd = newLabelText.isNotBlank() && !isDuplicate
+    val atLimit = newLabelText.length >= MAX_LABEL_LENGTH
     val addIfValid = {
         if (cleaned.isNotBlank() && !isDuplicate) {
             onAddLabel(cleaned)
@@ -194,15 +198,16 @@ private fun NewLabelField(
     OutlinedTextField(
         value = newLabelText,
         onValueChange = { raw ->
-            // take() quietly drops anything past the limit; buzz so the cap is
-            // felt as well as shown by the counter.
+            // take() drops anything past the limit; buzz and redden the field.
             if (raw.length > MAX_LABEL_LENGTH) {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             }
             onInputChange(raw.take(MAX_LABEL_LENGTH))
         },
         placeholder = { Text("Create new label") },
-        isError = isDuplicate,
+        isError = isDuplicate || atLimit,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { addIfValid() }),
         trailingIcon = {
             NewLabelAddButton(canAdd = canAdd, onClick = addIfValid)
         },
@@ -227,19 +232,26 @@ private fun NewLabelField(
 @Composable
 private fun NewLabelAddButton(canAdd: Boolean, onClick: () -> Unit) {
     ActionTooltip("Add label") {
-        IconButton(
-            onClick = onClick,
-            modifier = Modifier.testTag("add_label_plus_button")
+        // A fixed 48dp box gives the button a hit area of its own, so a tap that
+        // lands beside the icon cannot reach the field or the list behind it.
+        Box(
+            modifier = Modifier.size(48.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = "Add label",
-                tint = if (canAdd) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.outline
-                }
-            )
+            IconButton(
+                onClick = onClick,
+                modifier = Modifier.testTag("add_label_plus_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Add label",
+                    tint = if (canAdd) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.outline
+                    }
+                )
+            }
         }
     }
 }

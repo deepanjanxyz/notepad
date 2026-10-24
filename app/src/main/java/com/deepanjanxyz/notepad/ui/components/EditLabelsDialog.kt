@@ -1,6 +1,7 @@
 package com.deepanjanxyz.notepad.ui.components
 
-import androidx.compose.foundation.background
+import android.view.HapticFeedbackConstants
+import android.view.View
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,9 +45,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -59,6 +58,20 @@ private const val MAX_LABEL_LENGTH = 30
 
 // How long the field stays red after a keystroke that goes past the limit.
 private val LIMIT_FLASH_DURATION = 1.seconds
+
+/**
+ * A short buzz for the character-limit warning.
+ *
+ * performHapticFeedback on its own honours the system touch-feedback setting and
+ * stays silent when it is off; the ignore flag is what makes the warning actually
+ * vibrate, which is the point of the feedback.
+ */
+private fun View.buzz() {
+    performHapticFeedback(
+        HapticFeedbackConstants.LONG_PRESS,
+        HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
+    )
+}
 
 @Composable
 fun EditLabelsDialog(
@@ -201,7 +214,7 @@ private fun NewLabelField(
         }
     }
 
-    // Clear the red wash a moment after the last over-limit keystroke, so it reads
+    // Clear the red border a moment after the last over-limit keystroke, so it reads
     // as a reaction to that keystroke rather than a standing error on the field.
     LaunchedEffect(limitFlash) {
         if (limitFlash) {
@@ -210,15 +223,14 @@ private fun NewLabelField(
         }
     }
 
-    val haptics = LocalHapticFeedback.current
-    val limitWash = if (limitFlash) MaterialTheme.colorScheme.error.copy(alpha = 0.4f) else Color.Transparent
+    val view = LocalView.current
 
     OutlinedTextField(
         value = newLabelText,
         onValueChange = { raw ->
-            // take() drops anything past the limit; buzz and flash the field red.
+            // take() drops anything past the limit; buzz and flash the border red.
             if (raw.length > MAX_LABEL_LENGTH) {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                view.buzz()
                 limitFlash = true
             }
             onInputChange(raw.take(MAX_LABEL_LENGTH))
@@ -237,7 +249,6 @@ private fun NewLabelField(
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .background(limitWash, RoundedCornerShape(12.dp))
             .testTag("create_label_input")
     )
 }
@@ -321,7 +332,7 @@ private fun RenameLabelDialog(
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val haptics = LocalHapticFeedback.current
+    val view = LocalView.current
     val cleaned = renameInputText.trim().replace("#", "")
     val isDuplicate = cleaned.isNotBlank() &&
         !cleaned.equals(targetLabel, ignoreCase = true) &&
@@ -336,7 +347,7 @@ private fun RenameLabelDialog(
                     value = renameInputText,
                     onValueChange = { raw ->
                         if (raw.length > MAX_LABEL_LENGTH) {
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            view.buzz()
                         }
                         onInputChange(raw.take(MAX_LABEL_LENGTH))
                     },

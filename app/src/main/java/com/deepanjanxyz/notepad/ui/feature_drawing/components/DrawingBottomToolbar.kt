@@ -213,6 +213,26 @@ fun DrawingBottomToolbar(
     highlighterColor: Long = selectedColor,
     modifier: Modifier = Modifier
 ) {
+    ToolRow(
+        activeTool = activeTool,
+        onToolClick = onToolClick,
+        penColor = penColor,
+        markerColor = markerColor,
+        highlighterColor = highlighterColor,
+        modifier = modifier
+    )
+}
+
+/** The row of tool buttons the toolbar draws, one per drawing tool. */
+@Composable
+private fun ToolRow(
+    activeTool: DrawingTool,
+    onToolClick: (DrawingTool) -> Unit,
+    penColor: Long,
+    markerColor: Long,
+    highlighterColor: Long,
+    modifier: Modifier = Modifier
+) {
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -222,58 +242,39 @@ fun DrawingBottomToolbar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceAround
     ) {
-        DockToolButton(
-            isSelected = activeTool == DrawingTool.SELECT,
-            onClick = { onToolClick(DrawingTool.SELECT) },
-            testTag = "tool_select",
-            label = "Select"
-        ) {
+        ToolDockButton(DrawingTool.SELECT, activeTool, "tool_select", "Select", onToolClick) {
             SelectionToolIcon(isSelected = activeTool == DrawingTool.SELECT)
         }
-
-        DockToolButton(
-            isSelected = activeTool == DrawingTool.ERASER,
-            onClick = { onToolClick(DrawingTool.ERASER) },
-            testTag = "tool_eraser",
-            label = "Eraser"
-        ) {
+        ToolDockButton(DrawingTool.ERASER, activeTool, "tool_eraser", "Eraser", onToolClick) {
             EraserToolIcon(isSelected = activeTool == DrawingTool.ERASER)
         }
-
-        DockToolButton(
-            isSelected = activeTool == DrawingTool.PEN,
-            onClick = { onToolClick(DrawingTool.PEN) },
-            testTag = "tool_pen",
-            label = "Pen"
-        ) {
-            PenToolIcon(
-                tipColor = Color(penColor),
-                isSelected = activeTool == DrawingTool.PEN
-            )
+        ToolDockButton(DrawingTool.PEN, activeTool, "tool_pen", "Pen", onToolClick) {
+            PenToolIcon(tipColor = Color(penColor), isSelected = activeTool == DrawingTool.PEN)
         }
-
-        DockToolButton(
-            isSelected = activeTool == DrawingTool.MARKER,
-            onClick = { onToolClick(DrawingTool.MARKER) },
-            testTag = "tool_marker",
-            label = "Marker"
-        ) {
-            MarkerToolIcon(
-                tipColor = Color(markerColor),
-                isSelected = activeTool == DrawingTool.MARKER
-            )
+        ToolDockButton(DrawingTool.MARKER, activeTool, "tool_marker", "Marker", onToolClick) {
+            MarkerToolIcon(tipColor = Color(markerColor), isSelected = activeTool == DrawingTool.MARKER)
         }
-
-        DockToolButton(
-            isSelected = activeTool == DrawingTool.HIGHLIGHTER,
-            onClick = { onToolClick(DrawingTool.HIGHLIGHTER) },
-            testTag = "tool_highlighter",
-            label = "Highlighter"
-        ) {
-            HighlighterToolIcon(
-                tipColor = Color(highlighterColor),
-                isSelected = activeTool == DrawingTool.HIGHLIGHTER
-            )
+        ToolDockButton(DrawingTool.HIGHLIGHTER, activeTool, "tool_highlighter", "Highlighter", onToolClick) {
+            HighlighterToolIcon(tipColor = Color(highlighterColor), isSelected = activeTool == DrawingTool.HIGHLIGHTER)
         }
     }
+}
+
+/** One dock button, wired to the tool it selects. */
+@Composable
+private fun ToolDockButton(
+    tool: DrawingTool,
+    activeTool: DrawingTool,
+    testTag: String,
+    label: String,
+    onToolClick: (DrawingTool) -> Unit,
+    icon: @Composable () -> Unit
+) {
+    DockToolButton(
+        isSelected = activeTool == tool,
+        onClick = { onToolClick(tool) },
+        testTag = testTag,
+        label = label,
+        content = icon
+    )
 }

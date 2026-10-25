@@ -1,0 +1,9 @@
+Label and drawing fixes.
+
+- Labels: a name typed in Edit Labels is kept when you tap Done or close the dialog, and reaching 30 characters now buzzes with a limit warning
+- Drawings: the eraser shows its reach while you erase
+- Select all strokes, and recolor a selection from a new palette row
+- Clearing the canvas now asks for confirmation
+- Pen, marker and highlighter colours and sizes are remembered between visits
+
+Thank you for using Elite Memo Pro!

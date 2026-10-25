@@ -28,6 +28,8 @@ The app is **local-first**: notes, labels and settings live in an on-device Room
 - Undo and redo for drawing edits.
 - Canvas backgrounds: blank, ruled, grid or dotted.
 - A colour palette sheet for stroke colours.
+- Selection actions: select all strokes, then duplicate, delete or recolour them.
+- The colour and size chosen for each tool are remembered between visits.
 
 **Organise**
 - Labels: add, rename, delete and apply.

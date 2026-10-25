@@ -20,6 +20,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -30,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deepanjanxyz.notepad.EXIT_BACK_WINDOW_MS
@@ -169,28 +171,6 @@ private fun AppDrawerLayout(
     roomLabels: List<String>,
     snackbarHostState: SnackbarHostState
 ) {
-    val density = LocalDensity.current
-
-    // Whichever prompt appeared first sits below the newer one, so neither has a
-    // fixed slot: the order follows arrival.
-    val exitSnackbar = snackbarHostState.currentSnackbarData
-    val homeSnackbar = routes.homeSnackbarHostState.currentSnackbarData
-    var arrivalCounter by remember { mutableStateOf(0) }
-    var exitArrival by remember { mutableStateOf(0) }
-    var homeArrival by remember { mutableStateOf(0) }
-    LaunchedEffect(exitSnackbar) {
-        if (exitSnackbar != null) {
-            arrivalCounter += 1
-            exitArrival = arrivalCounter
-        }
-    }
-    LaunchedEffect(homeSnackbar) {
-        if (homeSnackbar != null) {
-            arrivalCounter += 1
-            homeArrival = arrivalCounter
-        }
-    }
-
     val closeDrawer = { routes.scope.launch { routes.drawerState.close() } }
     val navigateAndClose: (Screen) -> Unit = { screen ->
         routes.viewModel.navigateTo(screen)
@@ -223,22 +203,11 @@ private fun AppDrawerLayout(
             modifier = Modifier.fillMaxSize(),
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             snackbarHost = {
-                Column(
-                    modifier = Modifier
-                        .navigationBarsPadding()
-                        .onSizeChanged {
-                            routes.snackbarHeight.value = with(density) { it.height.toDp() }
-                        },
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    if (exitArrival > homeArrival) {
-                        key("exit") { SnackbarHost(snackbarHostState) }
-                        key("home") { SnackbarHost(routes.homeSnackbarHostState) }
-                    } else {
-                        key("home") { SnackbarHost(routes.homeSnackbarHostState) }
-                        key("exit") { SnackbarHost(snackbarHostState) }
-                    }
-                }
+                AppSnackbarHosts(
+                    exitSnackbarHostState = snackbarHostState,
+                    homeSnackbarHostState = routes.homeSnackbarHostState,
+                    snackbarHeight = routes.snackbarHeight
+                )
             }
         ) { innerPadding ->
             AnimatedContent(
@@ -254,6 +223,52 @@ private fun AppDrawerLayout(
 
     if (routes.uiState.showEditLabelsDialog) {
         EditLabelsHost(viewModel = routes.viewModel, labels = roomLabels)
+    }
+}
+
+/**
+ * The two snackbars, stacked. Whichever appeared first sits at the bottom and the
+ * newer one above it, so neither has a fixed slot, and the stack reports its height
+ * so the add button can clear it.
+ */
+@Composable
+private fun AppSnackbarHosts(
+    exitSnackbarHostState: SnackbarHostState,
+    homeSnackbarHostState: SnackbarHostState,
+    snackbarHeight: MutableState<Dp>
+) {
+    val density = LocalDensity.current
+    val exitSnackbar = exitSnackbarHostState.currentSnackbarData
+    val homeSnackbar = homeSnackbarHostState.currentSnackbarData
+    var arrivalCounter by remember { mutableStateOf(0) }
+    var exitArrival by remember { mutableStateOf(0) }
+    var homeArrival by remember { mutableStateOf(0) }
+    LaunchedEffect(exitSnackbar) {
+        if (exitSnackbar != null) {
+            arrivalCounter += 1
+            exitArrival = arrivalCounter
+        }
+    }
+    LaunchedEffect(homeSnackbar) {
+        if (homeSnackbar != null) {
+            arrivalCounter += 1
+            homeArrival = arrivalCounter
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .navigationBarsPadding()
+            .onSizeChanged { snackbarHeight.value = with(density) { it.height.toDp() } },
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        if (exitArrival > homeArrival) {
+            key("exit") { SnackbarHost(exitSnackbarHostState) }
+            key("home") { SnackbarHost(homeSnackbarHostState) }
+        } else {
+            key("home") { SnackbarHost(homeSnackbarHostState) }
+            key("exit") { SnackbarHost(exitSnackbarHostState) }
+        }
     }
 }
 

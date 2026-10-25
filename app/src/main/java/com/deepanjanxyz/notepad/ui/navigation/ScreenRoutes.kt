@@ -57,7 +57,8 @@ private fun HomeRoute(routes: ScreenRouteState) {
         onMoveSelectedToTrash = { routes.viewModel.moveSelectedToTrash() },
         onMoveSelectedToArchive = { routes.viewModel.moveSelectedToArchive() },
         onUndoMoveToTrash = { routes.viewModel.undoMoveToTrash() },
-        onSortOptionChange = { routes.viewModel.setSortOption(it) }
+        onSortOptionChange = { routes.viewModel.setSortOption(it) },
+        snackbarHostState = routes.snackbarHostState
     )
 }
 

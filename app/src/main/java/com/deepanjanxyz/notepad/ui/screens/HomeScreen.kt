@@ -2,6 +2,7 @@ package com.deepanjanxyz.notepad.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -65,7 +67,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
@@ -99,6 +100,9 @@ import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 import com.deepanjanxyz.notepad.ui.theme.AppColors
 import kotlinx.coroutines.launch
 
+// How far the add button rises to clear a snackbar sitting at the bottom.
+private val FAB_SNACKBAR_CLEARANCE = 80.dp
+
 /**
  * The home screen: the note list, its search, its selection bar and its empty state.
  *
@@ -131,11 +135,22 @@ fun HomeScreen(
     onMoveSelectedToArchive: () -> Unit,
     onUndoMoveToTrash: () -> Unit,
     onSortOptionChange: (NoteSortOption) -> Unit,
+    snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier
 ) {
     var showCreateOptionsSheet by remember { mutableStateOf(false) }
-    val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    // The app-level snackbar sits at the bottom of the screen, so the add button
+    // rises above it with a gap while one is showing, and settles back afterwards.
+    val fabLift by animateDpAsState(
+        targetValue = if (snackbarHostState.currentSnackbarData != null) {
+            FAB_SNACKBAR_CLEARANCE
+        } else {
+            0.dp
+        },
+        label = "fab_snackbar_lift"
+    )
 
     // A press while the drawer is open belongs to the drawer, which the activity
     // closes; this takes it only once the drawer is shut.
@@ -146,18 +161,6 @@ fun HomeScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        // The Scaffold already lifts the snackbar above the padded FAB, so the inset
-        // is only needed while the FAB is hidden in selection mode.
-        snackbarHost = {
-            SnackbarHost(
-                snackbarHostState,
-                modifier = if (uiState.isSelectionMode) {
-                    Modifier.navigationBarsPadding()
-                } else {
-                    Modifier
-                }
-            )
-        },
         topBar = {
             AnimatedVisibility(
                 visible = uiState.isSelectionMode,
@@ -288,9 +291,11 @@ fun HomeScreen(
                     shape = RoundedCornerShape(18.dp),
                     // The Scaffold zeroes its window insets, so the button has to
                     // clear the navigation bar itself or the bar covers its lower
-                    // half on three-button navigation.
+                    // half on three-button navigation. It also rises above a
+                    // snackbar while one is showing.
                     modifier = Modifier
                         .navigationBarsPadding()
+                        .offset(y = -fabLift)
                         .testTag("fab_add_note")
                 ) {
                     Icon(

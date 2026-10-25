@@ -1,6 +1,7 @@
 package com.deepanjanxyz.notepad.ui.navigation
 
 import androidx.compose.material3.DrawerState
+import androidx.compose.material3.SnackbarHostState
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.ui.viewmodel.AutoBackupStatus
 import com.deepanjanxyz.notepad.ui.viewmodel.ImportOutcome
@@ -19,6 +20,7 @@ internal data class ScreenRouteState(
     val allTags: List<String>,
     val autoBackupStatus: AutoBackupStatus?,
     val importOutcome: ImportOutcome?,
+    val snackbarHostState: SnackbarHostState,
     val drawerState: DrawerState,
     val scope: CoroutineScope
 )

@@ -77,6 +77,7 @@ internal fun AppRoot(
         allTags = allTags,
         autoBackupStatus = autoBackupStatus,
         importOutcome = importOutcome,
+        snackbarHostState = snackbarHostState,
         drawerState = drawerState,
         scope = scope
     )

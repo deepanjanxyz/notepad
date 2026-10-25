@@ -25,6 +25,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deepanjanxyz.notepad.EXIT_BACK_WINDOW_MS
 import com.deepanjanxyz.notepad.LockScreen
@@ -58,6 +61,7 @@ internal fun AppRoot(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarHeight = remember { mutableStateOf(0.dp) }
 
     AppBackHandler(
         drawerState = drawerState,
@@ -78,6 +82,7 @@ internal fun AppRoot(
         autoBackupStatus = autoBackupStatus,
         importOutcome = importOutcome,
         snackbarHostState = snackbarHostState,
+        snackbarHeight = snackbarHeight,
         drawerState = drawerState,
         scope = scope
     )
@@ -159,6 +164,7 @@ private fun AppDrawerLayout(
     roomLabels: List<String>,
     snackbarHostState: SnackbarHostState
 ) {
+    val density = LocalDensity.current
     val closeDrawer = { routes.scope.launch { routes.drawerState.close() } }
     val navigateAndClose: (Screen) -> Unit = { screen ->
         routes.viewModel.navigateTo(screen)
@@ -190,7 +196,16 @@ private fun AppDrawerLayout(
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            snackbarHost = { SnackbarHost(snackbarHostState, modifier = Modifier.navigationBarsPadding()) }
+            snackbarHost = {
+                SnackbarHost(
+                    snackbarHostState,
+                    modifier = Modifier
+                        .navigationBarsPadding()
+                        .onSizeChanged {
+                            routes.snackbarHeight.value = with(density) { it.height.toDp() }
+                        }
+                )
+            }
         ) { innerPadding ->
             AnimatedContent(
                 targetState = routes.uiState.currentScreen,

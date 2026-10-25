@@ -75,6 +75,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -88,6 +89,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.domain.model.Note
@@ -100,8 +102,8 @@ import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 import com.deepanjanxyz.notepad.ui.theme.AppColors
 import kotlinx.coroutines.launch
 
-// How far the add button rises to clear a snackbar sitting at the bottom.
-private val FAB_SNACKBAR_CLEARANCE = 80.dp
+// The gap left between the add button and a snackbar it has risen above.
+private val FAB_SNACKBAR_GAP = 12.dp
 
 /**
  * The home screen: the note list, its search, its selection bar and its empty state.
@@ -136,16 +138,18 @@ fun HomeScreen(
     onUndoMoveToTrash: () -> Unit,
     onSortOptionChange: (NoteSortOption) -> Unit,
     snackbarHostState: SnackbarHostState,
+    snackbarHeight: State<Dp>,
     modifier: Modifier = Modifier
 ) {
     var showCreateOptionsSheet by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     // The app-level snackbar sits at the bottom of the screen, so the add button
-    // rises above it with a gap while one is showing, and settles back afterwards.
+    // rises by the snackbar's measured height plus a gap while one is showing, and
+    // settles back afterwards.
     val fabLift by animateDpAsState(
         targetValue = if (snackbarHostState.currentSnackbarData != null) {
-            FAB_SNACKBAR_CLEARANCE
+            snackbarHeight.value + FAB_SNACKBAR_GAP
         } else {
             0.dp
         },

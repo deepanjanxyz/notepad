@@ -189,20 +189,26 @@ private suspend fun AwaitPointerEventScope.eraserGesture(
     var lastEraserPos: Offset? = startOffset
     onEraserCursorChange(startOffset)
     onEraseNear(startOffset, null)
-    while (true) {
-        val event = awaitPointerEvent()
-        val change = event.changes.firstOrNull { it.id == pointerId }
-        if (change == null || !change.pressed) {
-            change?.consume()
-            break
+    try {
+        while (true) {
+            val event = awaitPointerEvent()
+            val change = event.changes.firstOrNull { it.id == pointerId }
+            if (change == null || !change.pressed) {
+                change?.consume()
+                break
+            }
+            change.consume()
+            val curPos = change.position
+            onEraserCursorChange(curPos)
+            onEraseNear(curPos, lastEraserPos)
+            lastEraserPos = curPos
         }
-        change.consume()
-        val curPos = change.position
-        onEraserCursorChange(curPos)
-        onEraseNear(curPos, lastEraserPos)
-        lastEraserPos = curPos
+    } finally {
+        // Clear the cursor whether the gesture finished normally or this coroutine was
+        // cancelled mid-drag (for example when the active tool changes), so the eraser
+        // cursor is never left stranded on the canvas.
+        onEraserCursorChange(null)
     }
-    onEraserCursorChange(null)
 }
 
 /** Lays down a stroke along the drag, and hands it over when the pointer lifts. */

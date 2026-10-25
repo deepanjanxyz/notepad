@@ -407,7 +407,7 @@ fun DrawingScreen(
                     onRecolor = { color -> recolorSelectedStrokes(color) },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 16.dp)
+                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
                 )
             }
         }

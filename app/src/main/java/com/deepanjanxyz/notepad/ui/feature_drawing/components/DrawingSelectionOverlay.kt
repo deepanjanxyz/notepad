@@ -138,6 +138,7 @@ fun FloatingSelectionBar(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {

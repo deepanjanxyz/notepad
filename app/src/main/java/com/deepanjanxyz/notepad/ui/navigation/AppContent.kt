@@ -21,6 +21,7 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -169,6 +170,27 @@ private fun AppDrawerLayout(
     snackbarHostState: SnackbarHostState
 ) {
     val density = LocalDensity.current
+
+    // Whichever prompt appeared first sits below the newer one, so neither has a
+    // fixed slot: the order follows arrival.
+    val exitSnackbar = snackbarHostState.currentSnackbarData
+    val homeSnackbar = routes.homeSnackbarHostState.currentSnackbarData
+    var arrivalCounter by remember { mutableStateOf(0) }
+    var exitArrival by remember { mutableStateOf(0) }
+    var homeArrival by remember { mutableStateOf(0) }
+    LaunchedEffect(exitSnackbar) {
+        if (exitSnackbar != null) {
+            arrivalCounter += 1
+            exitArrival = arrivalCounter
+        }
+    }
+    LaunchedEffect(homeSnackbar) {
+        if (homeSnackbar != null) {
+            arrivalCounter += 1
+            homeArrival = arrivalCounter
+        }
+    }
+
     val closeDrawer = { routes.scope.launch { routes.drawerState.close() } }
     val navigateAndClose: (Screen) -> Unit = { screen ->
         routes.viewModel.navigateTo(screen)
@@ -209,8 +231,13 @@ private fun AppDrawerLayout(
                         },
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    SnackbarHost(snackbarHostState)
-                    SnackbarHost(routes.homeSnackbarHostState)
+                    if (exitArrival > homeArrival) {
+                        key("exit") { SnackbarHost(snackbarHostState) }
+                        key("home") { SnackbarHost(routes.homeSnackbarHostState) }
+                    } else {
+                        key("home") { SnackbarHost(routes.homeSnackbarHostState) }
+                        key("exit") { SnackbarHost(snackbarHostState) }
+                    }
                 }
             }
         ) { innerPadding ->

@@ -146,7 +146,7 @@ fun HomeScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { SnackbarHost(snackbarHostState, modifier = Modifier.navigationBarsPadding()) },
         topBar = {
             AnimatedVisibility(
                 visible = uiState.isSelectionMode,

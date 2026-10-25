@@ -3,10 +3,10 @@ package com.deepanjanxyz.notepad.ui.screens
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,7 +14,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -31,7 +34,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.deepanjanxyz.notepad.domain.model.CanvasGridType
 import com.deepanjanxyz.notepad.domain.model.DrawingPoint
 import com.deepanjanxyz.notepad.domain.model.DrawingSerializer
@@ -47,6 +54,7 @@ import com.deepanjanxyz.notepad.ui.feature_drawing.components.DrawingColorPalett
 import com.deepanjanxyz.notepad.ui.feature_drawing.components.DrawingEraserDrawer
 import com.deepanjanxyz.notepad.ui.feature_drawing.components.DrawingTopBar
 import com.deepanjanxyz.notepad.ui.feature_drawing.components.FloatingSelectionBar
+import com.deepanjanxyz.notepad.ui.feature_drawing.model.DrawingToolPrefs
 import com.deepanjanxyz.notepad.ui.feature_drawing.util.eraseSegmentAt
 import com.deepanjanxyz.notepad.ui.feature_drawing.util.getSelectionBounds as utilGetSelectionBounds
 import com.deepanjanxyz.notepad.ui.feature_drawing.util.isStrokeHit
@@ -79,6 +87,8 @@ fun getSelectionBounds(strokes: List<DrawingStroke>, selectedIndices: Set<Int>):
 @Composable
 fun DrawingScreen(
     noteId: Long,
+    initialToolPrefs: DrawingToolPrefs?,
+    onToolPrefsChange: (DrawingToolPrefs) -> Unit,
     onGetNote: suspend (Long) -> Note?,
     onSaveNote: suspend (Long, String, String, Int, List<String>, Boolean?, Boolean?) -> Long,
     onNavigateBack: (Long) -> Unit,
@@ -101,12 +111,12 @@ fun DrawingScreen(
     var currentStroke by remember { mutableStateOf<DrawingStroke?>(null) }
 
     var activeTool by remember { mutableStateOf(DrawingTool.PEN) }
-    var penColor by remember { mutableLongStateOf(0xFF00B0FFL) }
-    var penThickness by remember { mutableFloatStateOf(6f) }
-    var markerColor by remember { mutableLongStateOf(0xFF34A853L) }
-    var markerThickness by remember { mutableFloatStateOf(20f) }
-    var highlighterColor by remember { mutableLongStateOf(0xFFFBBC04L) }
-    var highlighterThickness by remember { mutableFloatStateOf(34f) }
+    var penColor by remember { mutableLongStateOf(initialToolPrefs?.penColor ?: 0xFF00B0FFL) }
+    var penThickness by remember { mutableFloatStateOf(initialToolPrefs?.penSize ?: 6f) }
+    var markerColor by remember { mutableLongStateOf(initialToolPrefs?.markerColor ?: 0xFF34A853L) }
+    var markerThickness by remember { mutableFloatStateOf(initialToolPrefs?.markerSize ?: 20f) }
+    var highlighterColor by remember { mutableLongStateOf(initialToolPrefs?.highlighterColor ?: 0xFFFBBC04L) }
+    var highlighterThickness by remember { mutableFloatStateOf(initialToolPrefs?.highlighterSize ?: 34f) }
     var showColorPalette by remember { mutableStateOf(false) }
     var showEraserOptions by remember { mutableStateOf(false) }
     var showBackgroundDialog by remember { mutableStateOf(false) }
@@ -129,6 +139,8 @@ fun DrawingScreen(
 
     var selectedStrokeIndices by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var selectionMarquee by remember { mutableStateOf<Rect?>(null) }
+    var eraserCursor by remember { mutableStateOf<Offset?>(null) }
+    var showClearConfirm by remember { mutableStateOf(false) }
 
     var undoHistory by remember { mutableStateOf<List<List<DrawingStroke>>>(emptyList()) }
     var redoHistory by remember { mutableStateOf<List<List<DrawingStroke>>>(emptyList()) }
@@ -216,7 +228,13 @@ fun DrawingScreen(
     }
 
     BackHandler {
-        forceSaveAndExit()
+        when {
+            showClearConfirm -> showClearConfirm = false
+            showColorPalette -> showColorPalette = false
+            showEraserOptions -> showEraserOptions = false
+            showBackgroundDialog -> showBackgroundDialog = false
+            else -> forceSaveAndExit()
+        }
     }
 
     val currentAlpha = if (activeTool == DrawingTool.HIGHLIGHTER) 0.40f else 1.0f
@@ -267,6 +285,42 @@ fun DrawingScreen(
         selectedStrokeIndices = emptySet()
     }
 
+    fun selectAllStrokes() {
+        if (strokes.isEmpty()) return
+        selectedStrokeIndices = strokes.indices.toSet()
+    }
+
+    fun recolorSelectedStrokes(color: Long) {
+        if (selectedStrokeIndices.isEmpty()) return
+        pushHistory()
+        strokes = strokes.mapIndexed { index, stroke ->
+            if (selectedStrokeIndices.contains(index)) stroke.copy(color = color) else stroke
+        }
+    }
+
+    fun clearCanvas() {
+        if (strokes.isEmpty()) return
+        pushHistory()
+        strokes = emptyList()
+        selectedStrokeIndices = emptySet()
+        eraserCursor = null
+    }
+
+    // Hand the current per-tool colour and size back to the caller so they can be
+    // restored the next time this screen is opened.
+    fun publishToolPrefs() {
+        onToolPrefsChange(
+            DrawingToolPrefs(
+                penColor = penColor,
+                penSize = penThickness,
+                markerColor = markerColor,
+                markerSize = markerThickness,
+                highlighterColor = highlighterColor,
+                highlighterSize = highlighterThickness
+            )
+        )
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -281,11 +335,7 @@ fun DrawingScreen(
             onUndo = { handleUndo() },
             onRedo = { handleRedo() },
             onNavigateBack = { forceSaveAndExit() },
-            onClearCanvas = {
-                pushHistory()
-                strokes = emptyList()
-                selectedStrokeIndices = emptySet()
-            },
+            onClearCanvas = { showClearConfirm = true },
             currentGridType = canvasGridType,
             onGridTypeChange = { canvasGridType = it },
             onOpenBackgroundDialog = { showBackgroundDialog = true }
@@ -298,6 +348,16 @@ fun DrawingScreen(
                 onColorSelected = { canvasBackgroundColor = it },
                 onGridSelected = { canvasGridType = it },
                 onDismiss = { showBackgroundDialog = false }
+            )
+        }
+
+        if (showClearConfirm) {
+            ClearCanvasConfirmDialog(
+                onConfirm = {
+                    showClearConfirm = false
+                    clearCanvas()
+                },
+                onDismiss = { showClearConfirm = false }
             )
         }
 
@@ -320,6 +380,8 @@ fun DrawingScreen(
                 selectedColor = selectedColor,
                 currentAlpha = currentAlpha,
                 isCurrentHighlighter = isCurrentHighlighter,
+                eraserRadiusPx = eraserRadiusPx,
+                eraserCursor = eraserCursor,
                 callbacks = DrawingCanvasCallbacks(
                     onStrokesChange = { strokes = it },
                     onCurrentStrokeChange = { currentStroke = it },
@@ -330,7 +392,8 @@ fun DrawingScreen(
                     onCanvasTouchDown = {
                         showColorPalette = false
                         showEraserOptions = false
-                    }
+                    },
+                    onEraserCursorChange = { eraserCursor = it }
                 )
             )
 
@@ -340,9 +403,11 @@ fun DrawingScreen(
                     onDuplicate = { duplicateSelectedStrokes() },
                     onDelete = { deleteSelectedStrokes() },
                     onClearSelection = { selectedStrokeIndices = emptySet() },
+                    onSelectAll = { selectAllStrokes() },
+                    onRecolor = { color -> recolorSelectedStrokes(color) },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 16.dp)
+                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
                 )
             }
         }
@@ -352,9 +417,9 @@ fun DrawingScreen(
                 (activeTool == DrawingTool.PEN ||
                     activeTool == DrawingTool.MARKER ||
                     activeTool == DrawingTool.HIGHLIGHTER),
-            enter = slideInVertically(animationSpec = tween(PANEL_ENTER_DURATION_MS)) { it } +
+            enter = expandVertically(animationSpec = tween(PANEL_ENTER_DURATION_MS)) +
                 fadeIn(animationSpec = tween(PANEL_ENTER_DURATION_MS)),
-            exit = slideOutVertically(animationSpec = tween(PANEL_EXIT_DURATION_MS)) { it } +
+            exit = shrinkVertically(animationSpec = tween(PANEL_EXIT_DURATION_MS)) +
                 fadeOut(animationSpec = tween(PANEL_FADE_OUT_DURATION_MS))
         ) {
             DrawingColorPaletteSheet(
@@ -368,6 +433,7 @@ fun DrawingScreen(
                         DrawingTool.HIGHLIGHTER -> highlighterColor = c
                         else -> {}
                     }
+                    publishToolPrefs()
                 },
                 onThicknessSelected = { thick ->
                     when (activeTool) {
@@ -376,15 +442,16 @@ fun DrawingScreen(
                         DrawingTool.HIGHLIGHTER -> highlighterThickness = thick
                         else -> {}
                     }
+                    publishToolPrefs()
                 }
             )
         }
 
         AnimatedVisibility(
             visible = showEraserOptions && activeTool == DrawingTool.ERASER,
-            enter = slideInVertically(animationSpec = tween(PANEL_ENTER_DURATION_MS)) { it } +
+            enter = expandVertically(animationSpec = tween(PANEL_ENTER_DURATION_MS)) +
                 fadeIn(animationSpec = tween(PANEL_ENTER_DURATION_MS)),
-            exit = slideOutVertically(animationSpec = tween(PANEL_EXIT_DURATION_MS)) { it } +
+            exit = shrinkVertically(animationSpec = tween(PANEL_EXIT_DURATION_MS)) +
                 fadeOut(animationSpec = tween(PANEL_FADE_OUT_DURATION_MS))
         ) {
             DrawingEraserDrawer(
@@ -392,11 +459,7 @@ fun DrawingScreen(
                 onModeSelected = { eraserMode = it },
                 currentRadiusPx = eraserRadiusPx,
                 onRadiusChanged = { eraserRadiusPx = it },
-                onClearCanvas = {
-                    pushHistory()
-                    strokes = emptyList()
-                    selectedStrokeIndices = emptySet()
-                }
+                onClearCanvas = { showClearConfirm = true }
             )
         }
 
@@ -457,4 +520,47 @@ fun DrawingScreen(
             highlighterColor = highlighterColor
         )
     }
+}
+
+/**
+ * Asks before the whole canvas is wiped. Clearing cannot be undone from the
+ * toolbar once the screen is left, so the destructive action is confirmed first.
+ */
+@Composable
+private fun ClearCanvasConfirmDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = AppColors.DialogSurface,
+        title = {
+            Text(
+                text = "Clear canvas?",
+                style = TextStyle(color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            )
+        },
+        text = {
+            Text(
+                text = "This removes every stroke on the canvas.",
+                style = TextStyle(color = AppColors.TextHint, fontSize = 14.sp)
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                modifier = Modifier.testTag("clear_canvas_confirm_button")
+            ) {
+                Text("Clear", color = AppColors.Danger, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.testTag("clear_canvas_cancel_button")
+            ) {
+                Text("Cancel", color = AppColors.TextIdle)
+            }
+        }
+    )
 }

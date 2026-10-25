@@ -16,6 +16,7 @@ import com.deepanjanxyz.notepad.domain.usecase.label.LabelUseCases
 import com.deepanjanxyz.notepad.domain.usecase.note.NoteUseCases
 import com.deepanjanxyz.notepad.domain.usecase.note.SavedNote
 import com.deepanjanxyz.notepad.domain.usecase.settings.SettingsUseCases
+import com.deepanjanxyz.notepad.ui.feature_drawing.model.DrawingToolPrefs
 import com.deepanjanxyz.notepad.worker.NoteReminderScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -828,5 +829,15 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteCustomTag(tag: String) {
         deleteLabel(tag)
+    }
+
+    // The drawing tool colours and sizes last used. Kept here rather than in the
+    // drawing screen so they survive leaving and reopening it.
+    private var drawingToolPrefs: DrawingToolPrefs? = null
+
+    fun currentDrawingToolPrefs(): DrawingToolPrefs? = drawingToolPrefs
+
+    fun saveDrawingToolPrefs(prefs: DrawingToolPrefs) {
+        drawingToolPrefs = prefs
     }
 }

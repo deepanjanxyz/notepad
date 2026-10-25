@@ -101,8 +101,8 @@ class MainActivity : FragmentActivity() {
     private fun installSplashAnimations() {
         val splashScreen = installSplashScreen()
         splashScreen.setOnExitAnimationListener { provider ->
-            val iconView = provider.iconView
-            val splashView = provider.view
+            val iconView: View? = provider.iconView
+            val splashView: View? = provider.view
             // Not every platform hands back both views, so animate only what is
             // present, and always hand the splash screen back.
             val animators: List<Animator> = buildList {

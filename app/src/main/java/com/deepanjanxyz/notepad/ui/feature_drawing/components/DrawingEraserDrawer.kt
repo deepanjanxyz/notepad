@@ -19,6 +19,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -112,6 +116,7 @@ private fun RowScope.EraserModeChip(label: String, isSelected: Boolean, onClick:
         modifier = Modifier
             .weight(1f)
             .clickable(onClick = onClick)
+            .semantics { selected = isSelected }
     ) {
         Row(
             modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp),
@@ -142,23 +147,35 @@ private fun EraserSizeRow(currentRadiusPx: Float, onRadiusChanged: (Float) -> Un
             style = TextStyle(fontSize = 12.sp, color = AppColors.TextLabel)
         )
         listOf(
-            ERASER_SMALL_RADIUS_PX to "S",
-            ERASER_MEDIUM_RADIUS_PX to "M",
-            ERASER_LARGE_RADIUS_PX to "L"
-        ).forEach { (rad, label) ->
+            Triple(ERASER_SMALL_RADIUS_PX, "S", "Small eraser"),
+            Triple(ERASER_MEDIUM_RADIUS_PX, "M", "Medium eraser"),
+            Triple(ERASER_LARGE_RADIUS_PX, "L", "Large eraser")
+        ).forEach { (rad, label, description) ->
             val isSelected = abs(currentRadiusPx - rad) < 5f
             Box(
                 modifier = Modifier
-                    .size(30.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
-                    .background(if (isSelected) AppColors.Accent else AppColors.DotIdle)
-                    .clickable { onRadiusChanged(rad) },
+                    .clickable { onRadiusChanged(rad) }
+                    .semantics {
+                        contentDescription = description
+                        selected = isSelected
+                    }
+                    .testTag("eraser_size_$label"),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = label,
-                    style = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clip(CircleShape)
+                        .background(if (isSelected) AppColors.Accent else AppColors.DotIdle),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = label,
+                        style = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    )
+                }
             }
         }
     }
@@ -171,7 +188,9 @@ private fun ClearCanvasButton(onClearCanvas: () -> Unit) {
         shape = RoundedCornerShape(8.dp),
         color = AppColors.DangerSurface,
         border = BorderStroke(1.dp, AppColors.Danger.copy(alpha = 0.4f)),
-        modifier = Modifier.clickable { onClearCanvas() }
+        modifier = Modifier
+            .clickable { onClearCanvas() }
+            .testTag("eraser_clear_all_button")
     ) {
         Text(
             text = "Clear All",

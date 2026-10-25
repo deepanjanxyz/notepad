@@ -12,6 +12,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -20,6 +21,8 @@ import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.domain.model.CanvasGridType
 import com.deepanjanxyz.notepad.domain.model.DrawingPoint
@@ -34,9 +37,12 @@ private const val MIN_DRAW_DISTANCE_PX = 1.8f
 // Dash pattern of the marquee outline, in pixels.
 private const val MARQUEE_DASH_LENGTH_PX = 10f
 private const val MARQUEE_DASH_GAP_PX = 6f
-// The two backgrounds treated as dark, so the grid is drawn light on them.
-private const val DARK_BACKGROUND_MIDNIGHT = 0xFF121214L
-private const val DARK_BACKGROUND_CHARCOAL = 0xFF1E1E22L
+// The eraser cursor: a translucent disc with a solid ring, so the erase radius is
+// visible on both a light and a dark canvas.
+private const val ERASER_CURSOR_FILL_ALPHA = 0.18f
+private const val ERASER_CURSOR_RING_WIDTH_DP = 1.5f
+// Spoken name of the canvas, so the drawing surface is not an unlabelled node.
+private const val CANVAS_CONTENT_DESCRIPTION = "Drawing canvas"
 
 @Composable
 internal fun DrawingCanvas(
@@ -52,6 +58,8 @@ internal fun DrawingCanvas(
     selectedColor: Long,
     currentAlpha: Float,
     isCurrentHighlighter: Boolean,
+    eraserRadiusPx: Float,
+    eraserCursor: Offset?,
     callbacks: DrawingCanvasCallbacks,
     modifier: Modifier = Modifier
 ) {
@@ -66,6 +74,8 @@ internal fun DrawingCanvas(
             bounds = selectionBounds,
             alpha = currentAlpha,
             isHighlighter = isCurrentHighlighter,
+            eraserRadiusPx = eraserRadiusPx,
+            eraserCursor = eraserCursor,
             callbacks = callbacks
         )
     )
@@ -82,6 +92,7 @@ internal fun DrawingCanvas(
                 marquee = { latestMarquee },
                 inputs = inputs
             )
+            .semantics { contentDescription = CANVAS_CONTENT_DESCRIPTION }
             .testTag("drawing_canvas")
     ) {
         drawCanvasContent(
@@ -90,7 +101,9 @@ internal fun DrawingCanvas(
             canvasBackgroundColor = canvasBackgroundColor,
             canvasGridType = canvasGridType,
             selectionMarquee = selectionMarquee,
-            selectionBounds = selectionBounds
+            selectionBounds = selectionBounds,
+            eraserCursor = eraserCursor,
+            eraserRadiusPx = eraserRadiusPx
         )
     }
 }
@@ -137,8 +150,10 @@ private fun Modifier.canvasGestures(
                     eraserGesture(
                         startOffset = startOffset,
                         pointerId = down.id,
+                        eraserRadiusPx = inputs.value.eraserRadiusPx,
                         onPushHistory = inputs.value.callbacks.onPushHistory,
-                        onEraseNear = inputs.value.callbacks.onEraseNear
+                        onEraseNear = inputs.value.callbacks.onEraseNear,
+                        onEraserCursorChange = inputs.value.callbacks.onEraserCursorChange
                     )
                 } else {
                     drawStrokeGesture(
@@ -158,27 +173,41 @@ private fun Modifier.canvasGestures(
         }
     }
 
-/** Rubs out along the drag until the pointer lifts. */
+/**
+ * Rubs out along the drag until the pointer lifts, showing the eraser's reach as it
+ * goes so the user can see what the next touch will remove.
+ */
 private suspend fun AwaitPointerEventScope.eraserGesture(
     startOffset: Offset,
     pointerId: PointerId,
+    eraserRadiusPx: Float,
     onPushHistory: () -> Unit,
-    onEraseNear: (Offset, Offset?) -> Unit
+    onEraseNear: (Offset, Offset?) -> Unit,
+    onEraserCursorChange: (Offset?) -> Unit
 ) {
     onPushHistory()
     var lastEraserPos: Offset? = startOffset
+    onEraserCursorChange(startOffset)
     onEraseNear(startOffset, null)
-    while (true) {
-        val event = awaitPointerEvent()
-        val change = event.changes.firstOrNull { it.id == pointerId }
-        if (change == null || !change.pressed) {
-            change?.consume()
-            break
+    try {
+        while (true) {
+            val event = awaitPointerEvent()
+            val change = event.changes.firstOrNull { it.id == pointerId }
+            if (change == null || !change.pressed) {
+                change?.consume()
+                break
+            }
+            change.consume()
+            val curPos = change.position
+            onEraserCursorChange(curPos)
+            onEraseNear(curPos, lastEraserPos)
+            lastEraserPos = curPos
         }
-        change.consume()
-        val curPos = change.position
-        onEraseNear(curPos, lastEraserPos)
-        lastEraserPos = curPos
+    } finally {
+        // Clear the cursor whether the gesture finished normally or this coroutine was
+        // cancelled mid-drag (for example when the active tool changes), so the eraser
+        // cursor is never left stranded on the canvas.
+        onEraserCursorChange(null)
     }
 }
 
@@ -231,23 +260,25 @@ private suspend fun AwaitPointerEventScope.drawStrokeGesture(
     onCurrentStrokeChange(null)
 }
 
-/** Draws the grid, the strokes and the selection marks. */
+/** Draws the grid, the strokes, the eraser cursor and the selection marks. */
 private fun DrawScope.drawCanvasContent(
     strokes: List<DrawingStroke>,
     currentStroke: DrawingStroke?,
     canvasBackgroundColor: Long,
     canvasGridType: CanvasGridType,
     selectionMarquee: Rect?,
-    selectionBounds: Rect?
+    selectionBounds: Rect?,
+    eraserCursor: Offset?,
+    eraserRadiusPx: Float
 ) {
-    val isDark = canvasBackgroundColor == DARK_BACKGROUND_CHARCOAL ||
-        canvasBackgroundColor == DARK_BACKGROUND_MIDNIGHT
-    drawCanvasGrid(canvasGridType, isDark)
+    drawCanvasGrid(canvasGridType, isDarkCanvasBackground(canvasBackgroundColor))
 
     for (stroke in strokes) {
         drawDrawingStroke(stroke)
     }
     currentStroke?.let { stroke -> drawDrawingStroke(stroke) }
+
+    eraserCursor?.let { cursor -> drawEraserCursor(cursor, eraserRadiusPx) }
 
     selectionMarquee?.let { marquee ->
         drawRect(
@@ -269,4 +300,19 @@ private fun DrawScope.drawCanvasContent(
     }
 
     selectionBounds?.let { b -> drawSelectionBoundingBox(b) }
+}
+
+/** The disc that shows how far the eraser reaches from the touch point. */
+private fun DrawScope.drawEraserCursor(cursor: Offset, eraserRadiusPx: Float) {
+    drawCircle(
+        color = Color.White.copy(alpha = ERASER_CURSOR_FILL_ALPHA),
+        radius = eraserRadiusPx,
+        center = cursor
+    )
+    drawCircle(
+        color = AppColors.Accent,
+        radius = eraserRadiusPx,
+        center = cursor,
+        style = Stroke(width = ERASER_CURSOR_RING_WIDTH_DP.dp.toPx())
+    )
 }

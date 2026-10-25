@@ -25,6 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -37,7 +40,7 @@ import kotlin.math.roundToInt
 
 // Base of the hexadecimal colour written into the swatch test tag.
 private const val HEX_RADIX = 16
-// The range the selected stroke thickness is kept inside, in dp.
+// The shortest and longest the stroke preview is drawn, in dp.
 private const val THICKNESS_MIN_DP = 2f
 private const val THICKNESS_MAX_DP = 22f
 // The range the thickness slider covers, in dp.
@@ -55,6 +58,10 @@ fun ColorCircleItem(
         modifier = Modifier
             .size(40.dp)
             .clickable(onClick = onSelect)
+            .semantics {
+                contentDescription = "Colour ${color.toString(HEX_RADIX)}"
+                selected = isSelected
+            }
             .testTag("color_item_${color.toString(HEX_RADIX)}"),
         contentAlignment = Alignment.Center
     ) {
@@ -198,7 +205,7 @@ private fun StrokePreview(
             modifier = Modifier
                 .size(
                     width = 44.dp,
-                    height = (selectedThickness.coerceIn(THICKNESS_MIN_DP, THICKNESS_MAX_DP)).dp
+                    height = previewStrokeHeightDp(selectedThickness).dp
                 )
                 .clip(CircleShape)
                 .background(
@@ -208,6 +215,17 @@ private fun StrokePreview(
                 )
         )
     }
+}
+
+/**
+ * The preview's stroke height for [thickness], scaled across the slider's whole
+ * range so it keeps growing right up to the 54 px maximum instead of flattening
+ * out once it passes the preview's own limit.
+ */
+private fun previewStrokeHeightDp(thickness: Float): Float {
+    val ratio = ((thickness - THICKNESS_SLIDER_MIN_DP) /
+        (THICKNESS_SLIDER_MAX_DP - THICKNESS_SLIDER_MIN_DP)).coerceIn(0f, 1f)
+    return THICKNESS_MIN_DP + ratio * (THICKNESS_MAX_DP - THICKNESS_MIN_DP)
 }
 
 /** The slider that sets the stroke thickness. */
@@ -291,6 +309,10 @@ private fun ThicknessPresetDot(
             .size(44.dp)
             .clip(CircleShape)
             .clickable { onThicknessSelected(thick) }
+            .semantics {
+                contentDescription = "Stroke size ${thick.toInt()}"
+                selected = isSelected
+            }
             .testTag("thickness_option_${thick.toInt()}"),
         contentAlignment = Alignment.Center
     ) {

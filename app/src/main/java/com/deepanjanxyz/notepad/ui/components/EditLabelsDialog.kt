@@ -1,5 +1,7 @@
 package com.deepanjanxyz.notepad.ui.components
 
+import android.view.HapticFeedbackConstants
+import android.view.View
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +16,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Add
@@ -34,18 +38,31 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.delay
 
 private const val MAX_LABEL_LENGTH = 30
+
+// How long the field stays red after a keystroke that goes past the limit.
+private val LIMIT_FLASH_DURATION = 1.seconds
+
+/** A short buzz for the character-limit warning, honouring the system touch-feedback setting. */
+private fun View.buzz() {
+    performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+}
 
 @Composable
 fun EditLabelsDialog(
@@ -59,6 +76,19 @@ fun EditLabelsDialog(
     var newLabelText by remember { mutableStateOf("") }
     var renamingLabel by remember { mutableStateOf<String?>(null) }
     var renameInputText by remember { mutableStateOf("") }
+
+    val pendingLabel = newLabelText.trim().replace("#", "")
+    val pendingIsDuplicate = pendingLabel.isNotBlank() &&
+        labels.any { it.equals(pendingLabel, ignoreCase = true) }
+
+    // Typing a name and then tapping Done - or dismissing the dialog - used to
+    // discard it unless "+" had been pressed. Commit it the same way "+" does.
+    val commitPendingLabel = {
+        if (pendingLabel.isNotBlank() && !pendingIsDuplicate) {
+            onAddLabel(pendingLabel)
+            newLabelText = ""
+        }
+    }
 
     renamingLabel?.let { targetLabel ->
         RenameLabelDialog(
@@ -84,7 +114,10 @@ fun EditLabelsDialog(
             renameInputText = label
         },
         onDeleteLabel = onDeleteLabel,
-        onDismiss = onDismiss,
+        onDismiss = {
+            commitPendingLabel()
+            onDismiss()
+        },
         modifier = modifier
     )
 }
@@ -164,6 +197,7 @@ private fun NewLabelField(
     val cleaned = newLabelText.trim().replace("#", "")
     val isDuplicate = cleaned.isNotBlank() && labels.any { it.equals(cleaned, ignoreCase = true) }
     val canAdd = newLabelText.isNotBlank() && !isDuplicate
+    var limitFlash by remember { mutableStateOf(false) }
     val addIfValid = {
         if (cleaned.isNotBlank() && !isDuplicate) {
             onAddLabel(cleaned)
@@ -171,29 +205,33 @@ private fun NewLabelField(
         }
     }
 
+    // Clear the red border a moment after the last over-limit keystroke, so it reads
+    // as a reaction to that keystroke rather than a standing error on the field.
+    LaunchedEffect(limitFlash) {
+        if (limitFlash) {
+            delay(LIMIT_FLASH_DURATION.inWholeMilliseconds)
+            limitFlash = false
+        }
+    }
+
+    val view = LocalView.current
+
     OutlinedTextField(
         value = newLabelText,
-        onValueChange = { onInputChange(it.take(MAX_LABEL_LENGTH)) },
-        placeholder = { Text("Create new label") },
-        isError = isDuplicate,
-        trailingIcon = {
-            ActionTooltip("Add label") {
-                IconButton(
-                    onClick = addIfValid,
-                    enabled = canAdd,
-                    modifier = Modifier.testTag("add_label_plus_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add label",
-                        tint = if (canAdd) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.outline
-                        }
-                    )
-                }
+        onValueChange = { raw ->
+            // take() drops anything past the limit; buzz and flash the border red.
+            if (raw.length > MAX_LABEL_LENGTH) {
+                view.buzz()
+                limitFlash = true
             }
+            onInputChange(raw.take(MAX_LABEL_LENGTH))
+        },
+        placeholder = { Text("Create new label") },
+        isError = isDuplicate || limitFlash,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { addIfValid() }),
+        trailingIcon = {
+            NewLabelAddButton(canAdd = canAdd, onClick = addIfValid)
         },
         supportingText = {
             LabelFieldSupportingText(length = newLabelText.length, isDuplicate = isDuplicate)
@@ -206,26 +244,67 @@ private fun NewLabelField(
     )
 }
 
+/**
+ * The add button beside the new-label field.
+ *
+ * It is kept clickable even while the name is not valid yet - the guard lives in
+ * the action - so a tap that lands near the icon is swallowed here instead of
+ * falling through to the text field or the list underneath.
+ */
+@Composable
+private fun NewLabelAddButton(canAdd: Boolean, onClick: () -> Unit) {
+    ActionTooltip("Add label") {
+        // A fixed 48dp box gives the button a hit area of its own, so a tap that
+        // lands beside the icon cannot reach the field or the list behind it.
+        Box(
+            modifier = Modifier.size(48.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            IconButton(
+                onClick = onClick,
+                modifier = Modifier.testTag("add_label_plus_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Add label",
+                    tint = if (canAdd) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.outline
+                    }
+                )
+            }
+        }
+    }
+}
+
 /** The "already exists" note and the character count under a label field. */
 @Composable
 private fun LabelFieldSupportingText(length: Int, isDuplicate: Boolean) {
+    val atLimit = length >= MAX_LABEL_LENGTH
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        if (isDuplicate) {
-            Text(
+        when {
+            isDuplicate -> Text(
                 text = "Label already exists",
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.labelSmall
             )
-        } else {
-            Spacer(modifier = Modifier.weight(1f))
+            atLimit -> Text(
+                text = "Character limit reached",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium
+            )
+            else -> Spacer(modifier = Modifier.weight(1f))
         }
         Text(
-            text = "$length/30",
+            text = "$length/$MAX_LABEL_LENGTH",
             style = MaterialTheme.typography.labelSmall,
-            color = if (isDuplicate) {
+            fontWeight = if (atLimit) FontWeight.Bold else FontWeight.Normal,
+            color = if (isDuplicate || atLimit) {
                 MaterialTheme.colorScheme.error
             } else {
                 MaterialTheme.colorScheme.outline
@@ -244,6 +323,7 @@ private fun RenameLabelDialog(
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val view = LocalView.current
     val cleaned = renameInputText.trim().replace("#", "")
     val isDuplicate = cleaned.isNotBlank() &&
         !cleaned.equals(targetLabel, ignoreCase = true) &&
@@ -256,7 +336,12 @@ private fun RenameLabelDialog(
             Column {
                 OutlinedTextField(
                     value = renameInputText,
-                    onValueChange = { onInputChange(it.take(MAX_LABEL_LENGTH)) },
+                    onValueChange = { raw ->
+                        if (raw.length > MAX_LABEL_LENGTH) {
+                            view.buzz()
+                        }
+                        onInputChange(raw.take(MAX_LABEL_LENGTH))
+                    },
                     label = { Text("Label Name") },
                     isError = isDuplicate,
                     supportingText = {

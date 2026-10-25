@@ -23,6 +23,7 @@ internal data class ScreenRouteState(
     val autoBackupStatus: AutoBackupStatus?,
     val importOutcome: ImportOutcome?,
     val snackbarHostState: SnackbarHostState,
+    val homeSnackbarHostState: SnackbarHostState,
     val snackbarHeight: MutableState<Dp>,
     val drawerState: DrawerState,
     val scope: CoroutineScope

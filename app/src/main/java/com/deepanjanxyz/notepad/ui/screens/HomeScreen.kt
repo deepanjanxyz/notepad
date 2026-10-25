@@ -137,18 +137,18 @@ fun HomeScreen(
     onMoveSelectedToArchive: () -> Unit,
     onUndoMoveToTrash: () -> Unit,
     onSortOptionChange: (NoteSortOption) -> Unit,
-    snackbarHostState: SnackbarHostState,
+    homeSnackbarHostState: SnackbarHostState,
     snackbarHeight: State<Dp>,
     modifier: Modifier = Modifier
 ) {
     var showCreateOptionsSheet by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    // The app-level snackbar sits at the bottom of the screen, so the add button
-    // rises by the snackbar's measured height plus a gap while one is showing, and
+    // The snackbars sit at the bottom of the screen and stack when two are showing,
+    // so the add button rises by their combined measured height plus a gap, and
     // settles back afterwards.
     val fabLift by animateDpAsState(
-        targetValue = if (snackbarHostState.currentSnackbarData != null) {
+        targetValue = if (snackbarHeight.value > 0.dp) {
             snackbarHeight.value + FAB_SNACKBAR_GAP
         } else {
             0.dp
@@ -255,7 +255,7 @@ fun HomeScreen(
                                 onClick = {
                                     onMoveSelectedToTrash()
                                     scope.launch {
-                                        val result = snackbarHostState.showSnackbar(
+                                        val result = homeSnackbarHostState.showSnackbar(
                                             message = "Moved to Trash",
                                             actionLabel = "Undo",
                                             withDismissAction = true,

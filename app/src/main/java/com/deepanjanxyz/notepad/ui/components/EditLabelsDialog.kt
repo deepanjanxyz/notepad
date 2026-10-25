@@ -59,18 +59,9 @@ private const val MAX_LABEL_LENGTH = 30
 // How long the field stays red after a keystroke that goes past the limit.
 private val LIMIT_FLASH_DURATION = 1.seconds
 
-/**
- * A short buzz for the character-limit warning.
- *
- * performHapticFeedback on its own honours the system touch-feedback setting and
- * stays silent when it is off; the ignore flag is what makes the warning actually
- * vibrate, which is the point of the feedback.
- */
+/** A short buzz for the character-limit warning, honouring the system touch-feedback setting. */
 private fun View.buzz() {
-    performHapticFeedback(
-        HapticFeedbackConstants.LONG_PRESS,
-        HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
-    )
+    performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
 }
 
 @Composable

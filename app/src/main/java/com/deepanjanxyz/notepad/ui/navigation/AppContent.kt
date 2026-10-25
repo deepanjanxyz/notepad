@@ -257,17 +257,24 @@ private fun AppSnackbarHosts(
     }
 
     Column(
-        modifier = Modifier
-            .navigationBarsPadding()
-            .onSizeChanged { snackbarHeight.value = with(density) { it.height.toDp() } },
+        modifier = Modifier.navigationBarsPadding(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        if (exitArrival > homeArrival) {
-            key("exit") { SnackbarHost(exitSnackbarHostState) }
-            key("home") { SnackbarHost(homeSnackbarHostState) }
-        } else {
-            key("home") { SnackbarHost(homeSnackbarHostState) }
-            key("exit") { SnackbarHost(exitSnackbarHostState) }
+        // The inner column carries no inset, so its measured height is just the
+        // snackbars - zero when none is showing - and the button clears exactly that.
+        Column(
+            modifier = Modifier.onSizeChanged {
+                snackbarHeight.value = with(density) { it.height.toDp() }
+            },
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (exitArrival > homeArrival) {
+                key("exit") { SnackbarHost(exitSnackbarHostState) }
+                key("home") { SnackbarHost(homeSnackbarHostState) }
+            } else {
+                key("home") { SnackbarHost(homeSnackbarHostState) }
+                key("exit") { SnackbarHost(exitSnackbarHostState) }
+            }
         }
     }
 }

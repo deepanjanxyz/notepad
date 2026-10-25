@@ -146,7 +146,18 @@ fun HomeScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        snackbarHost = { SnackbarHost(snackbarHostState, modifier = Modifier.navigationBarsPadding()) },
+        // The Scaffold already lifts the snackbar above the padded FAB, so the inset
+        // is only needed while the FAB is hidden in selection mode.
+        snackbarHost = {
+            SnackbarHost(
+                snackbarHostState,
+                modifier = if (uiState.isSelectionMode) {
+                    Modifier.navigationBarsPadding()
+                } else {
+                    Modifier
+                }
+            )
+        },
         topBar = {
             AnimatedVisibility(
                 visible = uiState.isSelectionMode,

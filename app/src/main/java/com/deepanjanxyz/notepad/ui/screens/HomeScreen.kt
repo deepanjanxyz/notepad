@@ -90,6 +90,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.domain.model.Note
@@ -299,7 +300,7 @@ fun HomeScreen(
                     // snackbar while one is showing.
                     modifier = Modifier
                         .navigationBarsPadding()
-                        .offset(y = -fabLift)
+                        .offset { IntOffset(0, -fabLift.roundToPx()) }
                         .testTag("fab_add_note")
                 ) {
                     Icon(

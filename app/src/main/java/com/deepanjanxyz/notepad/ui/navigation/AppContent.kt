@@ -2,8 +2,10 @@ package com.deepanjanxyz.notepad.ui.navigation
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
@@ -18,12 +20,19 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deepanjanxyz.notepad.EXIT_BACK_WINDOW_MS
 import com.deepanjanxyz.notepad.LockScreen
@@ -57,6 +66,8 @@ internal fun AppRoot(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val homeSnackbarHostState = remember { SnackbarHostState() }
+    val snackbarHeight = remember { mutableStateOf(0.dp) }
 
     AppBackHandler(
         drawerState = drawerState,
@@ -76,6 +87,8 @@ internal fun AppRoot(
         allTags = allTags,
         autoBackupStatus = autoBackupStatus,
         importOutcome = importOutcome,
+        homeSnackbarHostState = homeSnackbarHostState,
+        snackbarHeight = snackbarHeight,
         drawerState = drawerState,
         scope = scope
     )
@@ -188,7 +201,13 @@ private fun AppDrawerLayout(
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            snackbarHost = { SnackbarHost(snackbarHostState) }
+            snackbarHost = {
+                AppSnackbarHosts(
+                    exitSnackbarHostState = snackbarHostState,
+                    homeSnackbarHostState = routes.homeSnackbarHostState,
+                    snackbarHeight = routes.snackbarHeight
+                )
+            }
         ) { innerPadding ->
             AnimatedContent(
                 targetState = routes.uiState.currentScreen,
@@ -203,6 +222,59 @@ private fun AppDrawerLayout(
 
     if (routes.uiState.showEditLabelsDialog) {
         EditLabelsHost(viewModel = routes.viewModel, labels = roomLabels)
+    }
+}
+
+/**
+ * The two snackbars, stacked. Whichever appeared first sits at the bottom and the
+ * newer one above it, so neither has a fixed slot, and the stack reports its height
+ * so the add button can clear it.
+ */
+@Composable
+private fun AppSnackbarHosts(
+    exitSnackbarHostState: SnackbarHostState,
+    homeSnackbarHostState: SnackbarHostState,
+    snackbarHeight: MutableState<Dp>
+) {
+    val density = LocalDensity.current
+    val exitSnackbar = exitSnackbarHostState.currentSnackbarData
+    val homeSnackbar = homeSnackbarHostState.currentSnackbarData
+    var arrivalCounter by remember { mutableStateOf(0) }
+    var exitArrival by remember { mutableStateOf(0) }
+    var homeArrival by remember { mutableStateOf(0) }
+    LaunchedEffect(exitSnackbar) {
+        if (exitSnackbar != null) {
+            arrivalCounter += 1
+            exitArrival = arrivalCounter
+        }
+    }
+    LaunchedEffect(homeSnackbar) {
+        if (homeSnackbar != null) {
+            arrivalCounter += 1
+            homeArrival = arrivalCounter
+        }
+    }
+
+    Column(
+        modifier = Modifier.navigationBarsPadding(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // The inner column carries no inset, so its measured height is just the
+        // snackbars - zero when none is showing - and the button clears exactly that.
+        Column(
+            modifier = Modifier.onSizeChanged {
+                snackbarHeight.value = with(density) { it.height.toDp() }
+            },
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (exitArrival > homeArrival) {
+                key("exit") { SnackbarHost(exitSnackbarHostState) }
+                key("home") { SnackbarHost(homeSnackbarHostState) }
+            } else {
+                key("home") { SnackbarHost(homeSnackbarHostState) }
+                key("exit") { SnackbarHost(exitSnackbarHostState) }
+            }
+        }
     }
 }
 

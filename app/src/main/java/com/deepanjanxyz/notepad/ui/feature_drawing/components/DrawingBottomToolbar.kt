@@ -234,10 +234,10 @@ fun DrawingBottomToolbar(
     activeTool: DrawingTool,
     onToolClick: (DrawingTool) -> Unit,
     selectedColor: Long,
+    modifier: Modifier = Modifier,
     penColor: Long = selectedColor,
     markerColor: Long = selectedColor,
-    highlighterColor: Long = selectedColor,
-    modifier: Modifier = Modifier
+    highlighterColor: Long = selectedColor
 ) {
     ToolRow(
         activeTool = activeTool,

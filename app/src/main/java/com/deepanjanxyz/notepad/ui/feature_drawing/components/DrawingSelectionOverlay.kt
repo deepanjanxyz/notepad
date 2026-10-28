@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -57,54 +58,71 @@ private const val HEX_RADIX = 16
 
 fun DrawScope.drawSelectionBoundingBox(b: Rect) {
     val blueColor = AppColors.Accent
-    val handleSizePx = 9.dp.toPx()
-    val halfH = handleSizePx / 2f
+    val outlinePx = 1.5.dp.toPx()
+    // Corners are round grips, edges are slim bars, so the two are told apart at a glance.
+    val cornerRadiusPx = 4.5.dp.toPx()
+    val edgeBarHalfWidthPx = 5.dp.toPx()
+    val edgeBarThicknessPx = 2.5.dp.toPx()
+    val knobRadiusPx = 5.dp.toPx()
+    val stalkLengthPx = 24.dp.toPx()
 
     // 1. Blue bounding outline
     drawRect(
         color = blueColor,
         topLeft = Offset(b.left, b.top),
         size = Size(b.width, b.height),
-        style = Stroke(width = 2.dp.toPx())
+        style = Stroke(width = outlinePx)
     )
 
-    // 2. Vertical top stalk line
-    val stalkLength = 24.dp.toPx()
-    val topMidX = b.center.x
-    val stalkStartY = b.top
-    val stalkEndY = b.top - stalkLength
-
+    // 2. Stalk and rotation knob
+    val stalkEnd = Offset(b.center.x, b.top - stalkLengthPx)
     drawLine(
         color = blueColor,
-        start = Offset(topMidX, stalkStartY),
-        end = Offset(topMidX, stalkEndY),
-        strokeWidth = 2.dp.toPx()
+        start = Offset(b.center.x, b.top),
+        end = stalkEnd,
+        strokeWidth = outlinePx
     )
-
-    // 3. Top rotation circle handle
+    drawCircle(color = AppColors.PanelDeep, radius = knobRadiusPx, center = stalkEnd)
     drawCircle(
         color = blueColor,
-        radius = 6.dp.toPx(),
-        center = Offset(topMidX, stalkEndY)
+        radius = knobRadiusPx,
+        center = stalkEnd,
+        style = Stroke(width = outlinePx)
     )
 
-    // 4. 8 solid square handles (4 corners + 4 midpoints)
-    val handles = listOf(
-        Offset(b.left, b.top),           // 0: Top-Left
-        Offset(b.center.x, b.top),       // 1: Top-Mid
-        Offset(b.right, b.top),          // 2: Top-Right
-        Offset(b.left, b.center.y),      // 3: Mid-Left
-        Offset(b.right, b.center.y),     // 4: Mid-Right
-        Offset(b.left, b.bottom),        // 5: Bottom-Left
-        Offset(b.center.x, b.bottom),    // 6: Bottom-Mid
-        Offset(b.right, b.bottom)        // 7: Bottom-Right
+    // 3. Round grips at the four corners
+    val corners = listOf(
+        Offset(b.left, b.top),
+        Offset(b.right, b.top),
+        Offset(b.left, b.bottom),
+        Offset(b.right, b.bottom)
     )
-
-    for (handle in handles) {
-        drawRect(
+    for (corner in corners) {
+        drawCircle(color = AppColors.PanelDeep, radius = cornerRadiusPx, center = corner)
+        drawCircle(
             color = blueColor,
-            topLeft = Offset(handle.x - halfH, handle.y - halfH),
-            size = Size(handleSizePx, handleSizePx)
+            radius = cornerRadiusPx,
+            center = corner,
+            style = Stroke(width = outlinePx)
+        )
+    }
+
+    // 4. Slim bars at the four edge midpoints
+    val edges = listOf(
+        Offset(b.center.x, b.top),
+        Offset(b.center.x, b.bottom),
+        Offset(b.left, b.center.y),
+        Offset(b.right, b.center.y)
+    )
+    for (edge in edges) {
+        val horizontal = edge.y == b.top || edge.y == b.bottom
+        val width = if (horizontal) edgeBarHalfWidthPx * 2f else edgeBarThicknessPx
+        val height = if (horizontal) edgeBarThicknessPx else edgeBarHalfWidthPx * 2f
+        drawRoundRect(
+            color = blueColor,
+            topLeft = Offset(edge.x - width / 2f, edge.y - height / 2f),
+            size = Size(width, height),
+            cornerRadius = CornerRadius(edgeBarThicknessPx / 2f)
         )
     }
 }

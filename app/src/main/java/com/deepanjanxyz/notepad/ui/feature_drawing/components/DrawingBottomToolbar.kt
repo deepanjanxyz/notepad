@@ -87,14 +87,18 @@ fun SelectionToolIcon(isSelected: Boolean) {
     Canvas(modifier = Modifier.size(TOOL_ICON_SIZE_DP.dp)) {
         val color = if (isSelected) AppColors.Accent else AppColors.TextMuted
         val strokePx = TOOL_ICON_STROKE_DP.dp.toPx()
-        val inset = size.width * 0.14f
-        val bracket = size.width * 0.20f
+        val inset = 3.5.dp.toPx()
+        val bracket = 5.dp.toPx()
+        val left = inset
+        val top = inset
+        val right = size.width - inset
+        val bottom = size.height - inset
 
         drawRoundRect(
             color = color,
-            topLeft = Offset(inset, inset),
-            size = Size(size.width - inset * 2, size.height - inset * 2),
-            cornerRadius = CornerRadius(size.width * 0.12f),
+            topLeft = Offset(left, top),
+            size = Size(right - left, bottom - top),
+            cornerRadius = CornerRadius(2.dp.toPx()),
             style = Stroke(
                 width = strokePx,
                 pathEffect = PathEffect.dashPathEffect(
@@ -104,10 +108,6 @@ fun SelectionToolIcon(isSelected: Boolean) {
         )
 
         // Solid corner brackets over the dashed frame read as a marquee rather than a box.
-        val left = inset
-        val top = inset
-        val right = size.width - inset
-        val bottom = size.height - inset
         val brackets = listOf(
             listOf(Offset(left, top + bracket), Offset(left, top), Offset(left + bracket, top)),
             listOf(Offset(right - bracket, top), Offset(right, top), Offset(right, top + bracket)),
@@ -136,25 +136,24 @@ fun EraserToolIcon(isSelected: Boolean) {
         val strokePx = TOOL_ICON_STROKE_DP.dp.toPx()
 
         rotate(degrees = 45f, pivot = center) {
-            val bodyWidth = size.width * 0.56f
-            val bodyHeight = size.height * 0.34f
+            val bodyWidth = 13.dp.toPx()
+            val bodyHeight = 8.dp.toPx()
             val bodyLeft = center.x - bodyWidth / 2f
             val bodyTop = center.y - bodyHeight / 2f
-            val corner = CornerRadius(bodyHeight * 0.32f)
 
             drawRoundRect(
                 color = color,
                 topLeft = Offset(bodyLeft, bodyTop),
                 size = Size(bodyWidth, bodyHeight),
-                cornerRadius = corner,
+                cornerRadius = CornerRadius(2.5.dp.toPx()),
                 style = Stroke(width = strokePx)
             )
             // The worn end of the eraser.
             drawRoundRect(
                 color = color,
-                topLeft = Offset(bodyLeft + strokePx, bodyTop + bodyHeight * 0.60f),
-                size = Size(bodyWidth - strokePx * 2f, bodyHeight * 0.24f),
-                cornerRadius = CornerRadius(bodyHeight * 0.12f)
+                topLeft = Offset(bodyLeft + strokePx, bodyTop + 4.5.dp.toPx()),
+                size = Size(bodyWidth - strokePx - strokePx, 2.dp.toPx()),
+                cornerRadius = CornerRadius(1.dp.toPx())
             )
         }
     }
@@ -186,39 +185,39 @@ private fun NibToolIcon(tipColor: Color, isSelected: Boolean, shape: NibShape) {
         val strokePx = TOOL_ICON_STROKE_DP.dp.toPx()
 
         rotate(degrees = -45f, pivot = center) {
-            val barrelWidth = size.width * 0.38f
-            val barrelHeight = size.height * 0.62f
+            val barrelWidth = 9.dp.toPx()
+            val barrelHeight = 15.dp.toPx()
             val barrelLeft = center.x - barrelWidth / 2f
-            val barrelTop = center.y - barrelHeight / 2f - size.height * 0.10f
+            val barrelTop = center.y - barrelHeight / 2f - 1.dp.toPx()
 
             drawRoundRect(
                 color = bodyColor,
                 topLeft = Offset(barrelLeft, barrelTop),
                 size = Size(barrelWidth, barrelHeight),
-                cornerRadius = CornerRadius(barrelWidth * 0.34f),
+                cornerRadius = CornerRadius(3.dp.toPx()),
                 style = Stroke(width = strokePx)
             )
 
             val nibTop = barrelTop + barrelHeight
             val nib = when (shape) {
                 NibShape.PEN -> Path().apply {
-                    moveTo(barrelLeft + barrelWidth * 0.20f, nibTop)
-                    lineTo(barrelLeft + barrelWidth * 0.80f, nibTop)
-                    lineTo(center.x, nibTop + size.height * 0.24f)
+                    moveTo(barrelLeft + 2.dp.toPx(), nibTop)
+                    lineTo(barrelLeft + barrelWidth - 2.dp.toPx(), nibTop)
+                    lineTo(center.x, nibTop + 5.5.dp.toPx())
                     close()
                 }
                 NibShape.MARKER -> Path().apply {
-                    moveTo(barrelLeft + barrelWidth * 0.12f, nibTop)
-                    lineTo(barrelLeft + barrelWidth * 0.88f, nibTop)
-                    lineTo(barrelLeft + barrelWidth * 0.72f, nibTop + size.height * 0.17f)
-                    lineTo(barrelLeft + barrelWidth * 0.28f, nibTop + size.height * 0.17f)
+                    moveTo(barrelLeft + 1.dp.toPx(), nibTop)
+                    lineTo(barrelLeft + barrelWidth - 1.dp.toPx(), nibTop)
+                    lineTo(barrelLeft + barrelWidth - 2.dp.toPx(), nibTop + 4.dp.toPx())
+                    lineTo(barrelLeft + 2.dp.toPx(), nibTop + 4.dp.toPx())
                     close()
                 }
                 NibShape.HIGHLIGHTER -> Path().apply {
-                    moveTo(barrelLeft - barrelWidth * 0.08f, nibTop)
-                    lineTo(barrelLeft + barrelWidth * 1.08f, nibTop)
-                    lineTo(barrelLeft + barrelWidth * 0.86f, nibTop + size.height * 0.13f)
-                    lineTo(barrelLeft + barrelWidth * 0.14f, nibTop + size.height * 0.13f)
+                    moveTo(barrelLeft - 1.dp.toPx(), nibTop)
+                    lineTo(barrelLeft + barrelWidth + 1.dp.toPx(), nibTop)
+                    lineTo(barrelLeft + barrelWidth - 1.dp.toPx(), nibTop + 3.5.dp.toPx())
+                    lineTo(barrelLeft + 1.dp.toPx(), nibTop + 3.5.dp.toPx())
                     close()
                 }
             }

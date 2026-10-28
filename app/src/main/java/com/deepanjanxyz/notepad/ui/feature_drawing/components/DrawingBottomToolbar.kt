@@ -18,13 +18,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -36,6 +39,13 @@ import com.deepanjanxyz.notepad.ui.theme.AppColors
 // Dash pattern of the guide line drawn across the canvas, in pixels.
 private const val GUIDE_DASH_LENGTH_PX = 4f
 private const val GUIDE_DASH_GAP_PX = 3f
+
+// The box every tool icon is drawn in, and the single stroke weight they share.
+private const val TOOL_ICON_SIZE_DP = 24f
+private const val TOOL_ICON_STROKE_DP = 1.8f
+
+/** The nib that tells the pen, the marker and the highlighter apart. */
+private enum class NibShape { PEN, MARKER, HIGHLIGHTER }
 
 
 @Composable
@@ -74,132 +84,149 @@ fun DockToolButton(
 
 @Composable
 fun SelectionToolIcon(isSelected: Boolean) {
-    Canvas(modifier = Modifier.size(24.dp)) {
+    Canvas(modifier = Modifier.size(TOOL_ICON_SIZE_DP.dp)) {
         val color = if (isSelected) AppColors.Accent else AppColors.TextMuted
-        val strokeW = 1.6.dp.toPx()
-        val w = size.width
-        val h = size.height
-        val pad = 3.dp.toPx()
+        val strokePx = TOOL_ICON_STROKE_DP.dp.toPx()
+        val inset = size.width * 0.14f
+        val bracket = size.width * 0.20f
 
-        drawRect(
+        drawRoundRect(
             color = color,
-            topLeft = Offset(pad, pad),
-            size = Size(w - pad * 2, h - pad * 2),
+            topLeft = Offset(inset, inset),
+            size = Size(size.width - inset * 2, size.height - inset * 2),
+            cornerRadius = CornerRadius(size.width * 0.12f),
             style = Stroke(
-                width = strokeW,
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(GUIDE_DASH_LENGTH_PX, GUIDE_DASH_GAP_PX))
+                width = strokePx,
+                pathEffect = PathEffect.dashPathEffect(
+                    floatArrayOf(GUIDE_DASH_LENGTH_PX, GUIDE_DASH_GAP_PX)
+                )
             )
         )
 
-        val arrowPath = Path().apply {
-            moveTo(pad + 1f, h - pad - 6.dp.toPx())
-            lineTo(pad + 1f, h - pad - 1f)
-            lineTo(pad + 6.dp.toPx(), h - pad - 1f)
-            moveTo(pad + 1f, h - pad - 1f)
-            lineTo(pad + 5.dp.toPx(), h - pad - 5.dp.toPx())
+        // Solid corner brackets over the dashed frame read as a marquee rather than a box.
+        val left = inset
+        val top = inset
+        val right = size.width - inset
+        val bottom = size.height - inset
+        val brackets = listOf(
+            listOf(Offset(left, top + bracket), Offset(left, top), Offset(left + bracket, top)),
+            listOf(Offset(right - bracket, top), Offset(right, top), Offset(right, top + bracket)),
+            listOf(Offset(left, bottom - bracket), Offset(left, bottom), Offset(left + bracket, bottom)),
+            listOf(Offset(right - bracket, bottom), Offset(right, bottom), Offset(right, bottom - bracket))
+        )
+        for (points in brackets) {
+            val path = Path().apply {
+                moveTo(points[0].x, points[0].y)
+                lineTo(points[1].x, points[1].y)
+                lineTo(points[2].x, points[2].y)
+            }
+            drawPath(
+                path,
+                color,
+                style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round)
+            )
         }
-        drawPath(arrowPath, color, style = Stroke(width = strokeW, cap = StrokeCap.Round))
     }
 }
 
 @Composable
 fun EraserToolIcon(isSelected: Boolean) {
-    Canvas(modifier = Modifier.size(24.dp)) {
-        val bodyColor = if (isSelected) AppColors.Accent else AppColors.TextMuted
-        val capColor = if (isSelected) Color.White else AppColors.IconIdleOnTool
+    Canvas(modifier = Modifier.size(TOOL_ICON_SIZE_DP.dp)) {
+        val color = if (isSelected) AppColors.Accent else AppColors.TextMuted
+        val strokePx = TOOL_ICON_STROKE_DP.dp.toPx()
 
-        val path = Path().apply {
-            moveTo(size.width * 0.22f, size.height * 0.78f)
-            lineTo(size.width * 0.38f, size.height * 0.90f)
-            lineTo(size.width * 0.88f, size.height * 0.40f)
-            lineTo(size.width * 0.65f, size.height * 0.20f)
-            close()
-        }
-        drawPath(path, bodyColor)
+        rotate(degrees = 45f, pivot = center) {
+            val bodyWidth = size.width * 0.56f
+            val bodyHeight = size.height * 0.34f
+            val bodyLeft = center.x - bodyWidth / 2f
+            val bodyTop = center.y - bodyHeight / 2f
+            val corner = CornerRadius(bodyHeight * 0.32f)
 
-        val divider = Path().apply {
-            moveTo(size.width * 0.32f, size.height * 0.84f)
-            lineTo(size.width * 0.54f, size.height * 0.52f)
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(bodyLeft, bodyTop),
+                size = Size(bodyWidth, bodyHeight),
+                cornerRadius = corner,
+                style = Stroke(width = strokePx)
+            )
+            // The worn end of the eraser.
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(bodyLeft + strokePx, bodyTop + bodyHeight * 0.60f),
+                size = Size(bodyWidth - strokePx * 2f, bodyHeight * 0.24f),
+                cornerRadius = CornerRadius(bodyHeight * 0.12f)
+            )
         }
-        drawPath(divider, capColor, style = Stroke(width = 1.5.dp.toPx()))
     }
 }
 
 @Composable
 fun PenToolIcon(tipColor: Color, isSelected: Boolean) {
-    Canvas(modifier = Modifier.size(24.dp)) {
-        val bodyColor = if (isSelected) Color.White else AppColors.TextMuted
-
-        val body = Path().apply {
-            moveTo(size.width * 0.45f, size.height * 0.42f)
-            lineTo(size.width * 0.85f, size.height * 0.05f)
-            lineTo(size.width * 0.95f, size.height * 0.15f)
-            lineTo(size.width * 0.55f, size.height * 0.52f)
-            close()
-        }
-        drawPath(body, bodyColor)
-
-        val tip = Path().apply {
-            moveTo(size.width * 0.45f, size.height * 0.42f)
-            lineTo(size.width * 0.12f, size.height * 0.78f)
-            lineTo(size.width * 0.08f, size.height * 0.92f)
-            lineTo(size.width * 0.22f, size.height * 0.88f)
-            lineTo(size.width * 0.55f, size.height * 0.52f)
-            close()
-        }
-        drawPath(tip, tipColor)
-    }
+    NibToolIcon(tipColor = tipColor, isSelected = isSelected, shape = NibShape.PEN)
 }
 
 @Composable
 fun MarkerToolIcon(tipColor: Color, isSelected: Boolean) {
-    Canvas(modifier = Modifier.size(24.dp)) {
-        val bodyColor = if (isSelected) Color.White else AppColors.TextMuted
-
-        val barrel = Path().apply {
-            moveTo(size.width * 0.40f, size.height * 0.45f)
-            lineTo(size.width * 0.80f, size.height * 0.05f)
-            lineTo(size.width * 0.95f, size.height * 0.20f)
-            lineTo(size.width * 0.55f, size.height * 0.60f)
-            close()
-        }
-        drawPath(barrel, bodyColor)
-
-        val tip = Path().apply {
-            moveTo(size.width * 0.40f, size.height * 0.45f)
-            lineTo(size.width * 0.22f, size.height * 0.65f)
-            lineTo(size.width * 0.12f, size.height * 0.90f)
-            lineTo(size.width * 0.35f, size.height * 0.78f)
-            lineTo(size.width * 0.55f, size.height * 0.60f)
-            close()
-        }
-        drawPath(tip, tipColor)
-    }
+    NibToolIcon(tipColor = tipColor, isSelected = isSelected, shape = NibShape.MARKER)
 }
 
 @Composable
 fun HighlighterToolIcon(tipColor: Color, isSelected: Boolean) {
-    Canvas(modifier = Modifier.size(24.dp)) {
+    NibToolIcon(tipColor = tipColor, isSelected = isSelected, shape = NibShape.HIGHLIGHTER)
+}
+
+/**
+ * The pen, marker and highlighter share one barrel and differ only in the nib they
+ * draw, so the three read as a family at toolbar size instead of as three drawings.
+ */
+@Composable
+private fun NibToolIcon(tipColor: Color, isSelected: Boolean, shape: NibShape) {
+    Canvas(modifier = Modifier.size(TOOL_ICON_SIZE_DP.dp)) {
         val bodyColor = if (isSelected) Color.White else AppColors.TextMuted
+        val strokePx = TOOL_ICON_STROKE_DP.dp.toPx()
 
-        val barrel = Path().apply {
-            moveTo(size.width * 0.38f, size.height * 0.42f)
-            lineTo(size.width * 0.78f, size.height * 0.02f)
-            lineTo(size.width * 0.98f, size.height * 0.22f)
-            lineTo(size.width * 0.58f, size.height * 0.62f)
-            close()
-        }
-        drawPath(barrel, bodyColor)
+        rotate(degrees = -45f, pivot = center) {
+            val barrelWidth = size.width * 0.38f
+            val barrelHeight = size.height * 0.62f
+            val barrelLeft = center.x - barrelWidth / 2f
+            val barrelTop = center.y - barrelHeight / 2f - size.height * 0.10f
 
-        val tip = Path().apply {
-            moveTo(size.width * 0.38f, size.height * 0.42f)
-            lineTo(size.width * 0.15f, size.height * 0.65f)
-            lineTo(size.width * 0.10f, size.height * 0.92f)
-            lineTo(size.width * 0.38f, size.height * 0.82f)
-            lineTo(size.width * 0.58f, size.height * 0.62f)
-            close()
+            drawRoundRect(
+                color = bodyColor,
+                topLeft = Offset(barrelLeft, barrelTop),
+                size = Size(barrelWidth, barrelHeight),
+                cornerRadius = CornerRadius(barrelWidth * 0.34f),
+                style = Stroke(width = strokePx)
+            )
+
+            val nibTop = barrelTop + barrelHeight
+            val nib = when (shape) {
+                NibShape.PEN -> Path().apply {
+                    moveTo(barrelLeft + barrelWidth * 0.20f, nibTop)
+                    lineTo(barrelLeft + barrelWidth * 0.80f, nibTop)
+                    lineTo(center.x, nibTop + size.height * 0.24f)
+                    close()
+                }
+                NibShape.MARKER -> Path().apply {
+                    moveTo(barrelLeft + barrelWidth * 0.12f, nibTop)
+                    lineTo(barrelLeft + barrelWidth * 0.88f, nibTop)
+                    lineTo(barrelLeft + barrelWidth * 0.72f, nibTop + size.height * 0.17f)
+                    lineTo(barrelLeft + barrelWidth * 0.28f, nibTop + size.height * 0.17f)
+                    close()
+                }
+                NibShape.HIGHLIGHTER -> Path().apply {
+                    moveTo(barrelLeft - barrelWidth * 0.08f, nibTop)
+                    lineTo(barrelLeft + barrelWidth * 1.08f, nibTop)
+                    lineTo(barrelLeft + barrelWidth * 0.86f, nibTop + size.height * 0.13f)
+                    lineTo(barrelLeft + barrelWidth * 0.14f, nibTop + size.height * 0.13f)
+                    close()
+                }
+            }
+            drawPath(
+                nib,
+                if (shape == NibShape.HIGHLIGHTER) tipColor.copy(alpha = 0.85f) else tipColor
+            )
         }
-        drawPath(tip, tipColor.copy(alpha = 0.85f))
     }
 }
 

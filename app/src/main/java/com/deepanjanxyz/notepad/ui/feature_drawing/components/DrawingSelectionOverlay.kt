@@ -59,10 +59,6 @@ private const val HEX_RADIX = 16
 fun DrawScope.drawSelectionBoundingBox(b: Rect) {
     val blueColor = AppColors.Accent
     val outlinePx = 1.5.dp.toPx()
-    // Corners are round grips, edges are slim bars, so the two are told apart at a glance.
-    val cornerRadiusPx = 4.5.dp.toPx()
-    val edgeBarHalfWidthPx = 5.dp.toPx()
-    val edgeBarThicknessPx = 2.5.dp.toPx()
     val knobRadiusPx = 5.dp.toPx()
     val stalkLengthPx = 24.dp.toPx()
 
@@ -90,7 +86,16 @@ fun DrawScope.drawSelectionBoundingBox(b: Rect) {
         style = Stroke(width = outlinePx)
     )
 
-    // 3. Round grips at the four corners
+    // 3. Round grips at the corners, slim bars at the edge midpoints
+    drawSelectionGrips(b = b, accent = blueColor, outlinePx = outlinePx)
+}
+
+/** The corner grips and edge bars, so a corner and an edge handle read apart at a glance. */
+private fun DrawScope.drawSelectionGrips(b: Rect, accent: Color, outlinePx: Float) {
+    val cornerRadiusPx = 4.5.dp.toPx()
+    val edgeBarHalfWidthPx = 5.dp.toPx()
+    val edgeBarThicknessPx = 2.5.dp.toPx()
+
     val corners = listOf(
         Offset(b.left, b.top),
         Offset(b.right, b.top),
@@ -100,14 +105,13 @@ fun DrawScope.drawSelectionBoundingBox(b: Rect) {
     for (corner in corners) {
         drawCircle(color = AppColors.PanelDeep, radius = cornerRadiusPx, center = corner)
         drawCircle(
-            color = blueColor,
+            color = accent,
             radius = cornerRadiusPx,
             center = corner,
             style = Stroke(width = outlinePx)
         )
     }
 
-    // 4. Slim bars at the four edge midpoints
     val edges = listOf(
         Offset(b.center.x, b.top),
         Offset(b.center.x, b.bottom),
@@ -119,7 +123,7 @@ fun DrawScope.drawSelectionBoundingBox(b: Rect) {
         val width = if (horizontal) edgeBarHalfWidthPx * 2f else edgeBarThicknessPx
         val height = if (horizontal) edgeBarThicknessPx else edgeBarHalfWidthPx * 2f
         drawRoundRect(
-            color = blueColor,
+            color = accent,
             topLeft = Offset(edge.x - width / 2f, edge.y - height / 2f),
             size = Size(width, height),
             cornerRadius = CornerRadius(edgeBarThicknessPx / 2f)

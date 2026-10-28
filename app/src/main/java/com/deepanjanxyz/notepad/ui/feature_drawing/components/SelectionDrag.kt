@@ -7,6 +7,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.input.pointer.PointerInputScope
+import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.domain.model.DrawingPoint
 import com.deepanjanxyz.notepad.domain.model.DrawingStroke
 import com.deepanjanxyz.notepad.ui.feature_drawing.util.getHandleHit
@@ -18,14 +19,14 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 
-// How close a touch has to be to a selection handle before it counts, in pixels.
-private const val HANDLE_HIT_RADIUS_PX = 28f
-// How far out a handle can be grabbed from, in pixels.
-private const val HANDLE_GRAB_RADIUS_PX = 34f
-// How close a touch has to be to a stroke to select it, in pixels.
-private const val STROKE_HIT_RADIUS_PX = 28f
-// The smallest marquee that counts as a selection, in pixels.
-private const val MARQUEE_MIN_SIZE_PX = 8f
+// How close a touch has to be to a selection handle before it counts.
+private const val HANDLE_HIT_RADIUS_DP = 9f
+// How far out a handle can be grabbed from.
+private const val HANDLE_GRAB_RADIUS_DP = 12f
+// How close a touch has to be to a stroke to select it.
+private const val STROKE_HIT_RADIUS_DP = 10f
+// The smallest marquee that counts as a selection.
+private const val MARQUEE_MIN_SIZE_DP = 3f
 // The handle that rotates the selection rather than resizing it.
 private const val ROTATE_HANDLE_INDEX = 8
 
@@ -63,6 +64,13 @@ internal suspend fun PointerInputScope.selectionGestures(
     onMarqueeChange: (Rect?) -> Unit,
     onPushHistory: () -> Unit
 ) {
+    // Radii are defined in dp and converted here, so a handle is as easy to grab on a
+    // high-density screen as on a low-density one instead of shrinking with the pixels.
+    val handleGrabRadiusPx = HANDLE_GRAB_RADIUS_DP.dp.toPx()
+    val handleHitRadiusPx = HANDLE_HIT_RADIUS_DP.dp.toPx()
+    val strokeHitRadiusPx = STROKE_HIT_RADIUS_DP.dp.toPx()
+    val marqueeMinSizePx = MARQUEE_MIN_SIZE_DP.dp.toPx()
+
     detectDragGestures(
         onDragStart = { startPos ->
             handleSelectionDragStart(
@@ -72,6 +80,9 @@ internal suspend fun PointerInputScope.selectionGestures(
                 selectedIndices = selectedIndices,
                 bounds = bounds,
                 stalkLengthPx = stalkLengthPx,
+                handleGrabRadiusPx = handleGrabRadiusPx,
+                handleHitRadiusPx = handleHitRadiusPx,
+                strokeHitRadiusPx = strokeHitRadiusPx,
                 onTouchDown = onTouchDown,
                 onSelectedIndicesChange = onSelectedIndicesChange,
                 onMarqueeChange = onMarqueeChange,
@@ -96,6 +107,7 @@ internal suspend fun PointerInputScope.selectionGestures(
                 marquee = marquee(),
                 strokes = strokes,
                 drag = drag,
+                marqueeMinSizePx = marqueeMinSizePx,
                 onSelectedIndicesChange = onSelectedIndicesChange,
                 onMarqueeChange = onMarqueeChange
             )
@@ -112,6 +124,9 @@ private fun handleSelectionDragStart(
     selectedIndices: () -> Set<Int>,
     bounds: () -> Rect?,
     stalkLengthPx: Float,
+    handleGrabRadiusPx: Float,
+    handleHitRadiusPx: Float,
+    strokeHitRadiusPx: Float,
     onTouchDown: () -> Unit,
     onSelectedIndicesChange: (Set<Int>) -> Unit,
     onMarqueeChange: (Rect?) -> Unit,
@@ -120,7 +135,7 @@ private fun handleSelectionDragStart(
     onTouchDown()
     val currentBounds = bounds()
     val handleHit = currentBounds?.let {
-        getHandleHit(it, startPos, HANDLE_GRAB_RADIUS_PX, stalkLengthPx)
+        getHandleHit(it, startPos, handleGrabRadiusPx, stalkLengthPx)
     }
 
     when {
@@ -134,7 +149,7 @@ private fun handleSelectionDragStart(
             onPushHistory()
         }
 
-        currentBounds != null && isMoveTargetHit(currentBounds, startPos, HANDLE_HIT_RADIUS_PX) -> {
+        currentBounds != null && isMoveTargetHit(currentBounds, startPos, handleHitRadiusPx) -> {
             drag.isDragging.value = true
             onPushHistory()
         }
@@ -142,14 +157,14 @@ private fun handleSelectionDragStart(
         else -> {
             val hitSelected = selectedIndices().any { idx ->
                 strokes().getOrNull(idx)
-                    ?.let { isStrokeHit(it, startPos, STROKE_HIT_RADIUS_PX) } == true
+                    ?.let { isStrokeHit(it, startPos, strokeHitRadiusPx) } == true
             }
             if (hitSelected) {
                 drag.isDragging.value = true
                 onPushHistory()
             } else {
                 val hitIndex = strokes().indexOfLast { stroke ->
-                    isStrokeHit(stroke, startPos, STROKE_HIT_RADIUS_PX)
+                    isStrokeHit(stroke, startPos, strokeHitRadiusPx)
                 }
                 if (hitIndex != -1) {
                     onSelectedIndicesChange(setOf(hitIndex))
@@ -285,11 +300,12 @@ private fun finishSelectionDrag(
     marquee: Rect?,
     strokes: () -> List<DrawingStroke>,
     drag: SelectionDragState,
+    marqueeMinSizePx: Float,
     onSelectedIndicesChange: (Set<Int>) -> Unit,
     onMarqueeChange: (Rect?) -> Unit
 ) {
     marquee?.let { current ->
-        if (current.width > MARQUEE_MIN_SIZE_PX || current.height > MARQUEE_MIN_SIZE_PX) {
+        if (current.width > marqueeMinSizePx || current.height > marqueeMinSizePx) {
             val currentStrokes = strokes()
             val matched = currentStrokes.indices.filter { idx ->
                 isStrokeInRect(currentStrokes[idx], current)

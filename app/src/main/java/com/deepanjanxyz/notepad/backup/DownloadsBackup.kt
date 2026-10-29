@@ -321,18 +321,16 @@ object DownloadsBackup {
     /** Removes the newest backup, or the file under [name]. True when one was removed. */
     fun delete(context: Context, name: String? = null): Boolean {
         val target = name ?: newestName(context) ?: FILE_NAME
-        if (BackupFolder.hasAccess(context)) {
-            val file = BackupFolder.find(context, target) ?: return false
-            return BackupFolder.delete(context, file.uri)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            return context.contentResolver.delete(
+        return when {
+            BackupFolder.hasAccess(context) ->
+                BackupFolder.find(context, target)?.let { BackupFolder.delete(context, it.uri) } ?: false
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> context.contentResolver.delete(
                 MediaStore.Downloads.EXTERNAL_CONTENT_URI,
                 selection(),
                 selectionArgs(target)
             ) > 0
+            else -> legacyFile(target).delete()
         }
-        return legacyFile(target).delete()
     }
 
     // --- Android 10+ (MediaStore) -------------------------------------------------

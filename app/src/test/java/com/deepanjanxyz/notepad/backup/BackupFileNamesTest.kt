@@ -100,6 +100,18 @@ class BackupFileNamesTest {
     }
 
     @Test
+    fun testAWorkingFileNeverDisplacesANumberedCopy() {
+        val found = listOf(
+            "elite-memo-backup (1).json" to 150L,
+            "elite-memo-backup.partial.json" to 150L
+        )
+        assertEquals(
+            listOf("elite-memo-backup.partial.json"),
+            BackupFileNames.copiesToRemove(found)
+        )
+    }
+
+    @Test
     fun testFilesThatAreNotOursAreNeverRemoved() {
         assertEquals(
             emptyList<String>(),

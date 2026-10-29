@@ -172,7 +172,7 @@ object DownloadsBackup {
     /** The newest copy of the backup file in the granted folder, or null. */
     private fun newestFolderCopy(context: Context, name: String): BackupFolder.Child? =
         BackupFolder.children(context)
-            .filter { it.name != name && BackupFileNames.isOurBackupName(it.name) }
+            .filter { it.name != name && BackupFileNames.isNumberedCopy(it.name) }
             .maxByOrNull { it.lastModified }
 
     /**
@@ -280,7 +280,7 @@ object DownloadsBackup {
         }
         val real = entries.firstOrNull { it.name == FILE_NAME }
         val newestCopy = entries
-            .filter { it.name != FILE_NAME && BackupFileNames.isOurBackupName(it.name) }
+            .filter { BackupFileNames.isNumberedCopy(it.name) }
             .maxByOrNull { it.lastModified }
         // A copy at least as new as the real file is the backup that was written
         // last, so it is listed; older copies stay hidden behind the real one.
@@ -379,7 +379,7 @@ object DownloadsBackup {
         name: String
     ): Uri? {
         val copy = readEntries(context)
-            .filter { it.name != name && BackupFileNames.isOurBackupName(it.name) }
+            .filter { it.name != name && BackupFileNames.isNumberedCopy(it.name) }
             .maxByOrNull { it.lastModified }
             ?: return null
         return findFile(resolver, collection, copy.name)

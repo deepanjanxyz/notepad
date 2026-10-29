@@ -287,7 +287,7 @@ object DownloadsBackup {
                 it.name == FILE_NAME ||
                     !BackupFileNames.isOurBackupName(it.name) ||
                     real == null ||
-                    (keepNewestCopy && it.name == newestCopy?.name)
+                    (keepNewestCopy && it.name == newestCopy.name)
             }
             .sortedByDescending { it.lastModified }
     }

@@ -19,14 +19,17 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
@@ -312,9 +315,16 @@ fun HomeScreen(
         }
     ) { paddingValues ->
         Column(
+            // The Scaffold zeroes its window insets, so the sides are cleared here,
+            // once, for everything inside: with three-button navigation in
+            // landscape the navigation bar runs down the right edge, and without
+            // this the search bar, the note cards and the layout button all end up
+            // underneath it. The top is left to the search bar, which clears the
+            // status bar itself, and the bottom to the list and the button.
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
         ) {
             // 1. Top Floating Search Bar (hidden in selection mode)
             AnimatedVisibility(

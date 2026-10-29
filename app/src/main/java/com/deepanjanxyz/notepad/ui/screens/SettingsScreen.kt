@@ -850,7 +850,9 @@ private fun getAppVersionName(context: Context): String =
 
 /**
  * Describes the backup that is really on disk, or the last failed attempt. The
- * number of files is reported so it is obvious when more than one exists.
+ * number of files is reported so it is obvious when more than one exists, and the
+ * file name is given when the backup is not under the usual one - which is what a
+ * data clear leaves behind, where the app can only write beside the older file.
  */
 private fun backupStatusText(
     info: DownloadsBackup.Info?,
@@ -864,7 +866,10 @@ private fun backupStatusText(
         else -> {
             val stamp = SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault())
                 .format(Date(lastModified))
-            if (fileCount > 1) "Last backup: $stamp \u00b7 $fileCount files" else "Last backup: $stamp"
+            val name = info.name
+            val where = if (name != DownloadsBackup.FILE_NAME) " \u00b7 $name" else ""
+            val count = if (fileCount > 1) " \u00b7 $fileCount files" else ""
+            "Last backup: $stamp$count$where"
         }
     }
 }

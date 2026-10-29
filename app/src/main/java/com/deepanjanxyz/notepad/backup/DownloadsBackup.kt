@@ -255,7 +255,7 @@ object DownloadsBackup {
     fun info(context: Context): Info? {
         val found = list(context)
             .filter { it.name == FILE_NAME || BackupFileNames.isOurBackupName(it.name) }
-            .maxWithOrNull(compareBy<Entry> { it.lastModified }.thenBy { it.name != FILE_NAME })
+            .maxWithOrNull(compareBy<Entry> { it.lastModified }.thenBy { it.name == FILE_NAME })
         return found?.let { Info(locationLabel(it.name), it.lastModified, it.name) }
     }
 
@@ -281,7 +281,7 @@ object DownloadsBackup {
         // A copy newer than the real file is the backup that was written last, so it
         // is listed; older copies stay hidden behind the real one.
         val keepNewestCopy = real != null && newestCopy != null &&
-            newestCopy.lastModified >= real.lastModified
+            newestCopy.lastModified > real.lastModified
         return entries
             .filter {
                 it.name == FILE_NAME ||
@@ -321,6 +321,10 @@ object DownloadsBackup {
     /** Removes the newest backup, or the file under [name]. True when one was removed. */
     fun delete(context: Context, name: String? = null): Boolean {
         val target = name ?: newestName(context) ?: FILE_NAME
+        if (BackupFolder.hasAccess(context)) {
+            val file = BackupFolder.find(context, target) ?: return false
+            return BackupFolder.delete(context, file.uri)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             return context.contentResolver.delete(
                 MediaStore.Downloads.EXTERNAL_CONTENT_URI,

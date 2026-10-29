@@ -64,7 +64,9 @@ object BackupFileNames {
         val copies = found
             .filter { it.first != FILE_NAME && isOurBackupName(it.first) }
             .sortedByDescending { it.second }
-        val keepNewest = !found.any { it.first == FILE_NAME }
+        val real = found.firstOrNull { it.first == FILE_NAME }?.second
+        // A copy newer than the real file is the backup that was written last.
+        val keepNewest = copies.isNotEmpty() && (real == null || copies.first().second > real)
         return (if (keepNewest) copies.drop(1) else copies).map { it.first }
     }
 

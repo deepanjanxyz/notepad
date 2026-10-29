@@ -315,12 +315,8 @@ fun HomeScreen(
         }
     ) { paddingValues ->
         Column(
-            // The Scaffold zeroes its window insets, so the sides are cleared here,
-            // once, for everything inside: with three-button navigation in
-            // landscape the navigation bar runs down the right edge, and without
-            // this the search bar, the note cards and the layout button all end up
-            // underneath it. The top is left to the search bar, which clears the
-            // status bar itself, and the bottom to the list and the button.
+            // Clears the side navigation bar the Scaffold zeroes out; top and
+            // bottom are handled by the search bar, the list and the + button.
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)

@@ -104,15 +104,7 @@ object DownloadsBackup {
     /** Location of a backup file, phrased for display in Settings. */
     fun locationLabel(name: String = FILE_NAME): String = "Downloads/$FOLDER_NAME/$name"
 
-    /**
-     * Where the backup currently is: its location, when it was last written, and
-     * the file it was found in.
-     *
-     * [name] is [FILE_NAME] in the ordinary case. After a data clear the file an
-     * earlier installation wrote cannot be replaced, and the first backup goes
-     * beside it as a numbered copy - the app's own file from then on - so the name
-     * that is reported has to be the one the backup was actually found under.
-     */
+    /** Where the backup is, when it was last written, and the file it is in. */
     data class Info(val location: String, val lastModified: Long, val name: String = FILE_NAME)
 
     /** One backup file found in the folder. */
@@ -177,13 +169,7 @@ object DownloadsBackup {
         }
     }
 
-    /**
-     * The newest copy of the backup file in the granted folder, or null.
-     *
-     * Used when the folder holds no file under the exact name - the state a data
-     * clear leaves behind - so the write replaces the copy the app can reach
-     * instead of failing to claim the name the older file holds.
-     */
+    /** The newest copy of the backup file in the granted folder, or null. */
     private fun newestFolderCopy(context: Context, name: String): BackupFolder.Child? =
         BackupFolder.children(context)
             .filter { it.name != name && BackupFileNames.isOurBackupName(it.name) }
@@ -255,21 +241,11 @@ object DownloadsBackup {
             legacyFile(name).takeIf { it.exists() }?.readText()
         }
 
-    /**
-     * Describes the backup that is really in the folder, or null when there is
-     * none.
-     *
-     * The default file is described when it is the one this app can see. When it
-     * is not - the state a data clear leaves behind, where the file an earlier
-     * installation wrote is no longer this app's - the newest copy the app does
-     * own is described instead, so Settings reports the backup that was just
-     * written rather than "No backup saved yet".
-     */
+    /** Describes the newest backup this app can see, or null when there is none. */
     fun info(context: Context): Info? {
-        val entries = list(context)
-        val found = entries.firstOrNull { it.name == FILE_NAME }
-            ?: entries.filter { BackupFileNames.isOurBackupName(it.name) }
-                .maxByOrNull { it.lastModified }
+        val found = list(context)
+            .filter { it.name == FILE_NAME || BackupFileNames.isOurBackupName(it.name) }
+            .maxByOrNull { it.lastModified }
         return found?.let { Info(locationLabel(it.name), it.lastModified, it.name) }
     }
 
@@ -288,9 +264,21 @@ object DownloadsBackup {
         } else {
             readEntries(context)
         }
-        val hasRealBackup = entries.any { it.name == FILE_NAME }
+        val real = entries.firstOrNull { it.name == FILE_NAME }
+        val newestCopy = entries
+            .filter { it.name != FILE_NAME && BackupFileNames.isOurBackupName(it.name) }
+            .maxByOrNull { it.lastModified }
+        // A copy newer than the real file is the backup that was written last, so it
+        // is listed; older copies stay hidden behind the real one.
+        val keepNewestCopy = real != null && newestCopy != null &&
+            newestCopy.lastModified > real.lastModified
         return entries
-            .filter { !(hasRealBackup && it.name != FILE_NAME && BackupFileNames.isOurBackupName(it.name)) }
+            .filter {
+                it.name == FILE_NAME ||
+                    !BackupFileNames.isOurBackupName(it.name) ||
+                    real == null ||
+                    (keepNewestCopy && it.name == newestCopy?.name)
+            }
             .sortedByDescending { it.lastModified }
     }
 
@@ -350,20 +338,13 @@ object DownloadsBackup {
         val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
         val exact = findFile(resolver, collection, name)
         if (exact != null && replace(resolver, exact, json)) return
-        // The file under the exact name is not this app's to replace - a data
-        // clear leaves it behind, visible to the media store but not to this
-        // installation. Replacing the copy the app does own keeps the folder at
-        // one backup instead of adding another one beside it on every write.
+        // The exact name belongs to an older installation; replace the copy we own.
         val copy = newestCopyUri(context, resolver, collection, name)
         if (copy != null && replace(resolver, copy, json)) return
         insertNewFile(resolver, collection, name, json)
     }
 
-    /**
-     * Replaces a file's contents, and reports whether it was this app's to
-     * replace. A file owned by an earlier installation is the one case that is
-     * passed back to the caller; every other failure is a real one and is thrown.
-     */
+    /** Replaces the contents; false only when the file is not this app's to replace. */
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun replace(resolver: ContentResolver, uri: Uri, json: String): Boolean {
         val written = runCatching { overwriteInPlace(resolver, uri, json) }
@@ -428,19 +409,12 @@ object DownloadsBackup {
         error("The backup could not be verified after writing")
     }
 
-    /**
-     * Creates the file the first time a backup is written.
-     *
-     * The media store numbers a new file when the name is already taken by a file
-     * this app can neither see nor replace, so the name that came back is read
-     * rather than assumed. A numbered copy is accepted: it is this app's own file
-     * from then on, and every later write replaces it in place (see
-     * [writeViaMediaStore]) instead of adding another one beside it.
-     */
+    /** Creates the file the first time a backup is written. */
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun insertNewFile(resolver: ContentResolver, collection: Uri, name: String, json: String) {
         val created = insertPendingFile(resolver, collection, name)
             ?: error("Could not create the backup file in Downloads")
+        // The media store numbers the name when an older file holds it; keep that copy.
         val actual = displayName(resolver, created)
         if (actual != null && BackupFileNames.isOurBackupName(actual)) {
             publishOrDiscard(resolver, created, json)

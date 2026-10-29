@@ -70,6 +70,19 @@ class BackupFileNamesTest {
     }
 
     @Test
+    fun testACopyNewerThanTheRealBackupIsKept() {
+        val found = listOf(
+            "elite-memo-backup.json" to 100L,
+            "elite-memo-backup (1).json" to 120L,
+            "elite-memo-backup (2).json" to 90L
+        )
+        assertEquals(
+            listOf("elite-memo-backup (2).json"),
+            BackupFileNames.copiesToRemove(found)
+        )
+    }
+
+    @Test
     fun testFilesThatAreNotOursAreNeverRemoved() {
         assertEquals(
             emptyList<String>(),

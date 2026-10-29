@@ -486,7 +486,9 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
      */
     private suspend fun adoptExistingBackup(context: Application): Boolean {
         val present = withContext(Dispatchers.IO) { DownloadsBackup.info(context) != null }
-        val text = withContext(Dispatchers.IO) { DownloadsBackup.read(context) }
+        // The file the earlier installation left, not the newest one: the newest may
+        // be a copy this app wrote itself, and its notes are already in the database.
+        val text = withContext(Dispatchers.IO) { DownloadsBackup.read(context, DownloadsBackup.FILE_NAME) }
         if (text == null) return present
         return when (val parsed = parseBackupJson(text)) {
             is BackupParseResult.Success -> {

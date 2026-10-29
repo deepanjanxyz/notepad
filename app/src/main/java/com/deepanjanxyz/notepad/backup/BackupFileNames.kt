@@ -65,8 +65,10 @@ object BackupFileNames {
             .filter { it.first != FILE_NAME && isOurBackupName(it.first) }
             .sortedByDescending { it.second }
         val real = found.firstOrNull { it.first == FILE_NAME }?.second
-        // A copy newer than the real file is the backup that was written last.
-        val keepNewest = copies.isNotEmpty() && (real == null || copies.first().second > real)
+        // A copy at least as new as the real file is the backup written last. The
+        // comparison is not strict: the media store reports whole seconds, so a copy
+        // written in the same second as the real file is the newer of the two.
+        val keepNewest = copies.isNotEmpty() && (real == null || copies.first().second >= real)
         return (if (keepNewest) copies.drop(1) else copies).map { it.first }
     }
 

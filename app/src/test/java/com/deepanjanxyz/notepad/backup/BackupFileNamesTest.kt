@@ -27,6 +27,14 @@ class BackupFileNamesTest {
     }
 
     @Test
+    fun testWorkingFilesAreRecognised() {
+        assertTrue(BackupFileNames.isWorkingName("elite-memo-backup.partial.json"))
+        assertTrue(BackupFileNames.isWorkingName("elite-memo-backup.previous (2).json"))
+        assertFalse(BackupFileNames.isWorkingName("elite-memo-backup.json"))
+        assertFalse(BackupFileNames.isWorkingName("elite-memo-backup (1).json"))
+    }
+
+    @Test
     fun testOtherFilesAreNotOurs() {
         assertFalse(BackupFileNames.isOurBackupName("notes.json"))
         assertFalse(BackupFileNames.isOurBackupName("elite-memo-backup"))

@@ -253,9 +253,13 @@ object DownloadsBackup {
 
     /** Describes the newest backup this app can see, or null when there is none. */
     fun info(context: Context): Info? {
-        val found = list(context)
+        val entries = list(context)
             .filter { it.name == FILE_NAME || BackupFileNames.isOurBackupName(it.name) }
-            .maxWithOrNull(compareBy<Entry> { it.lastModified }.thenBy { it.name == FILE_NAME })
+        // A working file is a fallback; a backup or a numbered copy wins over it.
+        val backups = entries.filterNot { BackupFileNames.isWorkingName(it.name) }.ifEmpty { entries }
+        val found = backups.maxWithOrNull(
+            compareBy<Entry> { it.lastModified }.thenBy { it.name != FILE_NAME }
+        )
         return found?.let { Info(locationLabel(it.name), it.lastModified, it.name) }
     }
 
@@ -278,10 +282,10 @@ object DownloadsBackup {
         val newestCopy = entries
             .filter { it.name != FILE_NAME && BackupFileNames.isOurBackupName(it.name) }
             .maxByOrNull { it.lastModified }
-        // A copy newer than the real file is the backup that was written last, so it
-        // is listed; older copies stay hidden behind the real one.
+        // A copy at least as new as the real file is the backup that was written
+        // last, so it is listed; older copies stay hidden behind the real one.
         val keepNewestCopy = real != null && newestCopy != null &&
-            newestCopy.lastModified > real.lastModified
+            newestCopy.lastModified >= real.lastModified
         return entries
             .filter {
                 it.name == FILE_NAME ||

@@ -46,6 +46,10 @@ object BackupFileNames {
             "$name.previous"
         }
 
+    /** True when [name] is a temporary file a write goes through. */
+    fun isWorkingName(name: String): Boolean =
+        isCopyOf(partialName(FILE_NAME), name) || isCopyOf(previousName(FILE_NAME), name)
+
     /** True when [name] is this app's backup file, a working file, or a copy of one. */
     fun isOurBackupName(name: String): Boolean =
         listOf(FILE_NAME, partialName(FILE_NAME), previousName(FILE_NAME))

@@ -282,17 +282,22 @@ object DownloadsBackup {
         val newestCopy = entries
             .filter { BackupFileNames.isNumberedCopy(it.name) }
             .maxByOrNull { it.lastModified }
-        // A copy at least as new as the real file is the backup that was written
-        // last, so it is listed; older copies stay hidden behind the real one.
-        val keepNewestCopy = real != null && newestCopy != null &&
-            newestCopy.lastModified >= real.lastModified
-        return entries
-            .filter {
-                it.name == FILE_NAME ||
-                    !BackupFileNames.isOurBackupName(it.name) ||
-                    real == null ||
-                    (keepNewestCopy && it.name == newestCopy.name)
+        val newestWorking = entries
+            .filter { BackupFileNames.isWorkingName(it.name) }
+            .maxByOrNull { it.lastModified }
+        // The real file, the newest numbered copy, and any working file newer than
+        // both are listed; the rest are surplus behind them.
+        val keep = buildSet {
+            add(FILE_NAME)
+            if (newestCopy != null && (real == null || newestCopy.lastModified >= real.lastModified)) {
+                add(newestCopy.name)
             }
+            if (newestWorking != null && (real == null || newestWorking.lastModified >= real.lastModified)) {
+                add(newestWorking.name)
+            }
+        }
+        return entries
+            .filter { !BackupFileNames.isOurBackupName(it.name) || real == null || it.name in keep }
             .sortedByDescending { it.lastModified }
     }
 

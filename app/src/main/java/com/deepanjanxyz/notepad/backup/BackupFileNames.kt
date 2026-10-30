@@ -76,9 +76,17 @@ object BackupFileNames {
         // only when there is no numbered copy at all. The comparison is not strict:
         // the media store reports whole seconds, so a copy written in the same second
         // as the real file is the newer of the two.
-        val newest = copies.firstOrNull { isNumberedCopy(it.first) } ?: copies.firstOrNull()
-        val keepNewest = newest != null && (real == null || newest.second >= real)
-        return copies.filter { !keepNewest || it.first != newest?.first }.map { it.first }
+        val numbered = copies.firstOrNull { isNumberedCopy(it.first) }
+        val working = copies.firstOrNull { isWorkingName(it.first) }
+        val keepNumbered = numbered != null && (real == null || numbered.second >= real)
+        // A working file newer than the copy that is kept is left alone as well: it may
+        // hold the write that was interrupted. It never stands in for the copy.
+        val keepWorking = working != null && (real == null || working.second >= real) &&
+            (numbered == null || working.second > numbered.second)
+        return copies
+            .filterNot { it.first == numbered?.first && keepNumbered }
+            .filterNot { it.first == working?.first && keepWorking }
+            .map { it.first }
     }
 
     /** True when [name] is [candidate] itself, or the `(N)` copy the media store made of it. */

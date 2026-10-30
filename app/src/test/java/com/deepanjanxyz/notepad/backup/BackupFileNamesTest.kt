@@ -112,6 +112,15 @@ class BackupFileNamesTest {
     }
 
     @Test
+    fun testANewerWorkingFileIsKept() {
+        val found = listOf(
+            "elite-memo-backup (1).json" to 150L,
+            "elite-memo-backup.partial.json" to 200L
+        )
+        assertEquals(emptyList<String>(), BackupFileNames.copiesToRemove(found))
+    }
+
+    @Test
     fun testFilesThatAreNotOursAreNeverRemoved() {
         assertEquals(
             emptyList<String>(),

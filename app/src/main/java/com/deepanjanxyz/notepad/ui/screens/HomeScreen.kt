@@ -260,7 +260,8 @@ fun HomeScreen(
                                             message = "Moved to Trash",
                                             actionLabel = "Undo",
                                             withDismissAction = true,
-                                            duration = SnackbarDuration.Short
+                                            // The countdown in the snackbar is what closes it.
+                                            duration = SnackbarDuration.Indefinite
                                         )
                                         if (result == SnackbarResult.ActionPerformed) {
                                             onUndoMoveToTrash()

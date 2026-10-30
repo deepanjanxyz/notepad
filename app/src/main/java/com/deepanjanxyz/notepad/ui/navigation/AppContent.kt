@@ -38,6 +38,7 @@ import com.deepanjanxyz.notepad.EXIT_BACK_WINDOW_MS
 import com.deepanjanxyz.notepad.LockScreen
 import com.deepanjanxyz.notepad.screenTransitionSpec
 import com.deepanjanxyz.notepad.ui.components.AppDrawerContent
+import com.deepanjanxyz.notepad.ui.components.CountdownSnackbarHost
 import com.deepanjanxyz.notepad.ui.components.EditLabelsDialog
 import com.deepanjanxyz.notepad.ui.theme.EliteMemoTheme
 import com.deepanjanxyz.notepad.ui.viewmodel.NotesUiState
@@ -269,9 +270,9 @@ private fun AppSnackbarHosts(
         ) {
             if (exitArrival > homeArrival) {
                 key("exit") { SnackbarHost(exitSnackbarHostState) }
-                key("home") { SnackbarHost(homeSnackbarHostState) }
+                key("home") { CountdownSnackbarHost(homeSnackbarHostState) }
             } else {
-                key("home") { SnackbarHost(homeSnackbarHostState) }
+                key("home") { CountdownSnackbarHost(homeSnackbarHostState) }
                 key("exit") { SnackbarHost(exitSnackbarHostState) }
             }
         }

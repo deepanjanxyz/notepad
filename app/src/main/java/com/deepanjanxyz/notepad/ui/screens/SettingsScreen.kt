@@ -848,23 +848,19 @@ private fun getAppVersionName(context: Context): String =
         "App versionName is missing"
     }
 
-/**
- * Describes the backup that is really on disk, or the last failed attempt. The
- * number of files is reported so it is obvious when more than one exists.
- */
+/** Describes the backup on disk, or the last failed attempt. */
 private fun backupStatusText(
     info: DownloadsBackup.Info?,
     status: AutoBackupStatus?,
     fileCount: Int
-): String {
-    val lastModified = info?.lastModified
-    return when {
-        status?.error != null -> "Last backup failed: ${status.error}"
-        lastModified == null -> "No backup saved yet"
-        else -> {
-            val stamp = SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault())
-                .format(Date(lastModified))
-            if (fileCount > 1) "Last backup: $stamp \u00b7 $fileCount files" else "Last backup: $stamp"
-        }
+): String = when {
+    status?.error != null -> "Last backup failed: ${status.error}"
+    info == null -> "No backup saved yet"
+    else -> {
+        val stamp = SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault())
+            .format(Date(info.lastModified))
+        val count = if (fileCount > 1) " \u00b7 $fileCount files" else ""
+        val where = if (info.name != DownloadsBackup.FILE_NAME) " \u00b7 ${info.name}" else ""
+        "Last backup: $stamp$count$where"
     }
 }

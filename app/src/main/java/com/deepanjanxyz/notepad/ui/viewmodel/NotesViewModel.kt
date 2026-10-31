@@ -485,17 +485,27 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
      * file this app cannot read would throw away notes it cannot see.
      */
     private suspend fun adoptExistingBackup(context: Application): Boolean {
-        val present = withContext(Dispatchers.IO) { DownloadsBackup.info(context) != null }
-        val text = withContext(Dispatchers.IO) { DownloadsBackup.read(context) }
-        if (text == null) return present
-        return when (val parsed = parseBackupJson(text)) {
-            is BackupParseResult.Success -> {
-                importNotesNow(parsed.notes)
-                false
-            }
-            is BackupParseResult.Failure -> {
-                Log.w(TAG, "The backup already in the folder was not read: ${parsed.reason}")
-                true
+        // The file the earlier installation left, not the newest one: the newest may
+        // be a copy this app wrote itself, and its notes are already in the database.
+        val name = DownloadsBackup.FILE_NAME
+        val present = withContext(Dispatchers.IO) {
+            DownloadsBackup.list(context).any { it.name == name }
+        }
+        val text = withContext(Dispatchers.IO) { DownloadsBackup.read(context, name) }
+        return when {
+            !present -> false
+            // There but unreadable: writing over it would throw away notes this app
+            // cannot see, so the write is held back.
+            text == null -> true
+            else -> when (val parsed = parseBackupJson(text)) {
+                is BackupParseResult.Success -> {
+                    importNotesNow(parsed.notes)
+                    false
+                }
+                is BackupParseResult.Failure -> {
+                    Log.w(TAG, "The backup already in the folder was not read: ${parsed.reason}")
+                    true
+                }
             }
         }
     }

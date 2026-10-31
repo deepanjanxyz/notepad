@@ -68,26 +68,45 @@ object BackupFileNames {
      * file left behind.
      */
     fun copiesToRemove(found: List<Pair<String, Long>>): List<String> {
+        val keep = keptNames(found)
+        return found
+            .filter { it.first != FILE_NAME && isOurBackupName(it.first) && it.first !in keep }
+            .sortedByDescending { it.second }
+            .map { it.first }
+    }
+
+    /**
+     * The files that stay: the real backup, the newest numbered copy when it is at
+     * least as new as the real file, and a working file newer than that copy.
+     *
+     * The listing and the cleanup both read this, so a file the Restore list offers
+     * is never one the cleanup deletes a moment later.
+     */
+    fun keptNames(found: List<Pair<String, Long>>): Set<String> {
         val copies = found
             .filter { it.first != FILE_NAME && isOurBackupName(it.first) }
             .sortedByDescending { it.second }
         val real = found.firstOrNull { it.first == FILE_NAME }?.second
-        // The newest numbered copy is the backup written last; a working file is kept
-        // only when there is no numbered copy at all. The comparison is not strict:
-        // the media store reports whole seconds, so a copy written in the same second
-        // as the real file is the newer of the two.
+        // The comparison is not strict: the media store reports whole seconds, so a
+        // copy written in the same second as the real file is the newer of the two.
         val numbered = copies.firstOrNull { isNumberedCopy(it.first) }
         val working = copies.firstOrNull { isWorkingName(it.first) }
-        val keepNumbered = numbered != null && (real == null || numbered.second >= real)
-        // A working file newer than the copy that is kept is left alone as well: it may
-        // hold the write that was interrupted. It never stands in for the copy.
-        val keepWorking = working != null && (real == null || working.second >= real) &&
-            (numbered == null || working.second > numbered.second)
-        return copies
-            .filterNot { it.first == numbered?.first && keepNumbered }
-            .filterNot { it.first == working?.first && keepWorking }
-            .map { it.first }
+        return buildSet {
+            add(FILE_NAME)
+            if (numbered != null && isCurrent(numbered.second, real)) add(numbered.first)
+            // A working file newer than the copy kept may hold the interrupted write;
+            // it is never kept in place of the copy.
+            if (working != null && isCurrent(working.second, real) && isNewer(working.second, numbered?.second)) {
+                add(working.first)
+            }
+        }
     }
+
+    /** True when a file written at [time] is not older than the real backup. */
+    private fun isCurrent(time: Long, real: Long?): Boolean = real == null || time >= real
+
+    /** True when a working file written at [time] is newer than the copy kept. */
+    private fun isNewer(time: Long, numbered: Long?): Boolean = numbered == null || time > numbered
 
     /** True when [name] is [candidate] itself, or the `(N)` copy the media store made of it. */
     fun isCopyOf(candidate: String, name: String): Boolean {

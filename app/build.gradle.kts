@@ -40,8 +40,8 @@ android {
         applicationId = "com.deepanjanxyz.notepad"
         minSdk = 24
         targetSdk = 37
-        versionCode = 26
-        versionName = "1.0.26"
+        versionCode = 28
+        versionName = "1.0.28"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -106,8 +106,8 @@ android {
                 if (releaseKeyPass == null) add("KEY_PASSWORD")
             }
             println(
-                "\n⚠️  WARNING: Release signing is not configured — missing ${missing.joinToString()}.\n" +
-                    "⚠️  Building an UNSIGNED release APK instead. Configure the signing values for a signed build.\n"
+                "\n\u26a0\ufe0f  WARNING: Release signing is not configured \u2014 missing ${missing.joinToString()}.\n" +
+                    "\u26a0\ufe0f  Building an UNSIGNED release APK instead. Configure the signing values for a signed build.\n"
             )
         }
     }

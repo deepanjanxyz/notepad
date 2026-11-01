@@ -1,0 +1,7 @@
+Backup card and navigation bar fixes
+
+- The backup card shows the backup that was written last, including one saved under a numbered name.
+- Restore offers the newest backup instead of an older file.
+- Home screen content stays clear of the side navigation bar in landscape.
+
+Thank you for using Elite Memo Pro!

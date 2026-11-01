@@ -51,8 +51,8 @@ private const val LONG_SECONDS = 10
 private val HOST_PADDING = 12.dp
 private val CONTENT_PADDING = 16.dp
 private val CONTENT_PADDING_VERTICAL = 12.dp
-private val COUNTDOWN_SIZE = 28.dp
-private val COUNTDOWN_GAP = 4.dp
+private val COUNTDOWN_SIZE = 22.dp
+private val COUNTDOWN_GAP = 2.dp
 
 /**
  * A [SnackbarHost] that swaps the dismiss icon for a countdown.
@@ -175,8 +175,8 @@ private fun CountdownDismiss(snackbar: SnackbarData, seconds: Int, onDismiss: ()
         ) { value ->
             Text(
                 text = value,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium
             )
         }
     }

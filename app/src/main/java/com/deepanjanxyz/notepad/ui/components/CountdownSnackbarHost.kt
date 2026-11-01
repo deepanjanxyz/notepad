@@ -123,14 +123,17 @@ private fun CountdownDismiss(seconds: Int, onDismiss: () -> Unit) {
         containsText = true,
         containsControls = true
     ) ?: (seconds * TICK_MS)
-    val ticks = max(1, (timeout / TICK_MS).toInt())
+    // Touch exploration on Android 8 and 9 asks for no timeout at all, which comes
+    // back as Long.MAX_VALUE and would wrap around when divided.
+    val indefinite = timeout == Long.MAX_VALUE
+    val ticks = if (indefinite) 0 else max(1, (timeout / TICK_MS).toInt())
     var remaining by remember(ticks) { mutableIntStateOf(ticks) }
     LaunchedEffect(ticks) {
         while (remaining > 0) {
             delay(TICK_MS)
             remaining -= 1
         }
-        onDismiss()
+        if (!indefinite) onDismiss()
     }
     Box(
         modifier = Modifier
@@ -145,7 +148,7 @@ private fun CountdownDismiss(seconds: Int, onDismiss: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         AnimatedContent(
-            targetState = remaining,
+            targetState = if (indefinite) "\u221e" else remaining.toString(),
             transitionSpec = {
                 (slideInVertically { height -> -height } + fadeIn()) togetherWith
                     (slideOutVertically { height -> height } + fadeOut())
@@ -153,7 +156,7 @@ private fun CountdownDismiss(seconds: Int, onDismiss: () -> Unit) {
             label = "snackbar_countdown_digit"
         ) { value ->
             Text(
-                text = value.toString(),
+                text = value,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold
             )

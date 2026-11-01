@@ -104,8 +104,8 @@ object DownloadsBackup {
     /** Location of a backup file, phrased for display in Settings. */
     fun locationLabel(name: String = FILE_NAME): String = "Downloads/$FOLDER_NAME/$name"
 
-    /** Where the backup currently is: its location and when it was last written. */
-    data class Info(val location: String, val lastModified: Long)
+    /** Where the backup is, when it was last written, and the file it is in. */
+    data class Info(val location: String, val lastModified: Long, val name: String = FILE_NAME)
 
     /** One backup file found in the folder. */
     data class Entry(val name: String, val lastModified: Long)
@@ -153,7 +153,7 @@ object DownloadsBackup {
             BackupFolder.release(context)
             error("The backup folder could not be reached; allow access to it again")
         }
-        val existing = BackupFolder.find(context, name)
+        val existing = BackupFolder.find(context, name) ?: newestFolderCopy(context, name)
         if (existing != null) {
             BackupFolder.write(context, existing.uri, json)
             return
@@ -168,6 +168,12 @@ object DownloadsBackup {
             throw e
         }
     }
+
+    /** The newest copy of the backup file in the granted folder, or null. */
+    private fun newestFolderCopy(context: Context, name: String): BackupFolder.Child? =
+        BackupFolder.children(context)
+            .filter { it.name != name && BackupFileNames.isNumberedCopy(it.name) }
+            .maxByOrNull { it.lastModified }
 
     /**
      * Removes the numbered copies of this app's backup files.
@@ -225,43 +231,36 @@ object DownloadsBackup {
         }
     }
 
-    /** Reads a backup file, or null when it does not exist. */
-    fun read(context: Context, name: String = FILE_NAME): String? =
-        if (BackupFolder.hasAccess(context)) {
-            BackupFolder.find(context, name)?.let { BackupFolder.read(context, it.uri) }
+    /**
+     * Reads the newest backup, or the file under [name] when one is given.
+     *
+     * The default is the file [info] reports rather than [FILE_NAME], so a restore
+     * never reads an older backup than the one Settings says was written last.
+     */
+    fun read(context: Context, name: String? = null): String? {
+        val target = name ?: newestName(context) ?: FILE_NAME
+        return if (BackupFolder.hasAccess(context)) {
+            BackupFolder.find(context, target)?.let { BackupFolder.read(context, it.uri) }
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            readViaMediaStore(context, name)
+            readViaMediaStore(context, target)
         } else {
-            legacyFile(name).takeIf { it.exists() }?.readText()
+            legacyFile(target).takeIf { it.exists() }?.readText()
         }
-
-    /** Describes the default backup file, or null when it does not exist. */
-    fun info(context: Context): Info? = when {
-        BackupFolder.hasAccess(context) ->
-            BackupFolder.find(context, FILE_NAME)?.let { Info(locationLabel(), it.lastModified) }
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> infoFromMediaStore(context)
-        else -> legacyFile(FILE_NAME)
-            .takeIf { it.exists() }
-            ?.let { Info(locationLabel(), it.lastModified()) }
     }
 
-    /** Describes the default backup file as the media store reports it. */
-    @RequiresApi(Build.VERSION_CODES.Q)
-    private fun infoFromMediaStore(context: Context): Info? {
-        val resolver = context.contentResolver
-        resolver.query(
-            MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-            arrayOf(MediaStore.MediaColumns.DATE_MODIFIED),
-            selection(),
-            selectionArgs(FILE_NAME),
-            null
-        )?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                // MediaStore stores DATE_MODIFIED in seconds.
-                return Info(locationLabel(), cursor.getLong(0) * MILLIS_PER_SECOND)
-            }
-        }
-        return null
+    /** The file the newest backup is in, or null when there is none. */
+    private fun newestName(context: Context): String? = info(context)?.name
+
+    /** Describes the newest backup this app can see, or null when there is none. */
+    fun info(context: Context): Info? {
+        val entries = list(context)
+            .filter { it.name == FILE_NAME || BackupFileNames.isOurBackupName(it.name) }
+        // A working file is a fallback; a backup or a numbered copy wins over it.
+        val backups = entries.filterNot { BackupFileNames.isWorkingName(it.name) }.ifEmpty { entries }
+        val found = backups.maxWithOrNull(
+            compareBy<Entry> { it.lastModified }.thenBy { it.name != FILE_NAME }
+        )
+        return found?.let { Info(locationLabel(it.name), it.lastModified, it.name) }
     }
 
     /**
@@ -279,9 +278,9 @@ object DownloadsBackup {
         } else {
             readEntries(context)
         }
-        val hasRealBackup = entries.any { it.name == FILE_NAME }
+        val keep = BackupFileNames.keptNames(entries.map { it.name to it.lastModified })
         return entries
-            .filter { !(hasRealBackup && it.name != FILE_NAME && BackupFileNames.isOurBackupName(it.name)) }
+            .filter { !BackupFileNames.isOurBackupName(it.name) || it.name in keep }
             .sortedByDescending { it.lastModified }
     }
 
@@ -311,16 +310,19 @@ object DownloadsBackup {
             .orEmpty()
     }
 
-    /** Removes a backup file. Returns true when a file was actually removed. */
-    fun delete(context: Context, name: String = FILE_NAME): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            return context.contentResolver.delete(
+    /** Removes the newest backup, or the file under [name]. True when one was removed. */
+    fun delete(context: Context, name: String? = null): Boolean {
+        val target = name ?: newestName(context) ?: FILE_NAME
+        return when {
+            BackupFolder.hasAccess(context) ->
+                BackupFolder.find(context, target)?.let { BackupFolder.delete(context, it.uri) } ?: false
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> context.contentResolver.delete(
                 MediaStore.Downloads.EXTERNAL_CONTENT_URI,
                 selection(),
-                selectionArgs(name)
+                selectionArgs(target)
             ) > 0
+            else -> legacyFile(target).delete()
         }
-        return legacyFile(name).delete()
     }
 
     // --- Android 10+ (MediaStore) -------------------------------------------------
@@ -339,12 +341,36 @@ object DownloadsBackup {
     private fun writeViaMediaStore(context: Context, json: String, name: String) {
         val resolver = context.contentResolver
         val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
-        val existing = findFile(resolver, collection, name)
-        if (existing == null) {
-            insertNewFile(resolver, collection, name, json)
-        } else {
-            overwriteInPlace(resolver, existing, json)
-        }
+        val exact = findFile(resolver, collection, name)
+        if (exact != null && replace(resolver, exact, json)) return
+        // The exact name belongs to an older installation; replace the copy we own.
+        val copy = newestCopyUri(context, resolver, collection, name)
+        if (copy != null && replace(resolver, copy, json)) return
+        insertNewFile(resolver, collection, name, json)
+    }
+
+    /** Replaces the contents; false only when the file is not this app's to replace. */
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun replace(resolver: ContentResolver, uri: Uri, json: String): Boolean {
+        val written = runCatching { overwriteInPlace(resolver, uri, json) }
+        val failure = written.exceptionOrNull() ?: return true
+        if (failure is IllegalStateException && failure.cause is SecurityException) return false
+        throw failure
+    }
+
+    /** The newest copy of the backup file the media store shows this app. */
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun newestCopyUri(
+        context: Context,
+        resolver: ContentResolver,
+        collection: Uri,
+        name: String
+    ): Uri? {
+        val copy = readEntries(context)
+            .filter { it.name != name && BackupFileNames.isNumberedCopy(it.name) }
+            .maxByOrNull { it.lastModified }
+            ?: return null
+        return findFile(resolver, collection, copy.name)
     }
 
     /**
@@ -393,23 +419,14 @@ object DownloadsBackup {
     private fun insertNewFile(resolver: ContentResolver, collection: Uri, name: String, json: String) {
         val created = insertPendingFile(resolver, collection, name)
             ?: error("Could not create the backup file in Downloads")
-        if (displayName(resolver, created) == name) {
+        // The media store numbers the name when an older file holds it; keep that copy.
+        val actual = displayName(resolver, created)
+        if (actual != null && BackupFileNames.isOurBackupName(actual)) {
             publishOrDiscard(resolver, created, json)
             return
         }
-        // The media store only numbers a new file when the name is already taken
-        // by a file this app cannot see, so accepting "name (1)" is what turns one
-        // blocked write into a folder full of copies. Drop the numbered file and
-        // claim the name instead.
         runCatching { resolver.delete(created, null, null) }
-        clearBlockingFile(resolver, collection, name)
-        val retry = insertPendingFile(resolver, collection, name)
-        if (retry != null && displayName(resolver, retry) == name) {
-            publishOrDiscard(resolver, retry, json)
-            return
-        }
-        retry?.let { runCatching { resolver.delete(it, null, null) } }
-        error("The backup file's name is held by an older copy in Downloads")
+        error("The backup file could not be created in Downloads")
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
@@ -451,11 +468,6 @@ object DownloadsBackup {
     private fun displayName(resolver: ContentResolver, uri: Uri): String? =
         resolver.query(uri, arrayOf(MediaStore.MediaColumns.DISPLAY_NAME), null, null, null)
             ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
-
-    @RequiresApi(Build.VERSION_CODES.Q)
-    private fun clearBlockingFile(resolver: ContentResolver, collection: Uri, name: String) {
-        runCatching { resolver.delete(collection, selection(), selectionArgs(name)) }
-    }
 
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun insertPendingFile(

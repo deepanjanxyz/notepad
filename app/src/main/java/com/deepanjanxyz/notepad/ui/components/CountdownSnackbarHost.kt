@@ -11,9 +11,9 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -37,8 +37,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalAccessibilityManager
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.deepanjanxyz.notepad.R
 import kotlinx.coroutines.delay
 import kotlin.math.max
 
@@ -51,6 +54,11 @@ private const val LONG_SECONDS = 10
 private val HOST_PADDING = 12.dp
 private val CONTENT_PADDING = 16.dp
 private val CONTENT_PADDING_VERTICAL = 12.dp
+
+/**
+ * The smallest the countdown may be. It is a floor, not a size: the digit has to be
+ * able to grow with the font scale, or a large system font is cut off inside it.
+ */
 private val COUNTDOWN_SIZE = 22.dp
 private val COUNTDOWN_GAP = 2.dp
 
@@ -155,11 +163,16 @@ private fun CountdownDismiss(snackbar: SnackbarData, seconds: Int, onDismiss: ()
     }
     Box(
         modifier = Modifier
-            .size(COUNTDOWN_SIZE)
+            // A floor rather than a fixed size, so the digit is not clipped once the
+            // font scale is turned up. Compose still expands the touch target to 48dp.
+            .defaultMinSize(minWidth = COUNTDOWN_SIZE, minHeight = COUNTDOWN_SIZE)
             .clip(CircleShape)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
+                // The digit says how long is left; it does not say what tapping it does.
+                onClickLabel = stringResource(R.string.snackbar_countdown_dismiss),
+                role = Role.Button,
                 onClick = onDismiss
             )
             .testTag("snackbar_countdown"),
@@ -176,7 +189,8 @@ private fun CountdownDismiss(snackbar: SnackbarData, seconds: Int, onDismiss: ()
             Text(
                 text = value,
                 style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(horizontal = COUNTDOWN_GAP)
             )
         }
     }

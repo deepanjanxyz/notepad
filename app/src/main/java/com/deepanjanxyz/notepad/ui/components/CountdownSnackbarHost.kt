@@ -34,10 +34,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalAccessibilityManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlin.math.max
 
 /** How long a snackbar with a dismiss action stays before it closes itself. */
 const val SNACKBAR_COUNTDOWN_SECONDS = 5
@@ -113,8 +115,17 @@ private fun CountdownSnackbar(data: SnackbarData, seconds: Int) {
  */
 @Composable
 private fun CountdownDismiss(seconds: Int, onDismiss: () -> Unit) {
-    var remaining by remember(seconds) { mutableIntStateOf(seconds) }
-    LaunchedEffect(seconds) {
+    // Someone who needs longer to reach the screen can raise this in the system
+    // accessibility settings, so the countdown follows the recommended timeout.
+    val accessibility = LocalAccessibilityManager.current
+    val timeout = accessibility?.calculateRecommendedTimeoutMillis(
+        originalTimeoutMillis = seconds * TICK_MS,
+        containsText = true,
+        containsControls = true
+    ) ?: (seconds * TICK_MS)
+    val ticks = max(1, (timeout / TICK_MS).toInt())
+    var remaining by remember(ticks) { mutableIntStateOf(ticks) }
+    LaunchedEffect(ticks) {
         while (remaining > 0) {
             delay(TICK_MS)
             remaining -= 1

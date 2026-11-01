@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarData
 import androidx.compose.material3.SnackbarDefaults
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -45,6 +46,8 @@ import kotlin.math.max
 const val SNACKBAR_COUNTDOWN_SECONDS = 5
 
 private const val TICK_MS = 1_000L
+private const val SHORT_SECONDS = 4
+private const val LONG_SECONDS = 10
 private val HOST_PADDING = 12.dp
 private val CONTENT_PADDING = 16.dp
 private val CONTENT_PADDING_VERTICAL = 12.dp
@@ -65,11 +68,22 @@ fun CountdownSnackbarHost(
 ) {
     SnackbarHost(hostState) { data ->
         if (data.visuals.withDismissAction) {
-            CountdownSnackbar(data = data, seconds = seconds)
+            CountdownSnackbar(data = data, seconds = countdownSeconds(data.visuals.duration, seconds))
         } else {
             Snackbar(snackbarData = data)
         }
     }
+}
+
+/**
+ * The seconds the digit counts from. A timed snackbar is closed by the host, so the
+ * digit has to match its duration; only an indefinite one is closed by the countdown,
+ * and that is what [indefinite] is for.
+ */
+private fun countdownSeconds(duration: SnackbarDuration, indefinite: Int): Int = when (duration) {
+    SnackbarDuration.Short -> SHORT_SECONDS
+    SnackbarDuration.Long -> LONG_SECONDS
+    SnackbarDuration.Indefinite -> indefinite
 }
 
 /** A snackbar laid out like the Material one, with a countdown in the last slot. */
@@ -104,7 +118,11 @@ private fun CountdownSnackbar(data: SnackbarData, seconds: Int) {
                 }
             }
             Spacer(Modifier.width(COUNTDOWN_GAP))
-            CountdownDismiss(seconds = seconds, onDismiss = { data.dismiss() })
+            CountdownDismiss(
+                snackbar = data,
+                seconds = seconds,
+                onDismiss = { data.dismiss() }
+            )
         }
     }
 }
@@ -114,7 +132,7 @@ private fun CountdownSnackbar(data: SnackbarData, seconds: Int) {
  * as the one it replaces slides away at the bottom.
  */
 @Composable
-private fun CountdownDismiss(seconds: Int, onDismiss: () -> Unit) {
+private fun CountdownDismiss(snackbar: SnackbarData, seconds: Int, onDismiss: () -> Unit) {
     // Someone who needs longer to reach the screen can raise this in the system
     // accessibility settings, so the countdown follows the recommended timeout.
     val accessibility = LocalAccessibilityManager.current
@@ -127,8 +145,8 @@ private fun CountdownDismiss(seconds: Int, onDismiss: () -> Unit) {
     // back as Long.MAX_VALUE and would wrap around when divided.
     val indefinite = timeout == Long.MAX_VALUE
     val ticks = if (indefinite) 0 else max(1, (timeout / TICK_MS).toInt())
-    var remaining by remember(ticks) { mutableIntStateOf(ticks) }
-    LaunchedEffect(ticks) {
+    var remaining by remember(snackbar, ticks) { mutableIntStateOf(ticks) }
+    LaunchedEffect(snackbar, ticks) {
         while (remaining > 0) {
             delay(TICK_MS)
             remaining -= 1

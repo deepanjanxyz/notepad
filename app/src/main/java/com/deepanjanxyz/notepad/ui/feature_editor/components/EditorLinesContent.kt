@@ -4,9 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
@@ -27,13 +25,11 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import com.deepanjanxyz.notepad.domain.model.FIRST_LIST_NUMBER
 import com.deepanjanxyz.notepad.domain.model.NoteSegment
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 import com.deepanjanxyz.notepad.ui.feature_editor.model.EditorFormat
 import com.deepanjanxyz.notepad.ui.theme.AppColors
-
-// Height a blank line in the note is given, so paragraphs keep their spacing.
-private val BLANK_LINE_HEIGHT = 12.dp
 
 // Room above and below the row that adds a new line.
 private val ADD_ROW_PADDING = 6.dp
@@ -48,7 +44,9 @@ private val ADD_ICON_SIZE = 22.dp
  * Every line is rendered where it was written and as what it is: ordinary text
  * stays text, a task gets a checkbox, a bullet gets its dot and a numbered line
  * keeps its number. Because the model keeps those lines apart, editing one of
- * them never reformats - or converts - the rest of the note.
+ * them never reformats - or converts - the rest of the note. Plain text lines are
+ * editable too, so a note that mixes prose with a list stays writable without
+ * leaving the mode.
  */
 @Composable
 fun EditorLinesContent(
@@ -69,7 +67,17 @@ fun EditorLinesContent(
     Column(modifier = modifier.fillMaxWidth()) {
         segments.forEachIndexed { index, segment ->
             when (segment) {
-                is NoteSegment.Text -> EditorTextLine(text = segment.text, textPrimary = textPrimary)
+                is NoteSegment.Text -> EditorItemRow(
+                    leading = { LineLeadingSlot {} },
+                    text = segment.text,
+                    isDone = false,
+                    segmentIndex = index,
+                    textPrimary = textPrimary,
+                    amberAccent = amberAccent,
+                    onSegmentTextChange = onSegmentTextChange,
+                    onSplitSegment = onSplitSegment,
+                    onDeleteSegment = null
+                )
 
                 is NoteSegment.Task -> EditorItemRow(
                     leading = {
@@ -119,6 +127,7 @@ fun EditorLinesContent(
         NewLineRow(
             newItemText = newItemText,
             newItemFormat = newItemFormat,
+            newItemNumber = nextLineNumber(segments),
             onNewItemTextChange = onNewItemTextChange,
             onAddItem = onAddItem,
             textPrimary = textPrimary,
@@ -128,7 +137,24 @@ fun EditorLinesContent(
     }
 }
 
-/** One editable line: its marker, its words and its remove button. */
+/**
+ * The number a line added now would get.
+ *
+ * The add row appends at the end of the note, so a numbered run that ends the
+ * note continues from its last item; anything else starts a run at the first
+ * number.
+ */
+private fun nextLineNumber(segments: List<NoteSegment>): Int {
+    val last = segments.lastOrNull() as? NoteSegment.Numbered ?: return FIRST_LIST_NUMBER
+    return last.number + 1
+}
+
+/**
+ * One editable line: its marker, its words and, for a list line, its remove button.
+ *
+ * A plain text line has no remove button: it is cleared by deleting its words,
+ * which is what a reader expects of prose.
+ */
 @Composable
 private fun EditorItemRow(
     leading: @Composable () -> Unit,
@@ -139,7 +165,7 @@ private fun EditorItemRow(
     amberAccent: Color,
     onSegmentTextChange: (segmentIndex: Int, text: String) -> Unit,
     onSplitSegment: (segmentIndex: Int) -> Unit,
-    onDeleteSegment: (segmentIndex: Int) -> Unit
+    onDeleteSegment: ((segmentIndex: Int) -> Unit)?
 ) {
     Row(
         modifier = Modifier
@@ -157,28 +183,9 @@ private fun EditorItemRow(
             onTextChange = onSegmentTextChange,
             onSplitSegment = onSplitSegment
         )
-        RemoveLineButton(segmentIndex = segmentIndex, onDeleteSegment = onDeleteSegment)
-    }
-}
-
-/** One run of plain text between the list lines. */
-@Composable
-private fun EditorTextLine(text: String, textPrimary: Color) {
-    if (text.isBlank()) {
-        Spacer(modifier = Modifier.height(BLANK_LINE_HEIGHT))
-    } else {
-        Text(
-            text = text,
-            style = TextStyle(
-                fontSize = LINE_FONT_SIZE,
-                fontWeight = FontWeight.Normal,
-                color = textPrimary,
-                lineHeight = LINE_HEIGHT
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = LINE_ROW_PADDING)
-        )
+        if (onDeleteSegment != null) {
+            RemoveLineButton(segmentIndex = segmentIndex, onDeleteSegment = onDeleteSegment)
+        }
     }
 }
 
@@ -187,6 +194,7 @@ private fun EditorTextLine(text: String, textPrimary: Color) {
 private fun NewLineRow(
     newItemText: String,
     newItemFormat: EditorFormat,
+    newItemNumber: Int,
     onNewItemTextChange: (String) -> Unit,
     onAddItem: () -> Unit,
     textPrimary: Color,
@@ -199,7 +207,11 @@ private fun NewLineRow(
             .padding(vertical = ADD_ROW_PADDING),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        NewLineMarker(newItemFormat = newItemFormat, amberAccent = amberAccent)
+        NewLineMarker(
+            newItemFormat = newItemFormat,
+            newItemNumber = newItemNumber,
+            amberAccent = amberAccent
+        )
         NewLineField(
             newItemText = newItemText,
             newItemFormat = newItemFormat,
@@ -227,9 +239,12 @@ private fun NewLineRow(
     }
 }
 
-/** The marker the new line will get, so the add row shows what it is about to add. */
+/**
+ * The marker the new line will get, so the add row shows what it is about to add -
+ * including the number a numbered list will continue on.
+ */
 @Composable
-private fun NewLineMarker(newItemFormat: EditorFormat, amberAccent: Color) {
+private fun NewLineMarker(newItemFormat: EditorFormat, newItemNumber: Int, amberAccent: Color) {
     when (newItemFormat) {
         EditorFormat.Checklist -> LineLeadingSlot {
             TaskCheckbox(
@@ -240,7 +255,7 @@ private fun NewLineMarker(newItemFormat: EditorFormat, amberAccent: Color) {
             )
         }
 
-        EditorFormat.NumberedList -> NumberGlyph(number = 1)
+        EditorFormat.NumberedList -> NumberGlyph(number = newItemNumber)
         else -> BulletGlyph()
     }
 }

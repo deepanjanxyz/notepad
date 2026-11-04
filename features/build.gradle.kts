@@ -30,7 +30,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
     implementation("androidx.fragment:fragment-ktx:1.9.1")
-    implementation("androidx.biometric:biometric:1.4.0-alpha07")
+    implementation("androidx.biometric:biometric:1.4.0-beta01")
 
     testImplementation("junit:junit:4.13.2")
 }

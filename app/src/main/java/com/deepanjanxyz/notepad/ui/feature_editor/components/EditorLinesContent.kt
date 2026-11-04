@@ -66,62 +66,16 @@ fun EditorLinesContent(
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         segments.forEachIndexed { index, segment ->
-            when (segment) {
-                is NoteSegment.Text -> EditorItemRow(
-                    leading = { LineLeadingSlot {} },
-                    text = segment.text,
-                    isDone = false,
-                    segmentIndex = index,
-                    textPrimary = textPrimary,
-                    amberAccent = amberAccent,
-                    onSegmentTextChange = onSegmentTextChange,
-                    onSplitSegment = onSplitSegment,
-                    onDeleteSegment = null
-                )
-
-                is NoteSegment.Task -> EditorItemRow(
-                    leading = {
-                        TaskCheckbox(
-                            isChecked = segment.item.isChecked,
-                            amberAccent = amberAccent,
-                            testTag = "task_checkbox_$index",
-                            onToggle = { onToggleTask(index) }
-                        )
-                    },
-                    text = segment.item.text,
-                    isDone = segment.item.isChecked,
-                    segmentIndex = index,
-                    textPrimary = textPrimary,
-                    amberAccent = amberAccent,
-                    onSegmentTextChange = onSegmentTextChange,
-                    onSplitSegment = onSplitSegment,
-                    onDeleteSegment = onDeleteSegment
-                )
-
-                is NoteSegment.Bullet -> EditorItemRow(
-                    leading = { BulletGlyph() },
-                    text = segment.text,
-                    isDone = false,
-                    segmentIndex = index,
-                    textPrimary = textPrimary,
-                    amberAccent = amberAccent,
-                    onSegmentTextChange = onSegmentTextChange,
-                    onSplitSegment = onSplitSegment,
-                    onDeleteSegment = onDeleteSegment
-                )
-
-                is NoteSegment.Numbered -> EditorItemRow(
-                    leading = { NumberGlyph(number = segment.number) },
-                    text = segment.text,
-                    isDone = false,
-                    segmentIndex = index,
-                    textPrimary = textPrimary,
-                    amberAccent = amberAccent,
-                    onSegmentTextChange = onSegmentTextChange,
-                    onSplitSegment = onSplitSegment,
-                    onDeleteSegment = onDeleteSegment
-                )
-            }
+            EditorLine(
+                segment = segment,
+                segmentIndex = index,
+                textPrimary = textPrimary,
+                amberAccent = amberAccent,
+                onToggleTask = onToggleTask,
+                onSegmentTextChange = onSegmentTextChange,
+                onSplitSegment = onSplitSegment,
+                onDeleteSegment = onDeleteSegment
+            )
         }
 
         NewLineRow(
@@ -133,6 +87,76 @@ fun EditorLinesContent(
             textPrimary = textPrimary,
             textPlaceholder = textPlaceholder,
             amberAccent = amberAccent
+        )
+    }
+}
+
+/** One line of the note, rendered as the kind of line it is. */
+@Composable
+private fun EditorLine(
+    segment: NoteSegment,
+    segmentIndex: Int,
+    textPrimary: Color,
+    amberAccent: Color,
+    onToggleTask: (segmentIndex: Int) -> Unit,
+    onSegmentTextChange: (segmentIndex: Int, text: String) -> Unit,
+    onSplitSegment: (segmentIndex: Int) -> Unit,
+    onDeleteSegment: (segmentIndex: Int) -> Unit
+) {
+    when (segment) {
+        is NoteSegment.Text -> EditorItemRow(
+            leading = { LineLeadingSlot {} },
+            text = segment.text,
+            isDone = false,
+            segmentIndex = segmentIndex,
+            textPrimary = textPrimary,
+            amberAccent = amberAccent,
+            onSegmentTextChange = onSegmentTextChange,
+            onSplitSegment = onSplitSegment,
+            onDeleteSegment = null
+        )
+
+        is NoteSegment.Task -> EditorItemRow(
+            leading = {
+                TaskCheckbox(
+                    isChecked = segment.item.isChecked,
+                    amberAccent = amberAccent,
+                    testTag = "task_checkbox_$segmentIndex",
+                    onToggle = { onToggleTask(segmentIndex) }
+                )
+            },
+            text = segment.item.text,
+            isDone = segment.item.isChecked,
+            segmentIndex = segmentIndex,
+            textPrimary = textPrimary,
+            amberAccent = amberAccent,
+            onSegmentTextChange = onSegmentTextChange,
+            onSplitSegment = onSplitSegment,
+            onDeleteSegment = onDeleteSegment
+        )
+
+        is NoteSegment.Bullet -> EditorItemRow(
+            leading = { BulletGlyph() },
+            text = segment.text,
+            isDone = false,
+            segmentIndex = segmentIndex,
+            textPrimary = textPrimary,
+            amberAccent = amberAccent,
+            onSegmentTextChange = onSegmentTextChange,
+            onSplitSegment = onSplitSegment,
+            onDeleteSegment = onDeleteSegment
+        )
+
+        is NoteSegment.Numbered -> EditorItemRow(
+            leading = { NumberGlyph(number = segment.number) },
+            text = segment.text,
+            isDone = false,
+            segmentIndex = segmentIndex,
+            textPrimary = textPrimary,
+            amberAccent = amberAccent,
+            onSegmentTextChange = onSegmentTextChange,
+            onSplitSegment = onSplitSegment,
+            onDeleteSegment = onDeleteSegment
         )
     }
 }

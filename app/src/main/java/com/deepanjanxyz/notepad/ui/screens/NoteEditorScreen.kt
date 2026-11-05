@@ -224,6 +224,10 @@ fun NoteEditorScreen(
 
     /** Switches the body to [format], rewriting its lines into that kind. */
     fun selectFormat(format: EditorFormat) {
+        // Picking the format already in use has nothing to convert, and converting
+        // anyway would rewrite it: a converted task is a new task, so a checklist
+        // converted to itself comes back with every tick cleared.
+        if (format == editorFormat) return
         // Coming from plain text nothing has read the body into lines yet, so it
         // is read here before it can be rewritten.
         if (!editorFormat.isLinesMode) segments = parseNoteSegments(content)

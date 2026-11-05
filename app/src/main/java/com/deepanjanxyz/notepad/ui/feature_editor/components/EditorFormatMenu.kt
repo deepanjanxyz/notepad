@@ -14,9 +14,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
-import androidx.compose.material.icons.automirrored.filled.FormatListNumbered
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.FormatListNumbered
 import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -50,7 +50,8 @@ private val EditorFormat.icon: ImageVector
         EditorFormat.PlainText -> Icons.Default.Notes
         EditorFormat.Checklist -> Icons.Default.Checklist
         EditorFormat.BulletedList -> Icons.AutoMirrored.Filled.FormatListBulleted
-        EditorFormat.NumberedList -> Icons.AutoMirrored.Filled.FormatListNumbered
+        // Material icons ships no automirrored FormatListNumbered, so this one stands in.
+        EditorFormat.NumberedList -> Icons.Default.FormatListNumbered
     }
 
 /**

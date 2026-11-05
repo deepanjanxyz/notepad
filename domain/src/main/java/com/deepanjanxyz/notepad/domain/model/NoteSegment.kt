@@ -94,7 +94,9 @@ fun renumberNumberedSegments(segments: List<NoteSegment>): List<NoteSegment> {
             segment
         } else {
             val number = nextNumber ?: segment.number
-            nextNumber = number + 1
+            // Stopping at the largest Int keeps the counter from wrapping negative,
+            // which would write a marker no reader accepts back as a number.
+            nextNumber = if (number == Int.MAX_VALUE) Int.MAX_VALUE else number + 1
             segment.copy(number = number)
         }
     }

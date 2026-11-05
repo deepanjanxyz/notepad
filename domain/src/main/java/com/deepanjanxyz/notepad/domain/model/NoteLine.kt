@@ -17,9 +17,11 @@ const val NUMBERED_SEPARATOR = ". "
  * A numbered line's marker: digits, a full stop and a space.
  *
  * The digit run is capped so a pasted wall of digits cannot overflow the Int the
- * number is read into.
+ * number is read into. The cap is ten digits rather than nine because renumbering
+ * can carry a run past 999,999,999, and a marker the writer can produce has to be
+ * one the reader accepts back.
  */
-private val NUMBERED_LINE = Regex("^(\\d{1,9})\\. ")
+private val NUMBERED_LINE = Regex("^(\\d{1,10})\\. ")
 
 /** True when the line is an unordered list item. */
 fun String.isBulletLine(): Boolean = startsWith(BULLET_PREFIX)

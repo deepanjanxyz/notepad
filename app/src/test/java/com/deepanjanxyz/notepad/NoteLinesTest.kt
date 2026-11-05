@@ -84,6 +84,27 @@ class NoteLinesTest {
         assertEquals(listOf(3, 7), numbersOf(segments))
     }
 
+    @Test
+    fun testANumberPastNineDigitsStillReadsBackAsANumberedLine() {
+        val note = "999999999. Almost\n1000000000. Past the old cap"
+
+        val segments = parseNoteSegments(note)
+
+        assertEquals(999_999_999, (segments[0] as NoteSegment.Numbered).number)
+        assertEquals(1_000_000_000, (segments[1] as NoteSegment.Numbered).number)
+        assertEquals(note, serializeNoteSegments(segments))
+    }
+
+    @Test
+    fun testRenumberingStopsAtTheLargestNumberRatherThanWrapping() {
+        val segments = listOf(
+            NoteSegment.Numbered(number = Int.MAX_VALUE, text = "Last"),
+            NoteSegment.Numbered(number = 1, text = "One past it")
+        )
+
+        assertEquals(listOf(Int.MAX_VALUE, Int.MAX_VALUE), numbersOf(segments))
+    }
+
     /** The numbers a renumbered list ends up with, in order. */
     private fun numbersOf(segments: List<NoteSegment>): List<Int> =
         renumberNumberedSegments(segments)

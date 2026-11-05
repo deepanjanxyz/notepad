@@ -264,12 +264,19 @@ fun NoteEditorScreen(
         return serializeNoteSegments(renumberNumberedSegments(pending))
     }
 
-    LaunchedEffect(title, content, drawingPart, colorIndex, tags, isPinned, inArchive, reminderTime, isLoaded) {
-        val hasSomethingToSave = title.isNotBlank() || content.isNotBlank() ||
+    LaunchedEffect(
+        title, content, newItemText, drawingPart, colorIndex, tags, isPinned,
+        inArchive, reminderTime, isLoaded
+    ) {
+        // The add-row draft is part of what a save would write, so it is both a key
+        // this effect restarts on and a reason to save at all: typing an item and
+        // stopping there has to reach the database too, not only the next edit.
+        val effectiveText = effectiveContent()
+        val hasSomethingToSave = title.isNotBlank() || effectiveText.isNotBlank() ||
             drawingPart.isNotBlank() || tags.isNotEmpty() || reminderTime != null
         if (isLoaded && hasSomethingToSave) {
             delay(AUTO_SAVE_DELAY_MS)
-            val combined = getCombinedContent(effectiveContent())
+            val combined = getCombinedContent(effectiveText)
             val savedId = onSaveNote(
                 currentNoteId, title, combined, colorIndex, tags, isPinned, inArchive, reminderTime
             )

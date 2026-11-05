@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
@@ -134,6 +135,7 @@ fun HomeScreen(
     onNoteLongClick: (Note) -> Unit,
     onTogglePinSelected: () -> Unit,
     onAddNewNote: () -> Unit,
+    onAddNewChecklistNote: () -> Unit = {},
     onAddNewDrawingNote: () -> Unit = {},
     onClearSelection: () -> Unit,
     onSelectAll: () -> Unit,
@@ -743,7 +745,56 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Option 2: Drawing Note (Dedicated drawing canvas screen)
+                // Option 2: Checklist (Editor that opens straight into tickable items)
+                Surface(
+                    onClick = {
+                        showCreateOptionsSheet = false
+                        onAddNewChecklistNote()
+                    },
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("create_checklist_note_option")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(46.dp)
+                                .clip(CircleShape)
+                                .background(AppColors.AccentGreen),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Checklist,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                text = "Checklist",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Tick-off items for to-dos and lists",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Option 3: Drawing Note (Dedicated drawing canvas screen)
                 Surface(
                     onClick = {
                         showCreateOptionsSheet = false

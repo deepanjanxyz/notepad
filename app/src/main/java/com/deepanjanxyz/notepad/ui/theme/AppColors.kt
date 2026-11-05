@@ -23,6 +23,9 @@ object AppColors {
     /** Accent for the checklist and label highlights. */
     val AccentAmber = Color(0xFFFFB300)
 
+    /** Accent for the checklist card on the create-note sheet. */
+    val AccentGreen = Color(0xFF4CAF50)
+
     /** Outline of a selected accent control. */
     val AccentEdge = Color(0xFF64B5F6)
 

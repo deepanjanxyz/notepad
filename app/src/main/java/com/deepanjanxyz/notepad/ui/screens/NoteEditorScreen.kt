@@ -97,6 +97,7 @@ private const val AUTO_SAVE_DELAY_MS = 500L
 @Composable
 fun NoteEditorScreen(
     noteId: Long,
+    startInChecklist: Boolean = false,
     availableTags: List<String>,
     onGetNote: suspend (Long) -> Note?,
     onSaveNote: suspend (Long, String, String, Int, List<String>, Boolean?, Boolean?, Long?) -> Long,
@@ -152,6 +153,10 @@ fun NoteEditorScreen(
                     segments = parseNoteSegments(content)
                 }
             }
+        } else if (startInChecklist) {
+            // A note started from the checklist card opens already in checklist mode,
+            // so the first line typed is an item rather than plain text.
+            editorFormat = EditorFormat.Checklist
         }
         isLoaded = true
     }

@@ -247,12 +247,29 @@ fun NoteEditorScreen(
 
     fun getCombinedContent(textPart: String) = DrawingSerializer.combine(drawingPart, textPart)
 
+    /**
+     * The body as it would be saved, add-row draft included.
+     *
+     * The draft is not in [segments] until the user commits it, so a save that read
+     * [content] alone would write a body the other save paths disagree with: the
+     * reminder save writes the draft as an item, the next line edit rebuilds
+     * [content] without it, and the autosave that follows drops the item again.
+     */
+    fun effectiveContent(): String {
+        if (!editorFormat.isLinesMode) return content
+        var pending = segments
+        if (newItemText.isNotBlank()) {
+            pending = pending + editorFormat.asSegment(newItemText.trim())
+        }
+        return serializeNoteSegments(renumberNumberedSegments(pending))
+    }
+
     LaunchedEffect(title, content, drawingPart, colorIndex, tags, isPinned, inArchive, reminderTime, isLoaded) {
         val hasSomethingToSave = title.isNotBlank() || content.isNotBlank() ||
             drawingPart.isNotBlank() || tags.isNotEmpty() || reminderTime != null
         if (isLoaded && hasSomethingToSave) {
             delay(AUTO_SAVE_DELAY_MS)
-            val combined = getCombinedContent(content)
+            val combined = getCombinedContent(effectiveContent())
             val savedId = onSaveNote(
                 currentNoteId, title, combined, colorIndex, tags, isPinned, inArchive, reminderTime
             )
@@ -263,14 +280,7 @@ fun NoteEditorScreen(
     }
 
     fun forceSave() {
-        var effectiveText = content
-        if (editorFormat.isLinesMode) {
-            var pending = segments
-            if (newItemText.isNotBlank()) {
-                pending = pending + editorFormat.asSegment(newItemText.trim())
-            }
-            effectiveText = serializeNoteSegments(renumberNumberedSegments(pending))
-        }
+        val effectiveText = effectiveContent()
         val hasSomethingToSave = title.isNotBlank() || effectiveText.isNotBlank() ||
             drawingPart.isNotBlank() || tags.isNotEmpty() || reminderTime != null
         if (isLoaded && hasSomethingToSave) {
@@ -668,16 +678,8 @@ fun NoteEditorScreen(
             onSetReminder = { newMillis ->
                 reminderTime = newMillis
                 coroutineScope.launch {
-                    var effectiveContent = content
-                    if (editorFormat.isLinesMode) {
-                        var pending = segments
-                        if (newItemText.isNotBlank()) {
-                            pending = pending + editorFormat.asSegment(newItemText.trim())
-                        }
-                        effectiveContent = serializeNoteSegments(renumberNumberedSegments(pending))
-                    }
                     val savedId = onSaveNote(
-                        currentNoteId, title, effectiveContent, colorIndex, tags, isPinned, inArchive, newMillis
+                        currentNoteId, title, effectiveContent(), colorIndex, tags, isPinned, inArchive, newMillis
                     )
                     if (currentNoteId <= 0L && savedId > 0L) {
                         currentNoteId = savedId

@@ -16,10 +16,11 @@ const val NUMBERED_SEPARATOR = ". "
 /**
  * A numbered line's marker: digits, a full stop and a space.
  *
- * The digit run is capped so a pasted wall of digits cannot overflow the Int the
- * number is read into. The cap is ten digits rather than nine because renumbering
- * can carry a run past 999,999,999, and a marker the writer can produce has to be
- * one the reader accepts back.
+ * The digit run is capped so a pasted wall of digits is not scanned at all. The
+ * cap is ten digits rather than nine because renumbering can carry a run past
+ * 999,999,999, and a marker the writer can produce has to be one the reader
+ * accepts back. The cap is only a fast guard: a ten-digit run that does not fit
+ * an [Int] is rejected by [numberedLineNumber], not by the pattern.
  */
 private val NUMBERED_LINE = Regex("^(\\d{1,10})\\. ")
 
@@ -30,12 +31,18 @@ fun String.isBulletLine(): Boolean = startsWith(BULLET_PREFIX)
 fun String.bulletLineText(): String =
     if (isBulletLine()) substring(BULLET_PREFIX.length) else this
 
-/** True when the line is a numbered list item. */
-fun String.isNumberedLine(): Boolean = NUMBERED_LINE.containsMatchIn(this)
-
-/** The number the line starts with, or null when the line is not a numbered item. */
+/**
+ * The number the line starts with, or null when the line is not a numbered item.
+ *
+ * A digit run too large to fit an [Int] is not a number this model can hold, so
+ * the line is not a numbered one: it stays text and round-trips exactly as it was
+ * written, instead of being read as item 1 and rewritten on the next save.
+ */
 fun String.numberedLineNumber(): Int? =
     NUMBERED_LINE.find(this)?.groupValues?.getOrNull(1)?.toIntOrNull()
+
+/** True when the line is a numbered list item, which means its number fits an [Int]. */
+fun String.isNumberedLine(): Boolean = numberedLineNumber() != null
 
 /** The line's text with its number and separator removed. */
 fun String.numberedLineText(): String =

@@ -96,6 +96,16 @@ class NoteLinesTest {
     }
 
     @Test
+    fun testANumberTooLargeForAnIntStaysText() {
+        val note = "3000000000. Example"
+
+        val segments = parseNoteSegments(note)
+
+        assertTrue(segments[0] is NoteSegment.Text)
+        assertEquals(note, serializeNoteSegments(segments))
+    }
+
+    @Test
     fun testRenumberingStopsAtTheLargestNumberRatherThanWrapping() {
         val segments = listOf(
             NoteSegment.Numbered(number = Int.MAX_VALUE, text = "Last"),

@@ -227,8 +227,18 @@ fun NoteEditorScreen(
         // Coming from plain text nothing has read the body into lines yet, so it
         // is read here before it can be rewritten.
         if (!editorFormat.isLinesMode) segments = parseNoteSegments(content)
+        // The add row's draft is not in [segments] yet, so it is folded in first:
+        // changing format would otherwise throw away a line the user was part-way
+        // through typing, and the next save would make that loss permanent.
+        val draft = newItemText.trim()
+        val lines = if (draft.isEmpty()) {
+            segments
+        } else {
+            newItemText = ""
+            renumberNumberedSegments(segments + editorFormat.asSegment(draft))
+        }
         editorFormat = format
-        updateSegments(segments.convertTo(format))
+        updateSegments(lines.convertTo(format))
     }
 
     fun getCombinedContent(textPart: String) = DrawingSerializer.combine(drawingPart, textPart)

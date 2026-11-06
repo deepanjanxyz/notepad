@@ -97,7 +97,7 @@ private const val AUTO_SAVE_DELAY_MS = 500L
 @Composable
 fun NoteEditorScreen(
     noteId: Long,
-    startInChecklist: Boolean = false,
+    startInChecklist: Boolean,
     availableTags: List<String>,
     onGetNote: suspend (Long) -> Note?,
     onSaveNote: suspend (Long, String, String, Int, List<String>, Boolean?, Boolean?, Long?) -> Long,
@@ -304,7 +304,9 @@ fun NoteEditorScreen(
     }
 
     fun shareNote() {
-        val textPart = if (editorFormat.isLinesMode) serializeNoteSegments(segments) else content
+        // The draft typed into the add row has not joined the note's lines yet, so
+        // the shared text is read the same way every save path reads it.
+        val textPart = effectiveContent()
         val body = buildString {
             if (title.isNotBlank()) {
                 append(title)

@@ -170,7 +170,9 @@ private fun EditorLine(
  */
 private fun nextLineNumber(segments: List<NoteSegment>): Int {
     val last = segments.lastOrNull() as? NoteSegment.Numbered ?: return FIRST_LIST_NUMBER
-    return last.number + 1
+    // The counter stops at the largest Int, exactly as renumbering does, so the add
+    // row never promises a number that would wrap around to a negative one.
+    return if (last.number == Int.MAX_VALUE) Int.MAX_VALUE else last.number + 1
 }
 
 /**

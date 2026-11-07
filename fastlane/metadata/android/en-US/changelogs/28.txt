@@ -1,8 +1,10 @@
-Checklists and format menu
+Lists, checklists and a format menu
 
-- A Checklist card sits beside Text Note and Drawing Note and opens the editor ready for tickable items.
-- The format menu marks the format in use with a green tick, and the toolbar shows it.
-- A line being typed in the add row is kept when the format changes, and saved with the note.
-- Numbered lists past nine digits stay numbered when the note is reopened.
+- Bulleted and numbered lists in any note, with no checkboxes.
+- A format menu switches between plain text, checklist, bullets and numbers, and marks the one in use.
+- Text between items stays editable; the add row shows the marker the new line gets.
+- Numbered lists renumber as items are added or removed.
+- A Checklist card in the create sheet opens the editor ready to tick items.
+- Note cards show bullets as dots.
 
 Thank you for using Elite Memo Pro!

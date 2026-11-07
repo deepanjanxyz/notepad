@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Check
@@ -35,6 +34,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
+import com.deepanjanxyz.notepad.ui.feature_editor.model.EditorFormat
 import com.deepanjanxyz.notepad.ui.theme.AppColors
 
 @Composable
@@ -43,8 +43,8 @@ fun EditorTopBar(
     onTogglePin: () -> Unit,
     hasReminder: Boolean,
     onOpenReminder: () -> Unit,
-    isChecklistMode: Boolean,
-    onToggleChecklist: () -> Unit,
+    editorFormat: EditorFormat,
+    onFormatSelected: (EditorFormat) -> Unit,
     hasColor: Boolean,
     onOpenColorPicker: () -> Unit,
     hasDrawing: Boolean,
@@ -73,14 +73,14 @@ fun EditorTopBar(
         EditorActionsRow(
             isPinned = isPinned,
             hasReminder = hasReminder,
-            isChecklistMode = isChecklistMode,
+            editorFormat = editorFormat,
             hasColor = hasColor,
             hasDrawing = hasDrawing,
             textPrimary = textPrimary,
             amberAccent = amberAccent,
             onTogglePin = onTogglePin,
             onOpenReminder = onOpenReminder,
-            onToggleChecklist = onToggleChecklist,
+            onFormatSelected = onFormatSelected,
             onOpenColorPicker = onOpenColorPicker,
             onOpenDrawing = onOpenDrawing,
             onShare = onShare,
@@ -95,14 +95,14 @@ fun EditorTopBar(
 private fun EditorActionsRow(
     isPinned: Boolean,
     hasReminder: Boolean,
-    isChecklistMode: Boolean,
+    editorFormat: EditorFormat,
     hasColor: Boolean,
     hasDrawing: Boolean,
     textPrimary: Color,
     amberAccent: Color,
     onTogglePin: () -> Unit,
     onOpenReminder: () -> Unit,
-    onToggleChecklist: () -> Unit,
+    onFormatSelected: (EditorFormat) -> Unit,
     onOpenColorPicker: () -> Unit,
     onOpenDrawing: () -> Unit,
     onShare: () -> Unit,
@@ -125,10 +125,10 @@ private fun EditorActionsRow(
             if (hasReminder) Icons.Filled.NotificationsActive else Icons.Outlined.Notifications,
             if (hasReminder) amberAccent else textPrimary, "toggle_reminder_button", onOpenReminder
         )
-        // Checklist / Bullet list toggle
-        TopBarAction(
-            "Checklist format", Icons.AutoMirrored.Filled.FormatListBulleted,
-            if (isChecklistMode) amberAccent else textPrimary, "toggle_checklist_button", onToggleChecklist
+        // Format menu: plain text, checklist, bulleted list or numbered list
+        EditorFormatMenu(
+            currentFormat = editorFormat,
+            onFormatSelected = onFormatSelected
         )
         // Color Tint Palette
         TopBarAction(

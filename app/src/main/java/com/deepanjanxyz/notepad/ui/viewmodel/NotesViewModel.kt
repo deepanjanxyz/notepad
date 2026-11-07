@@ -43,7 +43,11 @@ private const val AUTO_SAVE_DELAY_MS = 600L
 
 sealed interface Screen {
     data object Home : Screen
-    data class Editor(val noteId: Long = 0L, val returnTo: Screen = Home) : Screen
+    data class Editor(
+        val noteId: Long = 0L,
+        val returnTo: Screen = Home,
+        val startInChecklist: Boolean = false
+    ) : Screen
     data class Drawing(val noteId: Long = 0L, val returnTo: Screen = Home) : Screen
     data object Archive : Screen
     data object Trash : Screen

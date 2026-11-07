@@ -6,7 +6,7 @@
 
 [![CI](https://github.com/deepanjanxyz/notepad/actions/workflows/ci.yml/badge.svg)](https://github.com/deepanjanxyz/notepad/actions/workflows/ci.yml)
 [![Universal PR Check](https://github.com/deepanjanxyz/notepad/actions/workflows/universal-pr-check.yml/badge.svg)](https://github.com/deepanjanxyz/notepad/actions/workflows/universal-pr-check.yml)
-[![Latest release](https://img.shields.io/github/v/release/deepanjanxyz/notepad
+[![Latest release](https://img.shields.io/github/v/release/deepanjanxyz/notepad)](https://github.com/deepanjanxyz/notepad/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ## Overview

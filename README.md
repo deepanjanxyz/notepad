@@ -6,7 +6,7 @@
 
 [![CI](https://github.com/deepanjanxyz/notepad/actions/workflows/ci.yml/badge.svg)](https://github.com/deepanjanxyz/notepad/actions/workflows/ci.yml)
 [![Universal PR Check](https://github.com/deepanjanxyz/notepad/actions/workflows/universal-pr-check.yml/badge.svg)](https://github.com/deepanjanxyz/notepad/actions/workflows/universal-pr-check.yml)
-[![Latest release](https://img.shields.io/github/v/release/deepanjanxyz/notepad?sort=semver)](https://github.com/deepanjanxyz/notepad/releases)
+[![Latest release](https://img.shields.io/github/v/release/deepanjanxyz/notepad
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ## Overview
@@ -91,6 +91,7 @@ Download the signed APK from the [latest release](https://github.com/deepanjanxy
 
 Planned work, roughly in order. Priorities can shift, and issues or pull requests on any of these are welcome.
 
+- [x] **Bulleted and numbered lists** — shipped in 1.0.28: lists without checkboxes, a format menu, and a Checklist card in the create sheet.
 - [ ] **Rich-text formatting** *(high priority)* — bold, italic, underline, headings and links inside a note.
 - [ ] **Calendar view** — see which days have notes and open a day's notes from a calendar, keeping the created date and the reminder date separate.
 - [ ] **Bulk note actions** — select several notes and archive, delete, re-label, recolour or export them together.

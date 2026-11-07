@@ -6,12 +6,12 @@
 
 [![CI](https://github.com/deepanjanxyz/notepad/actions/workflows/ci.yml/badge.svg)](https://github.com/deepanjanxyz/notepad/actions/workflows/ci.yml)
 [![Universal PR Check](https://github.com/deepanjanxyz/notepad/actions/workflows/universal-pr-check.yml/badge.svg)](https://github.com/deepanjanxyz/notepad/actions/workflows/universal-pr-check.yml)
-[![Latest release](https://img.shields.io/github/v/release/deepanjanxyz/notepad?sort=semver)](https://github.com/deepanjanxyz/notepad/releases)
+[![Latest release](https://img.shields.io/github/v/release/deepanjanxyz/notepad
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ## Overview
 
-Elite Memo Pro brings text notes and freehand drawings together in one app. Write notes with titles and checklists, sketch on a canvas with pen, marker, highlighter, selection and eraser tools, and keep everything organised with labels, colours, pins, search, reminders, and a built-in archive and trash.
+Elite Memo Pro brings text notes, lists and freehand drawings together in one app. Write notes with titles, checklists and bulleted or numbered lists, sketch on a canvas with pen, marker, highlighter, selection and eraser tools, and keep everything organised with labels, colours, pins, search, reminders, and a built-in archive and trash.
 
 The app is **local-first**: notes, labels and settings live in an on-device Room database and DataStore. There is no account, no server, and no `INTERNET` permission.
 
@@ -20,6 +20,9 @@ The app is **local-first**: notes, labels and settings live in an on-device Room
 **Notes**
 - Text notes with a title and body.
 - Inline checklists with per-item completion state.
+- Bulleted and numbered lists, with no checkboxes: numbered items renumber as they are added or removed.
+- A format menu that switches the body between plain text, checklist, bullets and numbers.
+- A Checklist card in the create sheet opens the editor ready for tickable items.
 - Per-note colour and pinning.
 
 **Drawing**
@@ -88,7 +91,8 @@ Download the signed APK from the [latest release](https://github.com/deepanjanxy
 
 Planned work, roughly in order. Priorities can shift, and issues or pull requests on any of these are welcome.
 
-- [ ] **Rich-text formatting** *(high priority)* — bold, italic, underline, bullet lists, headings and links inside a note.
+- [x] **Bulleted and numbered lists** — shipped in 1.0.28: lists without checkboxes, a format menu, and a Checklist card in the create sheet.
+- [ ] **Rich-text formatting** *(high priority)* — bold, italic, underline, headings and links inside a note.
 - [ ] **Calendar view** — see which days have notes and open a day's notes from a calendar, keeping the created date and the reminder date separate.
 - [ ] **Bulk note actions** — select several notes and archive, delete, re-label, recolour or export them together.
 - [ ] **Drawing improvements** — quicker stroke-thickness changes, custom colours, canvas zoom and pan, and stylus-pressure pen width where the device supports it.

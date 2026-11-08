@@ -177,6 +177,8 @@ private fun CountdownDismiss(snackbar: SnackbarData, seconds: Int, onDismiss: ()
     }
     // The ring drains continuously rather than a second at a time, so the countdown
     // reads as time passing instead of a number changing.
+    // Read here: SnackbarDefaults.actionColor is composable, and the draw lambda is not.
+    val ringColor = SnackbarDefaults.actionColor
     val drained by animateFloatAsState(
         targetValue = if (indefinite) 1f else remaining.toFloat() / ticks,
         animationSpec = tween(durationMillis = TICK_MS.toInt(), easing = LinearEasing),
@@ -191,7 +193,7 @@ private fun CountdownDismiss(snackbar: SnackbarData, seconds: Int, onDismiss: ()
                 if (indefinite) return@drawBehind
                 val stroke = RING_STROKE.toPx()
                 drawArc(
-                    color = SnackbarDefaults.actionColor,
+                    color = ringColor,
                     startAngle = -90f,
                     sweepAngle = -360f * drained,
                     useCenter = false,

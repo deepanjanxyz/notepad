@@ -1,11 +1,13 @@
 package com.deepanjanxyz.notepad.worker
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
@@ -14,6 +16,9 @@ import com.deepanjanxyz.notepad.MainActivity
 import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.data.NoteRepositoryProvider
 import com.deepanjanxyz.notepad.domain.model.DrawingSerializer
+import com.deepanjanxyz.notepad.domain.model.Note
+
+private const val TAG = "NoteReminderWorker"
 
 class NoteReminderWorker(
     appContext: Context,
@@ -48,7 +53,17 @@ class NoteReminderWorker(
         if (noteId == -1L) {
             return Result.failure()
         }
+        return deliver(noteId)
+    }
 
+    /**
+     * Posts the reminder for [noteId], and reports whether it was delivered.
+     *
+     * The reminder is cleared only once the notification has actually been shown,
+     * so anything that stops it being seen leaves the reminder in place to fire
+     * again later.
+     */
+    private suspend fun deliver(noteId: Long): Result {
         val repository = NoteRepositoryProvider.create(applicationContext)
         val note = repository.getNoteById(noteId)
 
@@ -57,9 +72,44 @@ class NoteReminderWorker(
             return Result.success()
         }
 
+        val shown = showReminder(note, noteId)
+        if (shown) {
+            // The notification was posted, so the reminder has now fired.
+            repository.updateReminderTime(noteId, null)
+        }
+        return if (shown) Result.success() else Result.retry()
+    }
+
+    /**
+     * Posts the notification for [note]. Returns false when nothing would be seen,
+     * which is when the reminder has to be kept: it is still owed to the user, and
+     * retrying means it fires once notifications are allowed again.
+     */
+    private fun showReminder(note: Note, noteId: Long): Boolean {
         // Create channel on Oreo+
         createNotificationChannel(applicationContext)
 
+        val manager = NotificationManagerCompat.from(applicationContext)
+        return canDeliver(manager) && post(manager, noteId, buildNotification(note, noteId))
+    }
+
+    /** Posts the notification, reporting false when the post was refused. */
+    private fun post(
+        manager: NotificationManagerCompat,
+        noteId: Long,
+        notification: Notification
+    ): Boolean = try {
+        manager.notify(noteId.toInt(), notification)
+        true
+    } catch (e: SecurityException) {
+        // The permission was revoked between the check and the post, so again
+        // nothing was shown and the reminder is kept.
+        Log.w(TAG, "The reminder notification could not be posted", e)
+        false
+    }
+
+    /** Builds the reminder notification for [note]. */
+    private fun buildNotification(note: Note, noteId: Long): Notification {
         // The note as it stands now, not as it stood when the reminder was set:
         // text the user has since removed must not come back in a notification.
         val displayTitle = note.title.takeIf { it.isNotBlank() }
@@ -95,7 +145,7 @@ class NoteReminderWorker(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
+        return NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(displayTitle)
             .setContentText(cleanPreview)
@@ -104,27 +154,6 @@ class NoteReminderWorker(
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
-
-        val manager = NotificationManagerCompat.from(applicationContext)
-        if (!canDeliver(manager)) {
-            // Nothing would be shown, so the reminder is not cleared: it is still
-            // owed to the user, and retrying means it fires once notifications are
-            // allowed again.
-            return Result.retry()
-        }
-
-        try {
-            manager.notify(noteId.toInt(), notification)
-        } catch (e: SecurityException) {
-            // The permission was revoked between the check and the post, so again
-            // nothing was shown and the reminder is kept.
-            return Result.retry()
-        }
-
-        // The notification was posted, so the reminder has now fired.
-        repository.updateReminderTime(noteId, null)
-
-        return Result.success()
     }
 
     /**

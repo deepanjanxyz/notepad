@@ -98,6 +98,19 @@ class TaskWidgetProvider : AppWidgetProvider() {
             CoroutineScope(Dispatchers.IO).launch { renderAll(appContext) }
         }
 
+        /**
+         * Rebuilds every placed widget from the current notes.
+         *
+         * `DEPRECATION` is suppressed here. `notifyAppWidgetViewDataChanged` and
+         * `setRemoteAdapter(viewId, intent)` were deprecated in API 35 in favour of
+         * the `RemoteCollectionItems` API, which only exists from API 31. This widget
+         * is offered from API 24, and that collection API sends every row in a single
+         * widget update, which can exceed Binder's transaction buffer and leave the
+         * widget not updating at all. So the deprecation is taken knowingly: the rows
+         * are still served lazily by [TaskWidgetService], and the widget moves to the
+         * collection API when it is migrated for its own reasons.
+         */
+        @Suppress("DEPRECATION")
         private fun renderAll(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
             val component = ComponentName(context, TaskWidgetProvider::class.java)
@@ -108,6 +121,11 @@ class TaskWidgetProvider : AppWidgetProvider() {
             }
         }
 
+        /**
+         * The other half of the deprecation taken in [renderAll]: the adapter is set
+         * through the intent form, for the reasons written there.
+         */
+        @Suppress("DEPRECATION")
         private fun buildViews(context: Context, appWidgetId: Int): RemoteViews {
             val views = RemoteViews(context.packageName, R.layout.widget_tasks)
 

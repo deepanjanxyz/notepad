@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.R
+import androidx.compose.foundation.layout.RowScope
 
 @Composable
 fun FloatingSearchBar(
@@ -65,36 +66,11 @@ fun FloatingSearchBar(
                 .padding(horizontal = 4.dp)
         ) {
             // Leading Icon: If query is active, show back arrow to clear search, otherwise drawer menu toggle
-            if (query.isNotEmpty()) {
-                ActionTooltip("Clear search") {
-                    IconButton(
-                        onClick = {
-                            onQueryChange("")
-                            focusManager.clearFocus()
-                        },
-                        modifier = Modifier.testTag("search_back_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Clear search",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-            } else {
-                ActionTooltip("Open navigation menu") {
-                    IconButton(
-                        onClick = onOpenDrawer,
-                        modifier = Modifier.testTag("drawer_menu_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Menu,
-                            contentDescription = "Open navigation menu",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-            }
+            SearchLeadingButton(
+                query = query,
+                onQueryChange = onQueryChange,
+                onOpenDrawer = onOpenDrawer
+            )
 
             // Distinct Search Icon
             Icon(
@@ -112,41 +88,7 @@ fun FloatingSearchBar(
             )
 
             // Real-time Search Input Field: Filters notes by title or content keywords
-            TextField(
-                value = query,
-                onValueChange = onQueryChange,
-                placeholder = {
-                    Text(
-                        text = stringResource(R.string.search_hint),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
-                },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    imeAction = ImeAction.Search
-                ),
-                keyboardActions = KeyboardActions(
-                    onSearch = {
-                        focusManager.clearFocus()
-                    }
-                ),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    disabledContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent
-                ),
-                textStyle = MaterialTheme.typography.bodyLarge.copy(
-                    color = MaterialTheme.colorScheme.onSurface
-                ),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(56.dp)
-                    .testTag("search_text_field")
-            )
+            SearchInputField(query = query, onQueryChange = onQueryChange)
 
             // Trailing Icon: Layout View Switcher button (Grid / Staggered Grid vs Single Column List)
             ActionTooltip(if (isGridLayout) "Switch to Single Column List" else "Switch to Grid View") {
@@ -156,11 +98,96 @@ fun FloatingSearchBar(
                 ) {
                     Icon(
                         imageVector = if (isGridLayout) Icons.AutoMirrored.Filled.ViewList else Icons.Default.GridView,
-                        contentDescription = if (isGridLayout) "Switch to Single Column List" else "Switch to Grid View",
+                        contentDescription = if (isGridLayout) {
+                            "Switch to Single Column List"
+                        } else {
+                            "Switch to Grid View"
+                        },
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
             }
         }
     }
+}
+
+/** The leading button: clear the query when there is one, otherwise open the drawer. */
+@Composable
+private fun SearchLeadingButton(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onOpenDrawer: () -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+    if (query.isNotEmpty()) {
+        ActionTooltip("Clear search") {
+            IconButton(
+                onClick = {
+                    onQueryChange("")
+                    focusManager.clearFocus()
+                },
+                modifier = Modifier.testTag("search_back_button")
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Clear search",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+    } else {
+        ActionTooltip("Open navigation menu") {
+            IconButton(
+                onClick = onOpenDrawer,
+                modifier = Modifier.testTag("drawer_menu_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Menu,
+                    contentDescription = "Open navigation menu",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+    }
+}
+
+/** The search field itself, which filters notes by title or content keywords. */
+@Composable
+private fun RowScope.SearchInputField(query: String, onQueryChange: (String) -> Unit) {
+    val focusManager = LocalFocusManager.current
+    TextField(
+        value = query,
+        onValueChange = onQueryChange,
+        placeholder = {
+            Text(
+                text = stringResource(R.string.search_hint),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
+        },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(
+            imeAction = ImeAction.Search
+        ),
+        keyboardActions = KeyboardActions(
+            onSearch = {
+                focusManager.clearFocus()
+            }
+        ),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = Color.Transparent,
+            unfocusedContainerColor = Color.Transparent,
+            disabledContainerColor = Color.Transparent,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            disabledIndicatorColor = Color.Transparent
+        ),
+        textStyle = MaterialTheme.typography.bodyLarge.copy(
+            color = MaterialTheme.colorScheme.onSurface
+        ),
+        modifier = Modifier
+            .weight(1f)
+            .height(56.dp)
+            .testTag("search_text_field")
+    )
 }

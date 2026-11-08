@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Check
@@ -31,9 +30,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
+import com.deepanjanxyz.notepad.ui.feature_editor.model.EditorFormat
+import com.deepanjanxyz.notepad.ui.theme.AppColors
 
 @Composable
 fun EditorTopBar(
@@ -41,8 +43,8 @@ fun EditorTopBar(
     onTogglePin: () -> Unit,
     hasReminder: Boolean,
     onOpenReminder: () -> Unit,
-    isChecklistMode: Boolean,
-    onToggleChecklist: () -> Unit,
+    editorFormat: EditorFormat,
+    onFormatSelected: (EditorFormat) -> Unit,
     hasColor: Boolean,
     onOpenColorPicker: () -> Unit,
     hasDrawing: Boolean,
@@ -51,8 +53,8 @@ fun EditorTopBar(
     onShare: () -> Unit,
     onSaveAndClose: () -> Unit,
     onNavigateBack: () -> Unit,
-    textPrimary: Color = Color(0xFFE2E2E6),
-    amberAccent: Color = Color(0xFFFFB300),
+    textPrimary: Color = AppColors.TextPrimary,
+    amberAccent: Color = AppColors.AccentAmber,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -63,142 +65,133 @@ fun EditorTopBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Back Button
-        ActionTooltip("Back") {
-            IconButton(
-                onClick = onNavigateBack,
-                modifier = Modifier.testTag("editor_back_button")
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    tint = textPrimary
-                )
-            }
-        }
+        TopBarAction(
+            "Back", Icons.AutoMirrored.Filled.ArrowBack,
+            textPrimary, "editor_back_button", onNavigateBack
+        )
 
-        // Right Action Icons
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        EditorActionsRow(
+            isPinned = isPinned,
+            hasReminder = hasReminder,
+            editorFormat = editorFormat,
+            hasColor = hasColor,
+            hasDrawing = hasDrawing,
+            textPrimary = textPrimary,
+            amberAccent = amberAccent,
+            onTogglePin = onTogglePin,
+            onOpenReminder = onOpenReminder,
+            onFormatSelected = onFormatSelected,
+            onOpenColorPicker = onOpenColorPicker,
+            onOpenDrawing = onOpenDrawing,
+            onShare = onShare,
+            onArchive = onArchive,
+            onSaveAndClose = onSaveAndClose
+        )
+    }
+}
+
+/** The action icons on the right of the editor's top bar, and the done button. */
+@Composable
+private fun EditorActionsRow(
+    isPinned: Boolean,
+    hasReminder: Boolean,
+    editorFormat: EditorFormat,
+    hasColor: Boolean,
+    hasDrawing: Boolean,
+    textPrimary: Color,
+    amberAccent: Color,
+    onTogglePin: () -> Unit,
+    onOpenReminder: () -> Unit,
+    onFormatSelected: (EditorFormat) -> Unit,
+    onOpenColorPicker: () -> Unit,
+    onOpenDrawing: () -> Unit,
+    onShare: () -> Unit,
+    onArchive: () -> Unit,
+    onSaveAndClose: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        // Pin / Unpin
+        TopBarAction(
+            if (isPinned) "Unpin Note" else "Pin Note",
+            if (isPinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+            if (isPinned) amberAccent else textPrimary, "toggle_pin_button", onTogglePin
+        )
+        // Reminder Button
+        TopBarAction(
+            if (hasReminder) "Edit reminder" else "Add reminder",
+            if (hasReminder) Icons.Filled.NotificationsActive else Icons.Outlined.Notifications,
+            if (hasReminder) amberAccent else textPrimary, "toggle_reminder_button", onOpenReminder
+        )
+        // Format menu: plain text, checklist, bulleted list or numbered list
+        EditorFormatMenu(
+            currentFormat = editorFormat,
+            onFormatSelected = onFormatSelected
+        )
+        // Color Tint Palette
+        TopBarAction(
+            "Color palette", Icons.Default.Palette,
+            if (hasColor) amberAccent else textPrimary, "toggle_color_picker_button", onOpenColorPicker
+        )
+        // Drawing Action
+        TopBarAction(
+            "Drawing", Icons.Filled.Brush,
+            if (hasDrawing) amberAccent else textPrimary, "open_drawing_button", onOpenDrawing
+        )
+        // Share Action
+        TopBarAction("Share Note", Icons.Default.Share, textPrimary, "share_note_button", onShare)
+        // Archive Action
+        TopBarAction("Archive Note", Icons.Default.Archive, textPrimary, "archive_note_button", onArchive)
+
+        Spacer(modifier = Modifier.width(4.dp))
+
+        EditorSaveButton(amberAccent = amberAccent, onSaveAndClose = onSaveAndClose)
+    }
+}
+
+/** The circular done button that saves and closes the editor. */
+@Composable
+private fun EditorSaveButton(amberAccent: Color, onSaveAndClose: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(38.dp)
+            .clip(CircleShape)
+            .background(AppColors.AmberSurface)
+            .border(1.5.dp, amberAccent, CircleShape)
+            .clickable(onClick = onSaveAndClose)
+            .testTag("save_note_button"),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Check,
+            contentDescription = "Save and Close",
+            tint = amberAccent,
+            modifier = Modifier.size(22.dp)
+        )
+    }
+}
+
+/** One action icon in the editor's top bar. */
+@Composable
+private fun TopBarAction(
+    tooltip: String,
+    icon: ImageVector,
+    tint: Color,
+    testTag: String,
+    onClick: () -> Unit
+) {
+    ActionTooltip(tooltip) {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier.testTag(testTag)
         ) {
-            // Pin / Unpin
-            ActionTooltip(if (isPinned) "Unpin Note" else "Pin Note") {
-                IconButton(
-                    onClick = onTogglePin,
-                    modifier = Modifier.testTag("toggle_pin_button")
-                ) {
-                    Icon(
-                        imageVector = if (isPinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
-                        contentDescription = if (isPinned) "Unpin Note" else "Pin Note",
-                        tint = if (isPinned) amberAccent else textPrimary
-                    )
-                }
-            }
-
-            // Reminder Button
-            ActionTooltip(if (hasReminder) "Edit reminder" else "Add reminder") {
-                IconButton(
-                    onClick = onOpenReminder,
-                    modifier = Modifier.testTag("toggle_reminder_button")
-                ) {
-                    Icon(
-                        imageVector = if (hasReminder) Icons.Filled.NotificationsActive else Icons.Outlined.Notifications,
-                        contentDescription = if (hasReminder) "Edit reminder" else "Add reminder",
-                        tint = if (hasReminder) amberAccent else textPrimary
-                    )
-                }
-            }
-
-            // Checklist / Bullet list toggle
-            ActionTooltip("Checklist format") {
-                IconButton(
-                    onClick = onToggleChecklist,
-                    modifier = Modifier.testTag("toggle_checklist_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.FormatListBulleted,
-                        contentDescription = "Checklist format",
-                        tint = if (isChecklistMode) amberAccent else textPrimary
-                    )
-                }
-            }
-
-            // Color Tint Palette
-            ActionTooltip("Color palette") {
-                IconButton(
-                    onClick = onOpenColorPicker,
-                    modifier = Modifier.testTag("toggle_color_picker_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Palette,
-                        contentDescription = "Color palette",
-                        tint = if (hasColor) amberAccent else textPrimary
-                    )
-                }
-            }
-
-            // Drawing Action
-            ActionTooltip("Drawing") {
-                IconButton(
-                    onClick = onOpenDrawing,
-                    modifier = Modifier.testTag("open_drawing_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Brush,
-                        contentDescription = "Drawing",
-                        tint = if (hasDrawing) amberAccent else textPrimary
-                    )
-                }
-            }
-
-            // Share Action
-            ActionTooltip("Share Note") {
-                IconButton(
-                    onClick = onShare,
-                    modifier = Modifier.testTag("share_note_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Share,
-                        contentDescription = "Share Note",
-                        tint = textPrimary
-                    )
-                }
-            }
-
-            // Archive Action
-            ActionTooltip("Archive Note") {
-                IconButton(
-                    onClick = onArchive,
-                    modifier = Modifier.testTag("archive_note_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Archive,
-                        contentDescription = "Archive Note",
-                        tint = textPrimary
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(4.dp))
-
-            // Circular Done / Check Button
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF282419))
-                    .border(1.5.dp, amberAccent, CircleShape)
-                    .clickable(onClick = onSaveAndClose)
-                    .testTag("save_note_button"),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = "Save and Close",
-                    tint = amberAccent,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
+            Icon(
+                imageVector = icon,
+                contentDescription = tooltip,
+                tint = tint
+            )
         }
     }
 }

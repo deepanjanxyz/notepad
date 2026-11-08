@@ -159,7 +159,10 @@ class NoteLogicTest {
         val combined = com.deepanjanxyz.notepad.domain.model.DrawingSerializer.combine(serializedDrawing, textBody)
 
         assertTrue(com.deepanjanxyz.notepad.domain.model.DrawingSerializer.isDrawing(combined))
-        assertEquals(serializedDrawing.trim(), com.deepanjanxyz.notepad.domain.model.DrawingSerializer.extractDrawingPart(combined))
+        assertEquals(
+            serializedDrawing.trim(),
+            com.deepanjanxyz.notepad.domain.model.DrawingSerializer.extractDrawingPart(combined)
+        )
         assertEquals(textBody, com.deepanjanxyz.notepad.domain.model.DrawingSerializer.extractTextPart(combined))
 
         // When content is pure drawing with no text
@@ -236,7 +239,10 @@ class NoteLogicTest {
         assertEquals(1L, multiKeywordMatch[0].id)
 
         // 4. Case-insensitivity & whitespace trimming
-        val caseWhitespaceMatch = com.deepanjanxyz.notepad.domain.util.NoteFilter.filterNotes(allNotes, "   TEAM   ROADMAP   ")
+        val caseWhitespaceMatch = com.deepanjanxyz.notepad.domain.util.NoteFilter.filterNotes(
+            allNotes,
+            "   TEAM   ROADMAP   "
+        )
         assertEquals(1, caseWhitespaceMatch.size)
         assertEquals(1L, caseWhitespaceMatch[0].id)
 

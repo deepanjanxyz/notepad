@@ -2,45 +2,54 @@
 
 # Elite Memo Pro
 
-*A local-first Android notes app — text, checklists, and freehand drawing — built with Kotlin and Jetpack Compose.*
+**A local-first Android notes app — text, checklists and freehand drawing — built with Kotlin and Jetpack Compose.**
+
+[![CI](https://github.com/deepanjanxyz/notepad/actions/workflows/ci.yml/badge.svg)](https://github.com/deepanjanxyz/notepad/actions/workflows/ci.yml)
+[![Universal PR Check](https://github.com/deepanjanxyz/notepad/actions/workflows/universal-pr-check.yml/badge.svg)](https://github.com/deepanjanxyz/notepad/actions/workflows/universal-pr-check.yml)
+[![Latest release](https://img.shields.io/github/v/release/deepanjanxyz/notepad)](https://github.com/deepanjanxyz/notepad/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ## Overview
 
-Elite Memo Pro brings text notes and freehand drawings together in one app. Write notes with titles and checklists, sketch on a canvas with pen, marker, highlighter, selection, and eraser tools, and keep everything organised with labels, colours, pins, search, reminders, and a built-in archive and trash.
+Elite Memo Pro brings text notes, lists and freehand drawings together in one app. Write notes with titles, checklists and bulleted or numbered lists, sketch on a canvas with pen, marker, highlighter, selection and eraser tools, and keep everything organised with labels, colours, pins, search, reminders, and a built-in archive and trash.
 
-The app is **local-first**: notes, labels, and settings live in an on-device Room database and DataStore. No account and no server are required to use it.
+The app is **local-first**: notes, labels and settings live in an on-device Room database and DataStore. There is no account, no server, and no `INTERNET` permission.
 
 ## Features
 
 **Notes**
-- Rich text notes with a title and body.
+- Text notes with a title and body.
 - Inline checklists with per-item completion state.
+- Bulleted and numbered lists, with no checkboxes: numbered items renumber as they are added or removed.
+- A format menu that switches the body between plain text, checklist, bullets and numbers.
+- A Checklist card in the create sheet opens the editor ready for tickable items.
 - Per-note colour and pinning.
 
 **Drawing**
-- Freehand drawing notes with pen, marker, highlighter, selection, and eraser tools.
-- Eraser supports both segment and whole-stroke modes.
+- Freehand drawing notes with pen, marker, highlighter, selection and eraser tools.
+- Eraser in segment (touch-only) or whole-stroke mode.
 - Undo and redo for drawing edits.
-- Selectable canvas backgrounds with blank, ruled, grid, and dotted guides.
+- Canvas backgrounds: blank, ruled, grid or dotted.
 - A colour palette sheet for stroke colours.
+- Selection actions: select all strokes, then duplicate, delete or recolour them.
+- The colour and size chosen for each tool are remembered between visits.
 
 **Organise**
-- Labels: add, rename, delete, and apply labels to notes.
-- Search across note titles, body text, and tags, with colourful match highlighting; filter by label or colour.
-- Sort notes by last modified, date created, title, or colour.
-- Grid and list layouts on the home screen.
+- Labels: add, rename, delete and apply.
+- Search across titles, body text and tags, with colourful match highlighting; filter by label or colour.
+- Sort by last modified, date created, title or colour; grid and list layouts on the home screen.
 - Archive to set notes aside, and Trash with restore or permanent delete (plus empty-trash); trashed notes are cleared automatically after 30 days.
 
 **Reminders & security**
-- Schedule a reminder per note; when it fires, WorkManager posts a notification that opens the note.
-- Light, dark, or system appearance.
+- A per-note reminder that posts a notification opening the note.
+- Light, dark or system appearance.
 - Optional app lock using biometrics or the device credential.
 
 **Extras**
 - Home-screen widget: pin checklist notes and tick items off without opening the app.
 - Share a note as plain text.
 - Back up and restore all notes to a JSON file in Downloads, with optional automatic backups.
-- Counts for active notes, pinned notes, and words in Settings.
+- Counts for active notes, pinned notes and words in Settings.
 - Edge-to-edge Material 3 interface.
 
 ## Screenshots
@@ -74,50 +83,27 @@ The app is **local-first**: notes, labels, and settings live in an on-device Roo
 
 </details>
 
-## Tech stack
+## Install
 
-| Area | Choice |
-|---|---|
-| Language | Kotlin 2.4.21 |
-| UI | Jetpack Compose with Material 3 (Compose BOM `2026.09.00`) |
-| Local storage | Room (notes & labels) and DataStore Preferences (settings) |
-| Background work | WorkManager (note reminders) |
-| Security | AndroidX Biometric (optional app lock) |
-| Async | Kotlin Coroutines and Flow |
-| Remote foundation | Supabase (`gotrue-kt` / `postgrest-kt`) over Ktor |
-| Testing | JUnit 4 |
+Download the signed APK from the [latest release](https://github.com/deepanjanxyz/notepad/releases/latest) and open it on your device. Elite Memo Pro runs on Android 7.0 (API 24) and newer.
 
-`compileSdk` / `targetSdk` are **37**, `minSdk` is **24**.
+## Roadmap
 
-## Build & release
+Planned work, roughly in order. Priorities can shift, and issues or pull requests on any of these are welcome.
 
-Elite Memo Pro is built with **Bazel** (see [BAZEL.md](BAZEL.md)) against **JDK 21**, using the Android SDK for platform 37. Debug builds need no secrets: `bazel build //app:app` produces `bazel-bin/app/app.apk`. Release APKs are assembled with `bazel build //app:app --config=release` and signed afterwards from a keystore at `app/keystore.jks` together with the `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD` values. When those values are missing the build still produces an unsigned release APK rather than failing, so reproducible builds (for example F-Droid or IzzyOnDroid) still succeed; none of these files are committed.
-
-Versions follow **Semantic Versioning** (`X.Y.Z`) with a `versionCode` that increments by one per release. `dev` is the integration branch and `main` is the release branch. Pull requests into `main` that change application code receive an automatic patch bump, and merging to `main` publishes a tagged GitHub release (`v<versionName>`) with a signed APK and SHA-256 checksums. Continuous integration runs the unit tests and a debug build with Bazel on every push and pull request, and a per-pull-request check adds a secret scan, reported back as a single status table.
-
-## Contributing
-
-Contributions are welcome.
-
-1. Fork the repository and create a branch off `dev`.
-2. Make your change and make sure the unit tests pass.
-3. Open a pull request **against `dev`** — the Universal PR Check runs automatically and reports the result on the pull request.
-4. Once verified, changes flow `dev` → `main`, where the release pipeline handles versioning and publishing.
-
-A few conventions:
-
-- Keep the domain module free of Android dependencies.
-- Prefer one focused use case per operation.
-- Don't commit keystores, `.env`, or `local.properties`.
+- [x] **Bulleted and numbered lists** — shipped in 1.0.28: lists without checkboxes, a format menu, and a Checklist card in the create sheet.
+- [ ] **Rich-text formatting** *(high priority)* — bold, italic, underline, headings and links inside a note.
+- [ ] **Calendar view** — see which days have notes and open a day's notes from a calendar, keeping the created date and the reminder date separate.
+- [ ] **Bulk note actions** — select several notes and archive, delete, re-label, recolour or export them together.
+- [ ] **Drawing improvements** — quicker stroke-thickness changes, custom colours, canvas zoom and pan, and stylus-pressure pen width where the device supports it.
+- [ ] **Encrypted backup** — a password-protected, encrypted backup file beside the JSON one, restorable on another device, with no cloud or server.
+- [ ] **Reading & editor customization** — font size, line spacing and a distraction-free reading view.
+- [ ] **Markdown export/import** — export and import notes as Markdown and share several notes at once, staying compatible with the current format.
 
 ## License
 
 Released under the **MIT License**. See [LICENSE](LICENSE).
 
-```
-Copyright (c) 2026 Deepanjan Biswas
-```
-
 ---
 
-<p align="center"><sub>Built with Kotlin and Jetpack Compose.</sub></p>
+<p align="center"><sub>Built with Kotlin and Jetpack Compose. Contributions are welcome — see <a href="CONTRIBUTING.md">CONTRIBUTING.md</a> and the <a href="CODE_OF_CONDUCT.md">Code of Conduct</a>.</sub></p>

@@ -14,12 +14,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
@@ -59,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.ui.components.NoteCard
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -70,7 +69,6 @@ fun ArchiveScreen(
     isDrawerOpen: () -> Boolean,
     onNavigateBack: () -> Unit,
     onRestoreNote: (Long) -> Unit,
-    onMoveToTrash: (Long) -> Unit,
     onRestoreSelected: (List<Long>) -> Unit,
     onMoveSelectedToTrash: (List<Long>) -> Unit,
     onUndoMoveToTrash: () -> Unit,
@@ -82,10 +80,12 @@ fun ArchiveScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    // The drawer takes the press while it is open, so the screen does not change
-    // behind it and a selection is not cleared out from under it. Otherwise one
-    // handler with the branch inside, rather than a second one competing with it:
-    // a selection clears first, and only then does back leave the screen.
+    fun toggleSelection(id: Long) {
+        selectedNoteIds = if (id in selectedNoteIds) selectedNoteIds - id else selectedNoteIds + id
+    }
+
+    // The drawer takes the press while it is open, so a selection clears first and
+    // only then does back leave the screen.
     BackHandler(enabled = !isDrawerOpen()) {
         if (isSelectionMode) {
             selectedNoteIds = emptySet()
@@ -94,126 +94,84 @@ fun ArchiveScreen(
         }
     }
 
+    ArchiveContent(
+        notes = notes,
+        isGridLayout = isGridLayout,
+        isSelectionMode = isSelectionMode,
+        selectedNoteIds = selectedNoteIds,
+        snackbarHostState = snackbarHostState,
+        onOpenDrawer = onOpenDrawer,
+        onRestoreNote = onRestoreNote,
+        onUnarchiveSelected = {
+            onRestoreSelected(selectedNoteIds.toList())
+            selectedNoteIds = emptySet()
+        },
+        onMoveSelectedToTrash = {
+            val idsToMoveToTrash = selectedNoteIds.toList()
+            onMoveSelectedToTrash(idsToMoveToTrash)
+            selectedNoteIds = emptySet()
+            showMovedToTrashSnackbar(scope, snackbarHostState, idsToMoveToTrash.size, onUndoMoveToTrash)
+        },
+        onNoteClick = onNoteClick,
+        onClearSelection = { selectedNoteIds = emptySet() },
+        onSelectAll = { selectedNoteIds = notes.map { it.id }.toSet() },
+        onToggleSelection = ::toggleSelection,
+        modifier = modifier
+    )
+}
+
+/** The same Undo the home screen offers, so trashing a batch here is as reversible. */
+private fun showMovedToTrashSnackbar(
+    scope: CoroutineScope,
+    snackbarHostState: SnackbarHostState,
+    count: Int,
+    onUndo: () -> Unit
+) {
+    scope.launch {
+        val result = snackbarHostState.showSnackbar(
+            message = if (count == 1) "Note moved to trash" else "$count notes moved to trash",
+            actionLabel = "Undo",
+            duration = SnackbarDuration.Short
+        )
+        if (result == SnackbarResult.ActionPerformed) {
+            onUndo()
+        }
+    }
+}
+
+/** The archive screen's bar, list and empty state. */
+@Composable
+private fun ArchiveContent(
+    notes: List<Note>,
+    isGridLayout: Boolean,
+    isSelectionMode: Boolean,
+    selectedNoteIds: Set<Long>,
+    snackbarHostState: SnackbarHostState,
+    onOpenDrawer: () -> Unit,
+    onRestoreNote: (Long) -> Unit,
+    onUnarchiveSelected: () -> Unit,
+    onMoveSelectedToTrash: () -> Unit,
+    onNoteClick: (Note) -> Unit,
+    onClearSelection: () -> Unit,
+    onSelectAll: () -> Unit,
+    onToggleSelection: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { SnackbarHost(snackbarHostState, modifier = Modifier.navigationBarsPadding()) },
         topBar = {
-            // Cross-fade between the default bar and the contextual selection bar
-            // instead of swapping them abruptly.
-            AnimatedContent(
-                targetState = isSelectionMode,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "archive_top_bar"
-            ) { selecting ->
-            if (selecting) {
-                TopAppBar(
-                    title = { Text("${selectedNoteIds.size} Selected") },
-                    navigationIcon = {
-                        ActionTooltip("Clear selection") {
-                            IconButton(onClick = { selectedNoteIds = emptySet() }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear selection")
-                            }
-                        }
-                    },
-                    actions = {
-                        ActionTooltip("Select all") {
-                            IconButton(onClick = { selectedNoteIds = notes.map { it.id }.toSet() }) {
-                                Icon(Icons.Default.SelectAll, contentDescription = "Select all")
-                            }
-                        }
-                        ActionTooltip("Unarchive selected") {
-                            IconButton(
-                                onClick = {
-                                    val idsToRestore = selectedNoteIds.toList()
-                                    onRestoreSelected(idsToRestore)
-                                    selectedNoteIds = emptySet()
-                                },
-                                modifier = Modifier.testTag("unarchive_selected_button")
-                            ) {
-                                Icon(
-                                    Icons.Default.Unarchive,
-                                    contentDescription = "Unarchive selected",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                        ActionTooltip("Move selected to trash") {
-                            IconButton(
-                                onClick = {
-                                    val idsToMoveToTrash = selectedNoteIds.toList()
-                                    onMoveSelectedToTrash(idsToMoveToTrash)
-                                    selectedNoteIds = emptySet()
-                                    // The same Undo affordance the home screen offers, so
-                                    // trashing a batch from Archive is just as reversible.
-                                    scope.launch {
-                                        val result = snackbarHostState.showSnackbar(
-                                            message = if (idsToMoveToTrash.size == 1) {
-                                                "Note moved to trash"
-                                            } else {
-                                                "${idsToMoveToTrash.size} notes moved to trash"
-                                            },
-                                            actionLabel = "Undo",
-                                            duration = SnackbarDuration.Short
-                                        )
-                                        if (result == SnackbarResult.ActionPerformed) {
-                                            onUndoMoveToTrash()
-                                        }
-                                    }
-                                },
-                                modifier = Modifier.testTag("delete_selected_archive_button")
-                            ) {
-                                Icon(
-                                    Icons.Default.Delete,
-                                    contentDescription = "Move selected to trash",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                    )
-                )
-            } else {
-                TopAppBar(
-                    title = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Archive",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.size(8.dp))
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh
-                            ) {
-                                Text(
-                                    text = "${notes.size}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                    },
-                    navigationIcon = {
-                        ActionTooltip("Open drawer") {
-                            IconButton(
-                                onClick = onOpenDrawer,
-                                modifier = Modifier.testTag("archive_drawer_menu_button")
-                            ) {
-                                Icon(Icons.Default.Menu, contentDescription = "Open drawer")
-                            }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background
-                    )
-                )
-            }
-            }
+            ArchiveTopBar(
+                isSelectionMode = isSelectionMode,
+                selectedCount = selectedNoteIds.size,
+                archiveCount = notes.size,
+                onClearSelection = onClearSelection,
+                onSelectAll = onSelectAll,
+                onUnarchiveSelected = onUnarchiveSelected,
+                onMoveSelectedToTrash = onMoveSelectedToTrash,
+                onOpenDrawer = onOpenDrawer
+            )
         }
     ) { innerPadding ->
         Column(
@@ -223,81 +181,229 @@ fun ArchiveScreen(
                 .background(MaterialTheme.colorScheme.background)
         ) {
             if (notes.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            modifier = Modifier.size(88.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Archive,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(44.dp)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "No archived notes",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Notes you archive will be stored here safely.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
+                EmptyArchiveState()
             } else {
-                LazyVerticalStaggeredGrid(
-                    columns = if (isGridLayout) StaggeredGridCells.Fixed(2) else StaggeredGridCells.Fixed(1),
-                    contentPadding = PaddingValues(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalItemSpacing = 12.dp,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    items(notes, key = { it.id }) { note ->
-                        NoteCard(
-                            note = note,
-                            isSelected = selectedNoteIds.contains(note.id),
-                            isSelectionMode = isSelectionMode,
-                            isInArchive = true,
-                            onUnarchive = { onRestoreNote(note.id) },
-                            searchQuery = "",
-                            onClick = {
-                                if (isSelectionMode) {
-                                    selectedNoteIds = if (selectedNoteIds.contains(note.id)) {
-                                        selectedNoteIds - note.id
-                                    } else {
-                                        selectedNoteIds + note.id
-                                    }
-                                } else {
-                                    onNoteClick(note)
-                                }
-                            },
-                            onLongClick = {
-                                selectedNoteIds = if (selectedNoteIds.contains(note.id)) {
-                                    selectedNoteIds - note.id
-                                } else {
-                                    selectedNoteIds + note.id
-                                }
-                            },
-                            modifier = Modifier.animateItem()
-                        )
-                    }
+                ArchiveGrid(
+                    notes = notes,
+                    isGridLayout = isGridLayout,
+                    isSelectionMode = isSelectionMode,
+                    selectedNoteIds = selectedNoteIds,
+                    onToggleSelection = onToggleSelection,
+                    onNoteClick = onNoteClick,
+                    onRestoreNote = onRestoreNote
+                )
+            }
+        }
+    }
+}
+
+/** Cross-fades between the default bar and the contextual selection bar. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ArchiveTopBar(
+    isSelectionMode: Boolean,
+    selectedCount: Int,
+    archiveCount: Int,
+    onClearSelection: () -> Unit,
+    onSelectAll: () -> Unit,
+    onUnarchiveSelected: () -> Unit,
+    onMoveSelectedToTrash: () -> Unit,
+    onOpenDrawer: () -> Unit
+) {
+    AnimatedContent(
+        targetState = isSelectionMode,
+        transitionSpec = { fadeIn() togetherWith fadeOut() },
+        label = "archive_top_bar"
+    ) { selecting ->
+        if (selecting) {
+            ArchiveSelectionTopBar(
+                selectedCount = selectedCount,
+                onClearSelection = onClearSelection,
+                onSelectAll = onSelectAll,
+                onUnarchiveSelected = onUnarchiveSelected,
+                onMoveSelectedToTrash = onMoveSelectedToTrash
+            )
+        } else {
+            ArchiveDefaultTopBar(archiveCount = archiveCount, onOpenDrawer = onOpenDrawer)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ArchiveSelectionTopBar(
+    selectedCount: Int,
+    onClearSelection: () -> Unit,
+    onSelectAll: () -> Unit,
+    onUnarchiveSelected: () -> Unit,
+    onMoveSelectedToTrash: () -> Unit
+) {
+    TopAppBar(
+        title = {
+            Text("$selectedCount Selected")
+        },
+        navigationIcon = {
+            ActionTooltip("Clear selection") {
+                IconButton(onClick = onClearSelection) {
+                    Icon(Icons.Default.Close, contentDescription = "Clear selection")
                 }
             }
+        },
+        actions = {
+            ActionTooltip("Select all") {
+                IconButton(onClick = onSelectAll) {
+                    Icon(Icons.Default.SelectAll, contentDescription = "Select all")
+                }
+            }
+            ActionTooltip("Unarchive selected") {
+                IconButton(
+                    onClick = onUnarchiveSelected,
+                    modifier = Modifier.testTag("unarchive_selected_button")
+                ) {
+                    Icon(
+                        Icons.Default.Unarchive,
+                        contentDescription = "Unarchive selected",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            ActionTooltip("Move selected to trash") {
+                IconButton(
+                    onClick = onMoveSelectedToTrash,
+                    modifier = Modifier.testTag("delete_selected_archive_button")
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Move selected to trash",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+        )
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ArchiveDefaultTopBar(archiveCount: Int, onOpenDrawer: () -> Unit) {
+    TopAppBar(
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Archive",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.size(8.dp))
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh
+                ) {
+                    Text(
+                        text = "$archiveCount",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    )
+                }
+            }
+        },
+        navigationIcon = {
+            ActionTooltip("Open drawer") {
+                IconButton(
+                    onClick = onOpenDrawer,
+                    modifier = Modifier.testTag("archive_drawer_menu_button")
+                ) {
+                    Icon(Icons.Default.Menu, contentDescription = "Open drawer")
+                }
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.background
+        )
+    )
+}
+
+/** Shown when nothing has been archived yet. */
+@Composable
+private fun EmptyArchiveState() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(88.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Archive,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(44.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "No archived notes",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Notes you archive will be stored here safely.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+/** The archived notes, one or two to a row. */
+@Composable
+private fun ArchiveGrid(
+    notes: List<Note>,
+    isGridLayout: Boolean,
+    isSelectionMode: Boolean,
+    selectedNoteIds: Set<Long>,
+    onToggleSelection: (Long) -> Unit,
+    onNoteClick: (Note) -> Unit,
+    onRestoreNote: (Long) -> Unit
+) {
+    LazyVerticalStaggeredGrid(
+        columns = if (isGridLayout) StaggeredGridCells.Fixed(2) else StaggeredGridCells.Fixed(1),
+        contentPadding = PaddingValues(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalItemSpacing = 12.dp,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        items(notes, key = { it.id }) { note ->
+            NoteCard(
+                note = note,
+                isSelected = selectedNoteIds.contains(note.id),
+                isSelectionMode = isSelectionMode,
+                isInArchive = true,
+                onUnarchive = { onRestoreNote(note.id) },
+                searchQuery = "",
+                onClick = {
+                    if (isSelectionMode) {
+                        onToggleSelection(note.id)
+                    } else {
+                        onNoteClick(note)
+                    }
+                },
+                onLongClick = { onToggleSelection(note.id) },
+                modifier = Modifier.animateItem()
+            )
         }
     }
 }

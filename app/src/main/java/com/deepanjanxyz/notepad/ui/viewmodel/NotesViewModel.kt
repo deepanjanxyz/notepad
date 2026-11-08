@@ -16,6 +16,7 @@ import com.deepanjanxyz.notepad.domain.usecase.label.LabelUseCases
 import com.deepanjanxyz.notepad.domain.usecase.note.NoteUseCases
 import com.deepanjanxyz.notepad.domain.usecase.note.SavedNote
 import com.deepanjanxyz.notepad.domain.usecase.settings.SettingsUseCases
+import com.deepanjanxyz.notepad.ui.feature_drawing.model.DrawingToolPrefs
 import com.deepanjanxyz.notepad.worker.NoteReminderScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -36,9 +37,17 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.IOException
 
+// How long the view model waits after a change before it saves, in milliseconds.
+private const val AUTO_SAVE_DELAY_MS = 600L
+
+
 sealed interface Screen {
     data object Home : Screen
-    data class Editor(val noteId: Long = 0L, val returnTo: Screen = Home) : Screen
+    data class Editor(
+        val noteId: Long = 0L,
+        val returnTo: Screen = Home,
+        val startInChecklist: Boolean = false
+    ) : Screen
     data class Drawing(val noteId: Long = 0L, val returnTo: Screen = Home) : Screen
     data object Archive : Screen
     data object Trash : Screen
@@ -83,6 +92,16 @@ data class NotesUiState(
     val autoBackup: Boolean = false
 )
 
+/**
+ * The app's one view model. Every screen reads its state and calls back into it, so
+ * its functions are the app's verbs.
+ *
+ * `TooManyFunctions` is suppressed here rather than the class split. These functions
+ * share the same repositories, the same dispatcher and the same state, and the
+ * screens read that state as one object; several view models would hand each of them
+ * the same dependencies again and scatter what is now read in one place.
+ */
+@Suppress("TooManyFunctions")
 class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     private val noteUseCases: NoteUseCases = (application as NotepadApplication).container.noteUseCases
@@ -397,7 +416,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
                 .drop(1) // ignore the initial empty value emitted before the database loads
                 .collectLatest {
                     // Wait for a quiet moment so a burst of changes becomes one write.
-                    delay(600)
+                    delay(AUTO_SAVE_DELAY_MS)
                     writeAutoBackup()
                 }
         }
@@ -470,17 +489,27 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
      * file this app cannot read would throw away notes it cannot see.
      */
     private suspend fun adoptExistingBackup(context: Application): Boolean {
-        val present = withContext(Dispatchers.IO) { DownloadsBackup.info(context) != null }
-        val text = withContext(Dispatchers.IO) { DownloadsBackup.read(context) }
-        if (text == null) return present
-        return when (val parsed = parseBackupJson(text)) {
-            is BackupParseResult.Success -> {
-                importNotesNow(parsed.notes)
-                false
-            }
-            is BackupParseResult.Failure -> {
-                Log.w(TAG, "The backup already in the folder was not read: ${parsed.reason}")
-                true
+        // The file the earlier installation left, not the newest one: the newest may
+        // be a copy this app wrote itself, and its notes are already in the database.
+        val name = DownloadsBackup.FILE_NAME
+        val present = withContext(Dispatchers.IO) {
+            DownloadsBackup.list(context).any { it.name == name }
+        }
+        val text = withContext(Dispatchers.IO) { DownloadsBackup.read(context, name) }
+        return when {
+            !present -> false
+            // There but unreadable: writing over it would throw away notes this app
+            // cannot see, so the write is held back.
+            text == null -> true
+            else -> when (val parsed = parseBackupJson(text)) {
+                is BackupParseResult.Success -> {
+                    importNotesNow(parsed.notes)
+                    false
+                }
+                is BackupParseResult.Failure -> {
+                    Log.w(TAG, "The backup already in the folder was not read: ${parsed.reason}")
+                    true
+                }
             }
         }
     }
@@ -801,7 +830,8 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
             NoteSortOption.DATE_CREATED ->
                 compareByDescending<Note> { it.isPinned }.thenBy { it.createdAt }.thenBy { it.id }
             NoteSortOption.TITLE_ASC -> compareByDescending<Note> { it.isPinned }.thenBy { it.title.lowercase() }
-            NoteSortOption.TITLE_DESC -> compareByDescending<Note> { it.isPinned }.thenByDescending { it.title.lowercase() }
+            NoteSortOption.TITLE_DESC ->
+                compareByDescending<Note> { it.isPinned }.thenByDescending { it.title.lowercase() }
             NoteSortOption.COLOR -> compareByDescending<Note> { it.isPinned }.thenBy { it.colorIndex }
         }
         return notes.sortedWith(comparator)
@@ -813,5 +843,15 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteCustomTag(tag: String) {
         deleteLabel(tag)
+    }
+
+    // The drawing tool colours and sizes last used. Kept here rather than in the
+    // drawing screen so they survive leaving and reopening it.
+    private var drawingToolPrefs: DrawingToolPrefs? = null
+
+    fun currentDrawingToolPrefs(): DrawingToolPrefs? = drawingToolPrefs
+
+    fun saveDrawingToolPrefs(prefs: DrawingToolPrefs) {
+        drawingToolPrefs = prefs
     }
 }

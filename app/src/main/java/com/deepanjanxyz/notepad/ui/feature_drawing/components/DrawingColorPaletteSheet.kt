@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -26,6 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -33,7 +35,17 @@ import androidx.compose.ui.unit.sp
 import com.deepanjanxyz.notepad.domain.model.DrawingTool
 import com.deepanjanxyz.notepad.ui.feature_drawing.model.KeepColorGrid
 import com.deepanjanxyz.notepad.ui.feature_drawing.model.KeepThicknessLevels
+import com.deepanjanxyz.notepad.ui.theme.AppColors
 import kotlin.math.roundToInt
+
+// Base of the hexadecimal colour written into the swatch test tag.
+private const val HEX_RADIX = 16
+// The shortest and longest the stroke preview is drawn, in dp.
+private const val THICKNESS_MIN_DP = 2f
+private const val THICKNESS_MAX_DP = 22f
+// The range the thickness slider covers, in dp.
+private const val THICKNESS_SLIDER_MIN_DP = 2f
+private const val THICKNESS_SLIDER_MAX_DP = 54f
 
 @Composable
 fun ColorCircleItem(
@@ -46,7 +58,11 @@ fun ColorCircleItem(
         modifier = Modifier
             .size(40.dp)
             .clickable(onClick = onSelect)
-            .testTag("color_item_${color.toString(16)}"),
+            .semantics {
+                contentDescription = "Colour ${color.toString(HEX_RADIX)}"
+                selected = isSelected
+            }
+            .testTag("color_item_${color.toString(HEX_RADIX)}"),
         contentAlignment = Alignment.Center
     ) {
         Box(
@@ -55,8 +71,12 @@ fun ColorCircleItem(
                 .clip(CircleShape)
                 .background(Color(color))
                 .border(
-                    width = if (color == 0xFFFFFFFFL) 1.dp else if (isSelected) 2.5.dp else 0.dp,
-                    color = if (color == 0xFFFFFFFFL) Color(0xFF666666) else if (isSelected) Color(0xFF2196F3) else Color.Transparent,
+                    width = if (color == AppColors.OPAQUE_WHITE) 1.dp else if (isSelected) 2.5.dp else 0.dp,
+                    color = when {
+                        color == AppColors.OPAQUE_WHITE -> AppColors.SwatchIdle
+                        isSelected -> AppColors.Accent
+                        else -> Color.Transparent
+                    },
                     shape = CircleShape
                 )
         )
@@ -72,184 +92,273 @@ fun DrawingColorPaletteSheet(
     onThicknessSelected: (Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val toolTitle = when (activeTool) {
-        DrawingTool.PEN -> "Pencil / Pen"
-        DrawingTool.MARKER -> "Marker"
-        DrawingTool.HIGHLIGHTER -> "Highlighter"
-        else -> "Brush"
-    }
-
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color(0xFF1E1F22))
+            .background(AppColors.SheetSurfaceAlt)
             .padding(vertical = 12.dp, horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Tool header with size indicator and preview
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 2.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = toolTitle,
-                    style = TextStyle(
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
-                    )
-                )
-                Text(
-                    text = "${selectedThickness.roundToInt()} px",
-                    style = TextStyle(
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF2196F3)
-                    ),
-                    modifier = Modifier.testTag("pencil_size_label")
-                )
-            }
-
-            // Live stroke preview
-            Box(
-                modifier = Modifier
-                    .width(60.dp)
-                    .height(28.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Color(0xFF2B2C30)),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(
-                            width = 44.dp,
-                            height = (selectedThickness.coerceIn(2f, 22f)).dp
-                        )
-                        .clip(CircleShape)
-                        .background(
-                            Color(selectedColor).copy(
-                                alpha = if (activeTool == DrawingTool.HIGHLIGHTER) 0.5f else 1f
-                            )
-                        )
-                )
-            }
-        }
+        ToolHeaderRow(
+            toolTitle = toolTitleOf(activeTool),
+            selectedThickness = selectedThickness,
+            selectedColor = selectedColor,
+            activeTool = activeTool
+        )
 
         Spacer(modifier = Modifier.height(4.dp))
 
         // Interactive Pencil Size Slider
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = "Size",
-                style = TextStyle(fontSize = 12.sp, color = Color(0xFF9E9E9E)),
-                modifier = Modifier.width(32.dp)
-            )
-            Slider(
-                value = selectedThickness,
-                onValueChange = { onThicknessSelected(it.roundToInt().toFloat()) },
-                valueRange = 2f..54f,
-                steps = 25,
-                colors = SliderDefaults.colors(
-                    thumbColor = Color(0xFF2196F3),
-                    activeTrackColor = Color(0xFF2196F3),
-                    inactiveTrackColor = Color(0xFF424248)
-                ),
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("pencil_size_slider")
-            )
-        }
+        ThicknessSliderRow(
+            selectedThickness = selectedThickness,
+            onThicknessSelected = onThicknessSelected
+        )
 
         Spacer(modifier = Modifier.height(6.dp))
 
         // 7 Quick Preset Dots
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            KeepThicknessLevels.forEach { (thick, label) ->
-                val isSelected = (selectedThickness - thick).let { it >= -2f && it <= 2f }
-                val circleDp = when (thick) {
-                    3f -> 5.dp
-                    6f -> 8.dp
-                    10f -> 12.dp
-                    16f -> 16.dp
-                    24f -> 20.dp
-                    34f -> 24.dp
-                    else -> 28.dp
-                }
-
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .clickable { onThicknessSelected(thick) }
-                        .testTag("thickness_option_${thick.toInt()}"),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isSelected) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .border(2.dp, Color(0xFF2196F3), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(circleDp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF2196F3))
-                            )
-                        }
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .size(circleDp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFB0B0B0))
-                        )
-                    }
-                }
-            }
-        }
+        ThicknessPresetRow(
+            selectedThickness = selectedThickness,
+            onThicknessSelected = onThicknessSelected
+        )
 
         Spacer(modifier = Modifier.height(8.dp))
-        HorizontalDivider(color = Color(0xFF2C2D31), thickness = 1.dp)
+        HorizontalDivider(color = AppColors.DividerLine, thickness = 1.dp)
         Spacer(modifier = Modifier.height(8.dp))
 
         // 4 rows of 7 colors
-        KeepColorGrid.forEach { colorRow ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 2.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                colorRow.forEach { c ->
-                    ColorCircleItem(
-                        color = c,
-                        isSelected = selectedColor == c,
-                        onSelect = { onColorSelected(c) }
+        ColorGrid(selectedColor = selectedColor, onColorSelected = onColorSelected)
+    }
+}
+
+/** The name shown for the tool whose colours are being picked. */
+private fun toolTitleOf(activeTool: DrawingTool): String = when (activeTool) {
+    DrawingTool.PEN -> "Pencil / Pen"
+    DrawingTool.MARKER -> "Marker"
+    DrawingTool.HIGHLIGHTER -> "Highlighter"
+    else -> "Brush"
+}
+
+/** The tool's name, its current size, and a preview of the stroke. */
+@Composable
+private fun ToolHeaderRow(
+    toolTitle: String,
+    selectedThickness: Float,
+    selectedColor: Long,
+    activeTool: DrawingTool
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = toolTitle,
+                style = TextStyle(
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+            )
+            Text(
+                text = "${selectedThickness.roundToInt()} px",
+                style = TextStyle(
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = AppColors.Accent
+                ),
+                modifier = Modifier.testTag("pencil_size_label")
+            )
+        }
+
+        StrokePreview(
+            selectedThickness = selectedThickness,
+            selectedColor = selectedColor,
+            activeTool = activeTool
+        )
+    }
+}
+
+/** A small box showing what the current stroke looks like. */
+@Composable
+private fun StrokePreview(
+    selectedThickness: Float,
+    selectedColor: Long,
+    activeTool: DrawingTool
+) {
+    Box(
+        modifier = Modifier
+            .width(60.dp)
+            .height(28.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(AppColors.FieldSurface),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(
+                    width = 44.dp,
+                    height = previewStrokeHeightDp(selectedThickness).dp
+                )
+                .clip(CircleShape)
+                .background(
+                    Color(selectedColor).copy(
+                        alpha = if (activeTool == DrawingTool.HIGHLIGHTER) 0.5f else 1f
                     )
-                }
+                )
+        )
+    }
+}
+
+/**
+ * The preview's stroke height for [thickness], scaled across the slider's whole
+ * range so it keeps growing right up to the 54 px maximum instead of flattening
+ * out once it passes the preview's own limit.
+ */
+private fun previewStrokeHeightDp(thickness: Float): Float {
+    val ratio = ((thickness - THICKNESS_SLIDER_MIN_DP) /
+        (THICKNESS_SLIDER_MAX_DP - THICKNESS_SLIDER_MIN_DP)).coerceIn(0f, 1f)
+    return THICKNESS_MIN_DP + ratio * (THICKNESS_MAX_DP - THICKNESS_MIN_DP)
+}
+
+/** The slider that sets the stroke thickness. */
+@Composable
+private fun ThicknessSliderRow(
+    selectedThickness: Float,
+    onThicknessSelected: (Float) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = "Size",
+            style = TextStyle(fontSize = 12.sp, color = AppColors.TextFaint),
+            modifier = Modifier.width(32.dp)
+        )
+        Slider(
+            value = selectedThickness,
+            onValueChange = { onThicknessSelected(it.roundToInt().toFloat()) },
+            valueRange = THICKNESS_SLIDER_MIN_DP..THICKNESS_SLIDER_MAX_DP,
+            steps = 25,
+            colors = SliderDefaults.colors(
+                thumbColor = AppColors.Accent,
+                activeTrackColor = AppColors.Accent,
+                inactiveTrackColor = AppColors.TrackIdle
+            ),
+            modifier = Modifier
+                .weight(1f)
+                .testTag("pencil_size_slider")
+        )
+    }
+}
+
+/** The seven quick thickness presets. */
+@Composable
+private fun ThicknessPresetRow(
+    selectedThickness: Float,
+    onThicknessSelected: (Float) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        KeepThicknessLevels.forEach { (thick, _) ->
+            val isSelected = (selectedThickness - thick).let { it >= -2f && it <= 2f }
+            ThicknessPresetDot(
+                thick = thick,
+                isSelected = isSelected,
+                onThicknessSelected = onThicknessSelected
+            )
+        }
+    }
+}
+
+/** One quick thickness preset, ringed when it is the selected one. */
+@Composable
+private fun ThicknessPresetDot(
+    thick: Float,
+    isSelected: Boolean,
+    onThicknessSelected: (Float) -> Unit
+) {
+    val circleDp = when (thick) {
+        3f -> 5.dp
+        6f -> 8.dp
+        10f -> 12.dp
+        16f -> 16.dp
+        24f -> 20.dp
+        34f -> 24.dp
+        else -> 28.dp
+    }
+
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .clickable { onThicknessSelected(thick) }
+            .semantics {
+                contentDescription = "Stroke size ${thick.toInt()}"
+                selected = isSelected
+            }
+            .testTag("thickness_option_${thick.toInt()}"),
+        contentAlignment = Alignment.Center
+    ) {
+        if (isSelected) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .border(2.dp, AppColors.Accent, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(circleDp)
+                        .clip(CircleShape)
+                        .background(AppColors.Accent)
+                )
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(circleDp)
+                    .clip(CircleShape)
+                    .background(AppColors.DotIdleLight)
+            )
+        }
+    }
+}
+
+/** The four rows of seven colours. */
+@Composable
+private fun ColorGrid(selectedColor: Long, onColorSelected: (Long) -> Unit) {
+    KeepColorGrid.forEach { colorRow ->
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            colorRow.forEach { c ->
+                ColorCircleItem(
+                    color = c,
+                    isSelected = selectedColor == c,
+                    onSelect = { onColorSelected(c) }
+                )
             }
         }
     }

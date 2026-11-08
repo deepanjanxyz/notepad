@@ -59,6 +59,13 @@ import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.ui.components.NoteCard
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 
+/** The confirmation the trash screen is waiting on, if any. */
+private sealed interface TrashDialog {
+    data object EmptyTrash : TrashDialog
+    data object DeleteSelected : TrashDialog
+    data class DeleteForever(val noteId: Long) : TrashDialog
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TrashScreen(
@@ -77,14 +84,14 @@ fun TrashScreen(
 ) {
     var selectedNoteIds by remember { mutableStateOf(setOf<Long>()) }
     val isSelectionMode = selectedNoteIds.isNotEmpty()
-    var showEmptyTrashConfirm by remember { mutableStateOf(false) }
-    var showDeleteConfirm by remember { mutableStateOf(false) }
-    var pendingDeleteNoteId by remember { mutableStateOf<Long?>(null) }
+    var dialog by remember { mutableStateOf<TrashDialog?>(null) }
 
-    // The drawer takes the press while it is open, so the screen does not change
-    // behind it and a selection is not cleared out from under it. Otherwise one
-    // handler with the branch inside, rather than a second one competing with it:
-    // a selection clears first, and only then does back leave the screen.
+    fun toggleSelection(id: Long) {
+        selectedNoteIds = if (id in selectedNoteIds) selectedNoteIds - id else selectedNoteIds + id
+    }
+
+    // The drawer takes the press while it is open, so a selection clears first and
+    // only then does back leave the screen.
     BackHandler(enabled = !isDrawerOpen()) {
         if (isSelectionMode) {
             selectedNoteIds = emptySet()
@@ -93,201 +100,154 @@ fun TrashScreen(
         }
     }
 
-    if (showEmptyTrashConfirm) {
-        AlertDialog(
-            onDismissRequest = { showEmptyTrashConfirm = false },
-            title = { Text("Empty Trash?") },
-            text = { Text("All items in trash will be permanently deleted. This action cannot be reversed.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showEmptyTrashConfirm = false
-                        onEmptyTrash()
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                    modifier = Modifier.testTag("confirm_empty_trash_button")
-                ) {
-                    Text("Empty Trash")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showEmptyTrashConfirm = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
+    TrashDialogs(
+        dialog = dialog,
+        onDismiss = { dialog = null },
+        onEmptyTrash = onEmptyTrash,
+        onDeleteSelected = {
+            onPermanentlyDeleteSelected(selectedNoteIds.toList())
+            selectedNoteIds = emptySet()
+        },
+        onDeleteForever = onPermanentlyDeleteNote
+    )
 
-    if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Permanently Delete?") },
-            text = { Text("Selected note(s) will be permanently deleted from your device.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteConfirm = false
-                        onPermanentlyDeleteSelected(selectedNoteIds.toList())
-                        selectedNoteIds = emptySet()
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                    modifier = Modifier.testTag("confirm_permanent_delete_button")
-                ) {
-                    Text("Delete Permanently")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
+    TrashContent(
+        trashNotes = trashNotes,
+        isGridLayout = isGridLayout,
+        isSelectionMode = isSelectionMode,
+        selectedNoteIds = selectedNoteIds,
+        onOpenDrawer = onOpenDrawer,
+        onRestoreNote = onRestoreNote,
+        onRestoreSelected = {
+            onRestoreSelected(selectedNoteIds.toList())
+            selectedNoteIds = emptySet()
+        },
+        onNoteClick = onNoteClick,
+        onClearSelection = { selectedNoteIds = emptySet() },
+        onSelectAll = { selectedNoteIds = trashNotes.map { it.id }.toSet() },
+        onDeleteSelected = { dialog = TrashDialog.DeleteSelected },
+        onEmptyTrash = { dialog = TrashDialog.EmptyTrash },
+        onRequestDeleteForever = { dialog = TrashDialog.DeleteForever(it) },
+        onToggleSelection = ::toggleSelection,
+        modifier = modifier
+    )
+}
 
-    // A single note's "Delete forever" button is one tap away from irreversible
-    // data loss, so it is confirmed just like the batch delete above.
-    pendingDeleteNoteId?.let { id ->
-        AlertDialog(
-            onDismissRequest = { pendingDeleteNoteId = null },
-            title = { Text("Permanently Delete?") },
-            text = { Text("This note will be permanently deleted from your device. This action cannot be reversed.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        pendingDeleteNoteId = null
-                        onPermanentlyDeleteNote(id)
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                    modifier = Modifier.testTag("confirm_delete_note_forever_button")
-                ) {
-                    Text("Delete Permanently")
-                }
+/** The three confirmations the trash screen can put up. */
+@Composable
+private fun TrashDialogs(
+    dialog: TrashDialog?,
+    onDismiss: () -> Unit,
+    onEmptyTrash: () -> Unit,
+    onDeleteSelected: () -> Unit,
+    onDeleteForever: (Long) -> Unit
+) {
+    when (dialog) {
+        TrashDialog.EmptyTrash -> TrashConfirmDialog(
+            title = "Empty Trash?",
+            text = "All items in trash will be permanently deleted. This action cannot be reversed.",
+            confirmLabel = "Empty Trash",
+            confirmTag = "confirm_empty_trash_button",
+            onConfirm = {
+                onDismiss()
+                onEmptyTrash()
             },
-            dismissButton = {
-                TextButton(onClick = { pendingDeleteNoteId = null }) {
-                    Text("Cancel")
-                }
-            }
+            onDismiss = onDismiss
         )
-    }
 
+        TrashDialog.DeleteSelected -> TrashConfirmDialog(
+            title = "Permanently Delete?",
+            text = "Selected note(s) will be permanently deleted from your device.",
+            confirmLabel = "Delete Permanently",
+            confirmTag = "confirm_permanent_delete_button",
+            onConfirm = {
+                onDismiss()
+                onDeleteSelected()
+            },
+            onDismiss = onDismiss
+        )
+
+        is TrashDialog.DeleteForever -> TrashConfirmDialog(
+            title = "Permanently Delete?",
+            text = "This note will be permanently deleted from your device. This action cannot be reversed.",
+            confirmLabel = "Delete Permanently",
+            confirmTag = "confirm_delete_note_forever_button",
+            onConfirm = {
+                onDismiss()
+                onDeleteForever(dialog.noteId)
+            },
+            onDismiss = onDismiss
+        )
+
+        null -> Unit
+    }
+}
+
+/** A destructive confirmation: the action in red, and a cancel beside it. */
+@Composable
+private fun TrashConfirmDialog(
+    title: String,
+    text: String,
+    confirmLabel: String,
+    confirmTag: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Text(text) },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                modifier = Modifier.testTag(confirmTag)
+            ) {
+                Text(confirmLabel)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+/** The trash screen's bar, list and empty state. */
+@Composable
+private fun TrashContent(
+    trashNotes: List<Note>,
+    isGridLayout: Boolean,
+    isSelectionMode: Boolean,
+    selectedNoteIds: Set<Long>,
+    onOpenDrawer: () -> Unit,
+    onRestoreNote: (Long) -> Unit,
+    onRestoreSelected: () -> Unit,
+    onNoteClick: (Note) -> Unit,
+    onClearSelection: () -> Unit,
+    onSelectAll: () -> Unit,
+    onDeleteSelected: () -> Unit,
+    onEmptyTrash: () -> Unit,
+    onRequestDeleteForever: (Long) -> Unit,
+    onToggleSelection: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            // Cross-fade between the default bar and the contextual selection bar
-            // instead of swapping them abruptly.
-            AnimatedContent(
-                targetState = isSelectionMode,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "trash_top_bar"
-            ) { selecting ->
-            if (selecting) {
-                TopAppBar(
-                    title = {
-                        Text("${selectedNoteIds.size} Selected")
-                    },
-                    navigationIcon = {
-                        ActionTooltip("Clear selection") {
-                            IconButton(onClick = { selectedNoteIds = emptySet() }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear selection")
-                            }
-                        }
-                    },
-                    actions = {
-                        ActionTooltip("Select all") {
-                            IconButton(
-                                onClick = {
-                                    selectedNoteIds = trashNotes.map { it.id }.toSet()
-                                }
-                            ) {
-                                Icon(Icons.Default.SelectAll, contentDescription = "Select all")
-                            }
-                        }
-                        ActionTooltip("Restore selected") {
-                            IconButton(
-                                onClick = {
-                                    onRestoreSelected(selectedNoteIds.toList())
-                                    selectedNoteIds = emptySet()
-                                },
-                                modifier = Modifier.testTag("restore_selected_button")
-                            ) {
-                                Icon(
-                                    Icons.Default.RestoreFromTrash,
-                                    contentDescription = "Restore selected",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                        ActionTooltip("Permanently delete selected") {
-                            IconButton(
-                                onClick = { showDeleteConfirm = true },
-                                modifier = Modifier.testTag("delete_selected_trash_button")
-                            ) {
-                                Icon(
-                                    Icons.Default.DeleteForever,
-                                    contentDescription = "Permanently delete selected",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-                    )
-                )
-            } else {
-                TopAppBar(
-                    navigationIcon = {
-                        ActionTooltip("Open navigation menu") {
-                            IconButton(
-                                onClick = onOpenDrawer,
-                                modifier = Modifier.testTag("trash_drawer_button")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Menu,
-                                    contentDescription = "Open navigation menu"
-                                )
-                            }
-                        }
-                    },
-                    title = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Trash & Recycler",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.size(8.dp))
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh
-                            ) {
-                                Text(
-                                    text = "${trashNotes.size}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                    },
-                    actions = {
-                        if (trashNotes.isNotEmpty()) {
-                            TextButton(
-                                onClick = { showEmptyTrashConfirm = true },
-                                modifier = Modifier.testTag("empty_trash_button")
-                            ) {
-                                Text("Empty Trash", color = MaterialTheme.colorScheme.error)
-                            }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background
-                    )
-                )
-            }
-            }
+            TrashTopBar(
+                isSelectionMode = isSelectionMode,
+                selectedCount = selectedNoteIds.size,
+                trashCount = trashNotes.size,
+                onClearSelection = onClearSelection,
+                onSelectAll = onSelectAll,
+                onRestoreSelected = onRestoreSelected,
+                onDeleteSelected = onDeleteSelected,
+                onOpenDrawer = onOpenDrawer,
+                onEmptyTrash = onEmptyTrash
+            )
         }
     ) { innerPadding ->
         Column(
@@ -296,117 +256,290 @@ fun TrashScreen(
                 .padding(innerPadding)
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            // Informative disclaimer card
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
-                ),
-                shape = MaterialTheme.shapes.small,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.outline,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.size(8.dp))
-                    Text(
-                        text = "Notes in trash are automatically permanently deleted after 30 days. " +
-                            "You can restore or delete them manually before then.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+            TrashInfoCard()
 
             if (trashNotes.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            modifier = Modifier.size(88.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.DeleteOutline,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(44.dp)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Trash is empty",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Deleted notes will appear here so you can restore them.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
+                EmptyTrashState()
             } else {
-                LazyVerticalStaggeredGrid(
-                    columns = if (isGridLayout) StaggeredGridCells.Fixed(2) else StaggeredGridCells.Fixed(1),
-                    contentPadding = PaddingValues(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalItemSpacing = 12.dp,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    items(trashNotes, key = { it.id }) { note ->
-                        NoteCard(
-                            note = note,
-                            isSelected = selectedNoteIds.contains(note.id),
-                            isSelectionMode = isSelectionMode,
-                            searchQuery = "",
-                            isInTrash = true,
-                            onClick = {
-                                if (isSelectionMode) {
-                                    selectedNoteIds = if (selectedNoteIds.contains(note.id)) {
-                                        selectedNoteIds - note.id
-                                    } else {
-                                        selectedNoteIds + note.id
-                                    }
-                                } else {
-                                    onNoteClick(note)
-                                }
-                            },
-                            onLongClick = {
-                                selectedNoteIds = if (selectedNoteIds.contains(note.id)) {
-                                    selectedNoteIds - note.id
-                                } else {
-                                    selectedNoteIds + note.id
-                                }
-                            },
-                            onRestore = {
-                                onRestoreNote(note.id)
-                            },
-                            onDeleteForever = {
-                                pendingDeleteNoteId = note.id
-                            },
-                            modifier = Modifier.animateItem()
-                        )
-                    }
+                TrashGrid(
+                    trashNotes = trashNotes,
+                    isGridLayout = isGridLayout,
+                    isSelectionMode = isSelectionMode,
+                    selectedNoteIds = selectedNoteIds,
+                    onToggleSelection = onToggleSelection,
+                    onNoteClick = onNoteClick,
+                    onRestoreNote = onRestoreNote,
+                    onRequestDeleteForever = onRequestDeleteForever
+                )
+            }
+        }
+    }
+}
+
+/** Cross-fades between the default bar and the contextual selection bar. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TrashTopBar(
+    isSelectionMode: Boolean,
+    selectedCount: Int,
+    trashCount: Int,
+    onClearSelection: () -> Unit,
+    onSelectAll: () -> Unit,
+    onRestoreSelected: () -> Unit,
+    onDeleteSelected: () -> Unit,
+    onOpenDrawer: () -> Unit,
+    onEmptyTrash: () -> Unit
+) {
+    AnimatedContent(
+        targetState = isSelectionMode,
+        transitionSpec = { fadeIn() togetherWith fadeOut() },
+        label = "trash_top_bar"
+    ) { selecting ->
+        if (selecting) {
+            TrashSelectionTopBar(
+                selectedCount = selectedCount,
+                onClearSelection = onClearSelection,
+                onSelectAll = onSelectAll,
+                onRestoreSelected = onRestoreSelected,
+                onDeleteSelected = onDeleteSelected
+            )
+        } else {
+            TrashDefaultTopBar(
+                trashCount = trashCount,
+                onOpenDrawer = onOpenDrawer,
+                onEmptyTrash = onEmptyTrash
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TrashSelectionTopBar(
+    selectedCount: Int,
+    onClearSelection: () -> Unit,
+    onSelectAll: () -> Unit,
+    onRestoreSelected: () -> Unit,
+    onDeleteSelected: () -> Unit
+) {
+    TopAppBar(
+        title = {
+            Text("$selectedCount Selected")
+        },
+        navigationIcon = {
+            ActionTooltip("Clear selection") {
+                IconButton(onClick = onClearSelection) {
+                    Icon(Icons.Default.Close, contentDescription = "Clear selection")
                 }
             }
+        },
+        actions = {
+            ActionTooltip("Select all") {
+                IconButton(onClick = onSelectAll) {
+                    Icon(Icons.Default.SelectAll, contentDescription = "Select all")
+                }
+            }
+            ActionTooltip("Restore selected") {
+                IconButton(
+                    onClick = onRestoreSelected,
+                    modifier = Modifier.testTag("restore_selected_button")
+                ) {
+                    Icon(
+                        Icons.Default.RestoreFromTrash,
+                        contentDescription = "Restore selected",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            ActionTooltip("Permanently delete selected") {
+                IconButton(
+                    onClick = onDeleteSelected,
+                    modifier = Modifier.testTag("delete_selected_trash_button")
+                ) {
+                    Icon(
+                        Icons.Default.DeleteForever,
+                        contentDescription = "Permanently delete selected",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+        )
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TrashDefaultTopBar(
+    trashCount: Int,
+    onOpenDrawer: () -> Unit,
+    onEmptyTrash: () -> Unit
+) {
+    TopAppBar(
+        navigationIcon = {
+            ActionTooltip("Open navigation menu") {
+                IconButton(
+                    onClick = onOpenDrawer,
+                    modifier = Modifier.testTag("trash_drawer_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Menu,
+                        contentDescription = "Open navigation menu"
+                    )
+                }
+            }
+        },
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Trash & Recycler",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.size(8.dp))
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh
+                ) {
+                    Text(
+                        text = "$trashCount",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    )
+                }
+            }
+        },
+        actions = {
+            if (trashCount > 0) {
+                TextButton(
+                    onClick = onEmptyTrash,
+                    modifier = Modifier.testTag("empty_trash_button")
+                ) {
+                    Text("Empty Trash", color = MaterialTheme.colorScheme.error)
+                }
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.background
+        )
+    )
+}
+
+/** The note explaining that trashed notes go after thirty days. */
+@Composable
+private fun TrashInfoCard() {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        ),
+        shape = MaterialTheme.shapes.small,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.size(8.dp))
+            Text(
+                text = "Notes in trash are automatically permanently deleted after 30 days. " +
+                    "You can restore or delete them manually before then.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/** Shown when there is nothing in the trash. */
+@Composable
+private fun EmptyTrashState() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(88.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.DeleteOutline,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(44.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Trash is empty",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Deleted notes will appear here so you can restore them.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+/** The trashed notes, one or two to a row. */
+@Composable
+private fun TrashGrid(
+    trashNotes: List<Note>,
+    isGridLayout: Boolean,
+    isSelectionMode: Boolean,
+    selectedNoteIds: Set<Long>,
+    onToggleSelection: (Long) -> Unit,
+    onNoteClick: (Note) -> Unit,
+    onRestoreNote: (Long) -> Unit,
+    onRequestDeleteForever: (Long) -> Unit
+) {
+    LazyVerticalStaggeredGrid(
+        columns = if (isGridLayout) StaggeredGridCells.Fixed(2) else StaggeredGridCells.Fixed(1),
+        contentPadding = PaddingValues(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalItemSpacing = 12.dp,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        items(trashNotes, key = { it.id }) { note ->
+            NoteCard(
+                note = note,
+                isSelected = selectedNoteIds.contains(note.id),
+                isSelectionMode = isSelectionMode,
+                searchQuery = "",
+                isInTrash = true,
+                onClick = {
+                    if (isSelectionMode) {
+                        onToggleSelection(note.id)
+                    } else {
+                        onNoteClick(note)
+                    }
+                },
+                onLongClick = { onToggleSelection(note.id) },
+                onRestore = { onRestoreNote(note.id) },
+                onDeleteForever = { onRequestDeleteForever(note.id) },
+                modifier = Modifier.animateItem()
+            )
         }
     }
 }

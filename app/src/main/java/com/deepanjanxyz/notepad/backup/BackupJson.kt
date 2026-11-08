@@ -82,7 +82,13 @@ fun buildBackupJson(notes: List<Note>): String {
  * valid JSON, carry a version this build understands, and contain a `notes`
  * array. Anything else is reported as a [BackupParseResult.Failure] explaining
  * what is wrong.
+ *
+ * `ReturnCount` is suppressed here. Each guard returns on its own line because the
+ * failure it reports is a different one every time - the file is empty, it is not
+ * JSON, it is not an object, it carries no notes array - and folding them into one
+ * expression would lose which of them failed.
  */
+@Suppress("ReturnCount")
 fun parseBackupJson(text: String): BackupParseResult {
     if (text.isBlank()) return BackupParseResult.Failure("That file is empty")
 

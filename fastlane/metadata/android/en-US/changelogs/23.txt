@@ -1,0 +1,6 @@
+Two fixes from a store review.
+
+- The + button no longer sits under the navigation bar on three-button navigation
+- Restore now offers to hand over the backup folder when a backup from an earlier install is there but cannot be seen, and says why
+
+Thank you for using Elite Memo Pro!

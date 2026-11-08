@@ -3,11 +3,9 @@ package com.deepanjanxyz.notepad.ui.feature_drawing.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -34,13 +32,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deepanjanxyz.notepad.domain.model.CanvasGridType
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
+
+// Spoken name of the drawing's title field.
+private const val TITLE_CONTENT_DESCRIPTION = "Drawing title"
 
 @Composable
 fun DrawingTopBar(
@@ -57,7 +61,8 @@ fun DrawingTopBar(
     onOpenBackgroundDialog: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var showMenu by remember { mutableStateOf(false) }
+    val enabledTint = MaterialTheme.colorScheme.onSurface
+    val disabledTint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f)
 
     Row(
         modifier = modifier
@@ -67,178 +72,213 @@ fun DrawingTopBar(
             .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        ActionTooltip("Back") {
-            IconButton(
-                onClick = onNavigateBack,
-                modifier = Modifier.testTag("drawing_back_button")
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
-            }
-        }
+        DrawingTopBarIcon(
+            tooltip = "Back",
+            icon = Icons.AutoMirrored.Filled.ArrowBack,
+            tint = enabledTint,
+            testTag = "drawing_back_button",
+            onClick = onNavigateBack
+        )
 
-        Box(
+        DrawingTitleField(
+            title = title,
+            onTitleChange = onTitleChange,
             modifier = Modifier
                 .weight(1f)
                 .padding(horizontal = 8.dp)
+        )
+
+        DrawingTopBarIcon(
+            tooltip = "Undo",
+            icon = Icons.AutoMirrored.Filled.Undo,
+            tint = if (canUndo) enabledTint else disabledTint,
+            testTag = "drawing_undo_button",
+            enabled = canUndo,
+            onClick = onUndo
+        )
+
+        DrawingTopBarIcon(
+            tooltip = "Redo",
+            icon = Icons.AutoMirrored.Filled.Redo,
+            tint = if (canRedo) enabledTint else disabledTint,
+            testTag = "drawing_redo_button",
+            enabled = canRedo,
+            onClick = onRedo
+        )
+
+        DrawingOverflowMenu(
+            onOpenBackgroundDialog = onOpenBackgroundDialog,
+            onClearCanvas = onClearCanvas,
+            currentGridType = currentGridType,
+            onGridTypeChange = onGridTypeChange
+        )
+    }
+}
+
+/** One action icon in the drawing top bar. */
+@Composable
+private fun DrawingTopBarIcon(
+    tooltip: String,
+    icon: ImageVector,
+    tint: Color,
+    testTag: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true
+) {
+    ActionTooltip(tooltip) {
+        IconButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier.testTag(testTag)
         ) {
-            if (title.isEmpty()) {
-                Text(
-                    text = "Title",
-                    style = TextStyle(
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
-                    )
-                )
-            }
-            BasicTextField(
-                value = title,
-                onValueChange = onTitleChange,
-                singleLine = true,
-                textStyle = TextStyle(
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                ),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("drawing_title_input")
+            Icon(
+                imageVector = icon,
+                contentDescription = tooltip,
+                tint = tint
             )
         }
+    }
+}
 
-        ActionTooltip("Canvas Background & Grid") {
-            IconButton(
-                onClick = onOpenBackgroundDialog,
-                modifier = Modifier.testTag("drawing_background_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ColorLens,
-                    contentDescription = "Canvas Background & Grid",
-                    tint = MaterialTheme.colorScheme.onSurface
+/** The drawing's title, with its placeholder. */
+@Composable
+private fun DrawingTitleField(
+    title: String,
+    onTitleChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier) {
+        if (title.isEmpty()) {
+            Text(
+                text = "Title",
+                style = TextStyle(
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
                 )
-            }
+            )
         }
+        BasicTextField(
+            value = title,
+            onValueChange = onTitleChange,
+            singleLine = true,
+            textStyle = TextStyle(
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            ),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { contentDescription = TITLE_CONTENT_DESCRIPTION }
+                .testTag("drawing_title_input")
+        )
+    }
+}
 
-        ActionTooltip("Undo") {
-            IconButton(
-                onClick = onUndo,
-                enabled = canUndo,
-                modifier = Modifier.testTag("drawing_undo_button")
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Undo,
-                    contentDescription = "Undo",
-                    tint = if (canUndo) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f)
-                )
-            }
-        }
+/** The drawing top bar's overflow menu. */
+@Composable
+private fun DrawingOverflowMenu(
+    onOpenBackgroundDialog: () -> Unit,
+    onClearCanvas: () -> Unit,
+    currentGridType: CanvasGridType,
+    onGridTypeChange: (CanvasGridType) -> Unit
+) {
+    var showMenu by remember { mutableStateOf(false) }
 
-        ActionTooltip("Redo") {
-            IconButton(
-                onClick = onRedo,
-                enabled = canRedo,
-                modifier = Modifier.testTag("drawing_redo_button")
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Redo,
-                    contentDescription = "Redo",
-                    tint = if (canRedo) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f)
-                )
-            }
-        }
+    Box {
+        DrawingTopBarIcon(
+            tooltip = "More options",
+            icon = Icons.Default.MoreVert,
+            tint = MaterialTheme.colorScheme.onSurface,
+            testTag = "drawing_more_button",
+            onClick = { showMenu = true }
+        )
 
-        Box {
-            ActionTooltip("More options") {
-                IconButton(
-                    onClick = { showMenu = true },
-                    modifier = Modifier.testTag("drawing_more_button")
-                ) {
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false },
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            DropdownMenuItem(
+                text = { Text("Canvas Background & Grid") },
+                leadingIcon = {
                     Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "More options",
-                        tint = MaterialTheme.colorScheme.onSurface
+                        imageVector = Icons.Default.ColorLens,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
                     )
-                }
-            }
+                },
+                onClick = {
+                    showMenu = false
+                    onOpenBackgroundDialog()
+                },
+                modifier = Modifier.testTag("menu_canvas_background")
+            )
 
-            DropdownMenu(
-                expanded = showMenu,
-                onDismissRequest = { showMenu = false },
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                DropdownMenuItem(
-                    text = { Text("Canvas Background & Grid") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.ColorLens,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    },
-                    onClick = {
-                        showMenu = false
-                        onOpenBackgroundDialog()
-                    },
-                    modifier = Modifier.testTag("menu_canvas_background")
-                )
-
-                DropdownMenuItem(
-                    text = { Text("Clear canvas") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.DeleteOutline,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    },
-                    onClick = {
-                        showMenu = false
-                        onClearCanvas()
-                    },
-                    modifier = Modifier.testTag("menu_clear_canvas")
-                )
-
-                HorizontalDivider()
-
-                Text(
-                    text = "Background grid",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-                )
-
-                CanvasGridType.entries.forEach { gridType ->
-                    DropdownMenuItem(
-                        text = {
-                            val label = when (gridType) {
-                                CanvasGridType.NONE -> "Blank"
-                                CanvasGridType.RULED -> "Ruled"
-                                CanvasGridType.GRID -> "Grid"
-                                CanvasGridType.DOTS -> "Dots"
-                            }
-                            Text(label)
-                        },
-                        trailingIcon = {
-                            if (currentGridType == gridType) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Selected",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        },
-                        onClick = {
-                            onGridTypeChange(gridType)
-                            showMenu = false
-                        }
+            DropdownMenuItem(
+                text = { Text("Clear canvas") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.DeleteOutline,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error
                     )
+                },
+                onClick = {
+                    showMenu = false
+                    onClearCanvas()
+                },
+                modifier = Modifier.testTag("menu_clear_canvas")
+            )
+
+            HorizontalDivider()
+
+            GridTypeMenuItems(
+                currentGridType = currentGridType,
+                onGridTypeSelected = { gridType ->
+                    onGridTypeChange(gridType)
+                    showMenu = false
                 }
-            }
+            )
         }
+    }
+}
+
+/** The "Background grid" heading and the grid choices under it. */
+@Composable
+private fun GridTypeMenuItems(
+    currentGridType: CanvasGridType,
+    onGridTypeSelected: (CanvasGridType) -> Unit
+) {
+    Text(
+        text = "Background grid",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+    )
+
+    CanvasGridType.entries.forEach { gridType ->
+        DropdownMenuItem(
+            text = {
+                val label = when (gridType) {
+                    CanvasGridType.NONE -> "Blank"
+                    CanvasGridType.RULED -> "Ruled"
+                    CanvasGridType.GRID -> "Grid"
+                    CanvasGridType.DOTS -> "Dots"
+                }
+                Text(label)
+            },
+            trailingIcon = {
+                if (currentGridType == gridType) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Selected",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            },
+            onClick = { onGridTypeSelected(gridType) }
+        )
     }
 }

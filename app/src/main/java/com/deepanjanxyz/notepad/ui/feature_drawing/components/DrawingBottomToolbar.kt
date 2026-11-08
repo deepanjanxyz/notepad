@@ -26,14 +26,24 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.domain.model.DrawingTool
+import com.deepanjanxyz.notepad.ui.theme.AppColors
+
+// Dash pattern of the guide line drawn across the canvas, in pixels.
+private const val GUIDE_DASH_LENGTH_PX = 4f
+private const val GUIDE_DASH_GAP_PX = 3f
+
 
 @Composable
 fun DockToolButton(
     isSelected: Boolean,
     onClick: () -> Unit,
     testTag: String,
+    label: String,
     content: @Composable () -> Unit
 ) {
     Column(
@@ -44,6 +54,10 @@ fun DockToolButton(
             .height(54.dp)
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
+            .semantics {
+                contentDescription = label
+                selected = isSelected
+            }
             .testTag(testTag)
     ) {
         content()
@@ -53,7 +67,7 @@ fun DockToolButton(
                 .width(22.dp)
                 .height(3.dp)
                 .clip(RoundedCornerShape(2.dp))
-                .background(if (isSelected) Color(0xFF2196F3) else Color.Transparent)
+                .background(if (isSelected) AppColors.Accent else Color.Transparent)
         )
     }
 }
@@ -61,7 +75,7 @@ fun DockToolButton(
 @Composable
 fun SelectionToolIcon(isSelected: Boolean) {
     Canvas(modifier = Modifier.size(24.dp)) {
-        val color = if (isSelected) Color(0xFF2196F3) else Color(0xFF8E9099)
+        val color = if (isSelected) AppColors.Accent else AppColors.TextMuted
         val strokeW = 1.6.dp.toPx()
         val w = size.width
         val h = size.height
@@ -73,7 +87,7 @@ fun SelectionToolIcon(isSelected: Boolean) {
             size = Size(w - pad * 2, h - pad * 2),
             style = Stroke(
                 width = strokeW,
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 3f))
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(GUIDE_DASH_LENGTH_PX, GUIDE_DASH_GAP_PX))
             )
         )
 
@@ -91,8 +105,8 @@ fun SelectionToolIcon(isSelected: Boolean) {
 @Composable
 fun EraserToolIcon(isSelected: Boolean) {
     Canvas(modifier = Modifier.size(24.dp)) {
-        val bodyColor = if (isSelected) Color(0xFF2196F3) else Color(0xFF8E9099)
-        val capColor = if (isSelected) Color.White else Color(0xFFC0C2CC)
+        val bodyColor = if (isSelected) AppColors.Accent else AppColors.TextMuted
+        val capColor = if (isSelected) Color.White else AppColors.IconIdleOnTool
 
         val path = Path().apply {
             moveTo(size.width * 0.22f, size.height * 0.78f)
@@ -114,7 +128,7 @@ fun EraserToolIcon(isSelected: Boolean) {
 @Composable
 fun PenToolIcon(tipColor: Color, isSelected: Boolean) {
     Canvas(modifier = Modifier.size(24.dp)) {
-        val bodyColor = if (isSelected) Color.White else Color(0xFF8E9099)
+        val bodyColor = if (isSelected) Color.White else AppColors.TextMuted
 
         val body = Path().apply {
             moveTo(size.width * 0.45f, size.height * 0.42f)
@@ -140,7 +154,7 @@ fun PenToolIcon(tipColor: Color, isSelected: Boolean) {
 @Composable
 fun MarkerToolIcon(tipColor: Color, isSelected: Boolean) {
     Canvas(modifier = Modifier.size(24.dp)) {
-        val bodyColor = if (isSelected) Color.White else Color(0xFF8E9099)
+        val bodyColor = if (isSelected) Color.White else AppColors.TextMuted
 
         val barrel = Path().apply {
             moveTo(size.width * 0.40f, size.height * 0.45f)
@@ -166,7 +180,7 @@ fun MarkerToolIcon(tipColor: Color, isSelected: Boolean) {
 @Composable
 fun HighlighterToolIcon(tipColor: Color, isSelected: Boolean) {
     Canvas(modifier = Modifier.size(24.dp)) {
-        val bodyColor = if (isSelected) Color.White else Color(0xFF8E9099)
+        val bodyColor = if (isSelected) Color.White else AppColors.TextMuted
 
         val barrel = Path().apply {
             moveTo(size.width * 0.38f, size.height * 0.42f)
@@ -199,62 +213,68 @@ fun DrawingBottomToolbar(
     highlighterColor: Long = selectedColor,
     modifier: Modifier = Modifier
 ) {
+    ToolRow(
+        activeTool = activeTool,
+        onToolClick = onToolClick,
+        penColor = penColor,
+        markerColor = markerColor,
+        highlighterColor = highlighterColor,
+        modifier = modifier
+    )
+}
+
+/** The row of tool buttons the toolbar draws, one per drawing tool. */
+@Composable
+private fun ToolRow(
+    activeTool: DrawingTool,
+    onToolClick: (DrawingTool) -> Unit,
+    penColor: Long,
+    markerColor: Long,
+    highlighterColor: Long,
+    modifier: Modifier = Modifier
+) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(60.dp)
-            .background(Color(0xFF131314))
+            .background(AppColors.PanelDeep)
             .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceAround
     ) {
-        DockToolButton(
-            isSelected = activeTool == DrawingTool.SELECT,
-            onClick = { onToolClick(DrawingTool.SELECT) },
-            testTag = "tool_select"
-        ) {
+        ToolDockButton(DrawingTool.SELECT, activeTool, "tool_select", "Select", onToolClick) {
             SelectionToolIcon(isSelected = activeTool == DrawingTool.SELECT)
         }
-
-        DockToolButton(
-            isSelected = activeTool == DrawingTool.ERASER,
-            onClick = { onToolClick(DrawingTool.ERASER) },
-            testTag = "tool_eraser"
-        ) {
+        ToolDockButton(DrawingTool.ERASER, activeTool, "tool_eraser", "Eraser", onToolClick) {
             EraserToolIcon(isSelected = activeTool == DrawingTool.ERASER)
         }
-
-        DockToolButton(
-            isSelected = activeTool == DrawingTool.PEN,
-            onClick = { onToolClick(DrawingTool.PEN) },
-            testTag = "tool_pen"
-        ) {
-            PenToolIcon(
-                tipColor = Color(penColor),
-                isSelected = activeTool == DrawingTool.PEN
-            )
+        ToolDockButton(DrawingTool.PEN, activeTool, "tool_pen", "Pen", onToolClick) {
+            PenToolIcon(tipColor = Color(penColor), isSelected = activeTool == DrawingTool.PEN)
         }
-
-        DockToolButton(
-            isSelected = activeTool == DrawingTool.MARKER,
-            onClick = { onToolClick(DrawingTool.MARKER) },
-            testTag = "tool_marker"
-        ) {
-            MarkerToolIcon(
-                tipColor = Color(markerColor),
-                isSelected = activeTool == DrawingTool.MARKER
-            )
+        ToolDockButton(DrawingTool.MARKER, activeTool, "tool_marker", "Marker", onToolClick) {
+            MarkerToolIcon(tipColor = Color(markerColor), isSelected = activeTool == DrawingTool.MARKER)
         }
-
-        DockToolButton(
-            isSelected = activeTool == DrawingTool.HIGHLIGHTER,
-            onClick = { onToolClick(DrawingTool.HIGHLIGHTER) },
-            testTag = "tool_highlighter"
-        ) {
-            HighlighterToolIcon(
-                tipColor = Color(highlighterColor),
-                isSelected = activeTool == DrawingTool.HIGHLIGHTER
-            )
+        ToolDockButton(DrawingTool.HIGHLIGHTER, activeTool, "tool_highlighter", "Highlighter", onToolClick) {
+            HighlighterToolIcon(tipColor = Color(highlighterColor), isSelected = activeTool == DrawingTool.HIGHLIGHTER)
         }
     }
+}
+
+/** One dock button, wired to the tool it selects. */
+@Composable
+private fun ToolDockButton(
+    tool: DrawingTool,
+    activeTool: DrawingTool,
+    testTag: String,
+    label: String,
+    onToolClick: (DrawingTool) -> Unit,
+    icon: @Composable () -> Unit
+) {
+    DockToolButton(
+        isSelected = activeTool == tool,
+        onClick = { onToolClick(tool) },
+        testTag = testTag,
+        label = label,
+        content = icon
+    )
 }

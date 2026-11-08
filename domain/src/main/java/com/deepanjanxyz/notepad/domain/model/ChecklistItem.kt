@@ -41,63 +41,6 @@ fun String.toggleChecklistLine(): String? = when {
     else -> null
 }
 
-/**
- * One line of a note shown in checklist mode.
- *
- * A [Text] line is kept exactly as it was written - ordinary prose, a heading or
- * a blank line - and is never reformatted. Only [Task] lines carry a checkbox,
- * and only a task's own line is ever rewritten. Modelling the note as a list of
- * segments is what stops the editor from turning ordinary text into checklist
- * items (and dropping blank lines) when a single item is toggled.
- */
-sealed interface ChecklistSegment {
-    data class Text(val text: String) : ChecklistSegment
-    data class Task(val item: ChecklistItem) : ChecklistSegment
-}
-
-/** Splits a note into checklist lines and the verbatim lines between them. */
-fun parseChecklistSegments(raw: String): List<ChecklistSegment> {
-    if (raw.isEmpty()) return emptyList()
-    return raw.split("\n").map { line ->
-        when {
-            line.startsWith(CHECKLIST_CHECKED_PREFIX, ignoreCase = true) ->
-                ChecklistSegment.Task(
-                    ChecklistItem(
-                        text = line.substring(CHECKLIST_CHECKED_PREFIX.length),
-                        isChecked = true
-                    )
-                )
-            line.startsWith(CHECKLIST_UNCHECKED_PREFIX) ->
-                ChecklistSegment.Task(
-                    ChecklistItem(
-                        text = line.substring(CHECKLIST_UNCHECKED_PREFIX.length),
-                        isChecked = false
-                    )
-                )
-            else -> ChecklistSegment.Text(line)
-        }
-    }
-}
-
-/**
- * Rebuilds the note from its segments.
- *
- * Text segments are written back byte for byte and task segments get their
- * checkbox prefix, so a note round-trips through checklist mode unchanged
- * except for the item the user actually touched.
- */
-fun serializeChecklistSegments(segments: List<ChecklistSegment>): String =
-    segments.joinToString("\n") { segment ->
-        when (segment) {
-            is ChecklistSegment.Text -> segment.text
-            is ChecklistSegment.Task ->
-                (if (segment.item.isChecked) {
-                    CHECKLIST_CHECKED_PREFIX
-                } else {
-                    CHECKLIST_UNCHECKED_PREFIX
-                }) + segment.item.text
-        }
-    }
-
 /** True when the note already contains at least one checklist line. */
-fun String.containsChecklistLine(): Boolean = split("\n").any { it.isChecklistLine() }
+fun String.containsChecklistLine(): Boolean =
+    split("\n").any { line -> line.isChecklistLine() }

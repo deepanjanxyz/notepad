@@ -1,0 +1,7 @@
+Navigation bar fixes
+
+- Snackbars sit above the navigation bar on every screen.
+- The Settings screen no longer runs under the navigation bar.
+- The add button steps up above a snackbar instead of hiding behind it.
+
+Thank you for using Elite Memo Pro!

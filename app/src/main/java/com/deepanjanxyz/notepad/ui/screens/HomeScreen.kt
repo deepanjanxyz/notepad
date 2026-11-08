@@ -2,6 +2,7 @@ package com.deepanjanxyz.notepad.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -18,12 +19,17 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
@@ -42,6 +48,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
@@ -64,7 +71,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
@@ -73,6 +79,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -86,6 +93,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.domain.model.Note
@@ -95,8 +104,21 @@ import com.deepanjanxyz.notepad.ui.theme.NoteColorOptions
 import com.deepanjanxyz.notepad.ui.viewmodel.NoteSortOption
 import com.deepanjanxyz.notepad.ui.viewmodel.NotesUiState
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
+import com.deepanjanxyz.notepad.ui.theme.AppColors
 import kotlinx.coroutines.launch
 
+// The gap left between the add button and a snackbar it has risen above.
+private val FAB_SNACKBAR_GAP = 12.dp
+
+/**
+ * The home screen: the note list, its search, its selection bar and its empty state.
+ *
+ * `LongMethod` and `CyclomaticComplexMethod` are suppressed here rather than the
+ * screen split. Its state, its callbacks and its layout are read together, and the
+ * alternatives - threading a dozen parameters through new composables, or hiding the
+ * flow behind them - would not make any of it simpler.
+ */
+@Suppress("LongMethod", "CyclomaticComplexMethod")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -111,9 +133,9 @@ fun HomeScreen(
     onToggleLayout: () -> Unit,
     onNoteClick: (Note) -> Unit,
     onNoteLongClick: (Note) -> Unit,
-    onTogglePin: (Note) -> Unit,
     onTogglePinSelected: () -> Unit,
     onAddNewNote: () -> Unit,
+    onAddNewChecklistNote: () -> Unit = {},
     onAddNewDrawingNote: () -> Unit = {},
     onClearSelection: () -> Unit,
     onSelectAll: () -> Unit,
@@ -121,11 +143,24 @@ fun HomeScreen(
     onMoveSelectedToArchive: () -> Unit,
     onUndoMoveToTrash: () -> Unit,
     onSortOptionChange: (NoteSortOption) -> Unit,
+    homeSnackbarHostState: SnackbarHostState,
+    snackbarHeight: State<Dp>,
     modifier: Modifier = Modifier
 ) {
     var showCreateOptionsSheet by remember { mutableStateOf(false) }
-    val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    // The snackbars sit at the bottom of the screen and stack when two are showing,
+    // so the add button rises by their combined measured height plus a gap, and
+    // settles back afterwards.
+    val fabLift by animateDpAsState(
+        targetValue = if (snackbarHeight.value > 0.dp) {
+            snackbarHeight.value + FAB_SNACKBAR_GAP
+        } else {
+            0.dp
+        },
+        label = "fab_snackbar_lift"
+    )
 
     // A press while the drawer is open belongs to the drawer, which the activity
     // closes; this takes it only once the drawer is shut.
@@ -136,7 +171,6 @@ fun HomeScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             AnimatedVisibility(
                 visible = uiState.isSelectionMode,
@@ -179,7 +213,11 @@ fun HomeScreen(
                                 modifier = Modifier.testTag("select_all_button")
                             ) {
                                 Icon(
-                                    imageVector = if (isAllSelected) Icons.Default.Deselect else Icons.Default.SelectAll,
+                                    imageVector = if (isAllSelected) {
+                                        Icons.Default.Deselect
+                                    } else {
+                                        Icons.Default.SelectAll
+                                    },
                                     contentDescription = if (isAllSelected) "Deselect all" else "Select all"
                                 )
                             }
@@ -193,7 +231,11 @@ fun HomeScreen(
                             ) {
                                 Icon(
                                     imageVector = if (anyUnpinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
-                                    contentDescription = if (anyUnpinned) "Pin selected notes" else "Unpin selected notes",
+                                    contentDescription = if (anyUnpinned) {
+                                        "Pin selected notes"
+                                    } else {
+                                        "Unpin selected notes"
+                                    },
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             }
@@ -219,7 +261,7 @@ fun HomeScreen(
                                 onClick = {
                                     onMoveSelectedToTrash()
                                     scope.launch {
-                                        val result = snackbarHostState.showSnackbar(
+                                        val result = homeSnackbarHostState.showSnackbar(
                                             message = "Moved to Trash",
                                             actionLabel = "Undo",
                                             withDismissAction = true,
@@ -257,7 +299,14 @@ fun HomeScreen(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                     shape = RoundedCornerShape(18.dp),
-                    modifier = Modifier.testTag("fab_add_note")
+                    // The Scaffold zeroes its window insets, so the button has to
+                    // clear the navigation bar itself or the bar covers its lower
+                    // half on three-button navigation. It also rises above a
+                    // snackbar while one is showing.
+                    modifier = Modifier
+                        .navigationBarsPadding()
+                        .offset { IntOffset(0, -fabLift.roundToPx()) }
+                        .testTag("fab_add_note")
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
@@ -268,9 +317,12 @@ fun HomeScreen(
         }
     ) { paddingValues ->
         Column(
+            // Clears the side navigation bar the Scaffold zeroes out; top and
+            // bottom are handled by the search bar, the list and the + button.
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
         ) {
             // 1. Top Floating Search Bar (hidden in selection mode)
             AnimatedVisibility(
@@ -464,7 +516,7 @@ fun HomeScreen(
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    imageVector = if (uiState.searchQuery.isNotBlank()) Icons.Default.Description else Icons.Default.Description,
+                                    imageVector = Icons.Default.Description,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(40.dp)
@@ -546,7 +598,8 @@ fun HomeScreen(
                     verticalItemSpacing = 12.dp,
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    // Do NOT permanently display a dedicated "Pinned Section" header unless pinned notes actually exist!
+                    // Do NOT permanently display a dedicated "Pinned Section" header unless
+                    // pinned notes actually exist!
                     if (pinnedNotes.isNotEmpty()) {
                         item(key = "pinned_header", span = StaggeredGridItemSpan.FullLine) {
                             Row(
@@ -583,7 +636,6 @@ fun HomeScreen(
                                     }
                                 },
                                 onLongClick = { onNoteLongClick(note) },
-                                onTogglePin = { onTogglePin(note) },
                                 modifier = Modifier.animateItem()
                             )
                         }
@@ -615,7 +667,6 @@ fun HomeScreen(
                                 }
                             },
                             onLongClick = { onNoteLongClick(note) },
-                            onTogglePin = { onTogglePin(note) },
                             modifier = Modifier.animateItem()
                         )
                     }
@@ -665,13 +716,13 @@ fun HomeScreen(
                             modifier = Modifier
                                 .size(46.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFFFB300)),
+                                .background(AppColors.AccentAmber),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.EditNote,
                                 contentDescription = null,
-                                tint = Color(0xFF1B1B1F),
+                                tint = AppColors.TextOnAmber,
                                 modifier = Modifier.size(28.dp)
                             )
                         }
@@ -694,7 +745,56 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Option 2: Drawing Note (Dedicated drawing canvas screen)
+                // Option 2: Checklist (Editor that opens straight into tickable items)
+                Surface(
+                    onClick = {
+                        showCreateOptionsSheet = false
+                        onAddNewChecklistNote()
+                    },
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("create_checklist_note_option")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(46.dp)
+                                .clip(CircleShape)
+                                .background(AppColors.AccentGreen),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Checklist,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                text = "Checklist",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Tick-off items for to-dos and lists",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Option 3: Drawing Note (Dedicated drawing canvas screen)
                 Surface(
                     onClick = {
                         showCreateOptionsSheet = false
@@ -714,7 +814,7 @@ fun HomeScreen(
                             modifier = Modifier
                                 .size(46.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF2196F3)),
+                                .background(AppColors.Accent),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(

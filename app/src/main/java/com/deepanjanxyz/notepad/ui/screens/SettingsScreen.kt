@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,7 +32,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Fingerprint
@@ -96,6 +96,15 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * The settings screen: the theme, the lock, the backups and the import.
+ *
+ * `LongMethod` and `CyclomaticComplexMethod` are suppressed here rather than the
+ * screen split. Its state, its callbacks and its layout are read together, and the
+ * alternatives - threading a dozen parameters through new composables, or hiding the
+ * flow behind them - would not make any of it simpler.
+ */
+@Suppress("LongMethod", "CyclomaticComplexMethod")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -129,6 +138,12 @@ fun SettingsScreen(
 
     // Whether the folder holding the backup still has to be handed over.
     var offerFolder by remember { mutableStateOf(false) }
+    // Whether it has been handed over, so the Restore dialog knows whether asking
+    // for it is still the way to see a backup from an earlier installation.
+    var folderGranted by remember { mutableStateOf(false) }
+    // Set when the folder is asked for from the Restore dialog, where the point is
+    // to read the backup already in it rather than to write a new one over it.
+    var grantForRestore by remember { mutableStateOf(false) }
 
     LaunchedEffect(autoBackupStatus, showRestoreDialog) {
         val (info, entries) = withContext(Dispatchers.IO) {
@@ -142,6 +157,7 @@ fun SettingsScreen(
         // name. Handing the folder over is the way out, so it is offered as soon
         // as the app can see that this has happened.
         val granted = withContext(Dispatchers.IO) { DownloadsBackup.hasFolderAccess(context) }
+        folderGranted = granted
         val stuckCopies = withContext(Dispatchers.IO) { DownloadsBackup.needsFolderAccess(context) }
         offerFolder = !granted && (stuckCopies || autoBackupStatus?.error != null)
     }
@@ -150,9 +166,31 @@ fun SettingsScreen(
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
         scope.launch {
+            // Read once, as the picker returns, and cleared here rather than in the
+            // success branch: a cancelled or rejected pick would otherwise leave
+            // the Restore intent behind, and the next grant - from the Backup
+            // card, say - would skip the backup it is there to make.
+            val fromRestore = grantForRestore
+            grantForRestore = false
             when {
                 uri == null -> Unit
-                BackupFolder.take(context, uri) -> onBackUpNow(DownloadsBackup.FILE_NAME)
+                BackupFolder.take(context, uri) -> {
+                    // The folder can be read now, so a backup from an earlier
+                    // installation is listed and can be restored without being
+                    // written over first.
+                    folderGranted = true
+                    offerFolder = false
+                    // The Backup card reads the folder as well, so its state is
+                    // brought up to date here rather than left stale until the
+                    // effect above happens to run again.
+                    val (info, entries) = withContext(Dispatchers.IO) {
+                        DownloadsBackup.info(context) to DownloadsBackup.list(context)
+                    }
+                    backupInfo = info
+                    backupFileCount = entries.size
+                    availableBackups = entries
+                    if (!fromRestore) onBackUpNow(DownloadsBackup.FILE_NAME)
+                }
                 else -> snackbarHostState.showSnackbar(
                     "The backup folder has to be the EliteMemoPro folder inside Downloads"
                 )
@@ -239,7 +277,7 @@ fun SettingsScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { SnackbarHost(snackbarHostState, modifier = Modifier.navigationBarsPadding()) },
         topBar = {
             TopAppBar(
                 title = {
@@ -274,7 +312,8 @@ fun SettingsScreen(
                 .padding(innerPadding)
                 .background(MaterialTheme.colorScheme.background)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+                .padding(16.dp)
+                .navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             // Stats Card
@@ -501,7 +540,8 @@ fun SettingsScreen(
 
                     Text(
                         text = "Backups are saved to " + DownloadsBackup.locationLabel() +
-                            " and stay there even if you clear the app's data, so you can restore your notes afterwards.",
+                            " and stay there even if you clear the app's data, " +
+                                "so you can restore your notes afterwards.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -603,8 +643,15 @@ fun SettingsScreen(
 
                         OutlinedButton(
                             onClick = {
-                                availableBackups = DownloadsBackup.list(context)
-                                showRestoreDialog = true
+                                // Listing the folder reads the file system and the
+                                // media store, so it is kept off the main thread;
+                                // the dialog opens once the list is in hand.
+                                scope.launch {
+                                    availableBackups = withContext(Dispatchers.IO) {
+                                        DownloadsBackup.list(context)
+                                    }
+                                    showRestoreDialog = true
+                                }
                             },
                             modifier = Modifier
                                 .weight(1f)
@@ -656,7 +703,8 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Crafted with Kotlin Coroutines, Jetpack Compose Material 3, and Room local persistence.",
+                        text = "Crafted with Kotlin Coroutines, Jetpack Compose Material 3, " +
+                            "and Room local persistence.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -689,6 +737,31 @@ fun SettingsScreen(
                 Column {
                     if (availableBackups.isEmpty()) {
                         Text("No backups found in " + DownloadsBackup.locationLabel() + ".")
+                        if (!folderGranted) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                "A backup may already be there from an earlier installation. " +
+                                    "After a reinstall or a data clear this app can no longer see " +
+                                    "it, or replace it, until the folder is handed over.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedButton(
+                                onClick = {
+                                    grantForRestore = true
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    folderLauncher.launch(
+                                        BackupFolder.initialUri(BackupFolder.FOLDER_NAME)
+                                    )
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("restore_folder_button")
+                            ) {
+                                Text("Allow access to the backup folder")
+                            }
+                        }
                     } else {
                         availableBackups.forEach { entry ->
                             TextButton(
@@ -775,17 +848,19 @@ private fun getAppVersionName(context: Context): String =
         "App versionName is missing"
     }
 
-/**
- * Describes the backup that is really on disk, or the last failed attempt. The
- * number of files is reported so it is obvious when more than one exists.
- */
+/** Describes the backup on disk, or the last failed attempt. */
 private fun backupStatusText(
     info: DownloadsBackup.Info?,
     status: AutoBackupStatus?,
     fileCount: Int
-): String {
-    if (status?.error != null) return "Last backup failed: ${status.error}"
-    val lastModified = info?.lastModified ?: return "No backup saved yet"
-    val stamp = SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault()).format(Date(lastModified))
-    return if (fileCount > 1) "Last backup: $stamp \u00b7 $fileCount files" else "Last backup: $stamp"
+): String = when {
+    status?.error != null -> "Last backup failed: ${status.error}"
+    info == null -> "No backup saved yet"
+    else -> {
+        val stamp = SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault())
+            .format(Date(info.lastModified))
+        val count = if (fileCount > 1) " \u00b7 $fileCount files" else ""
+        val where = if (info.name != DownloadsBackup.FILE_NAME) " \u00b7 ${info.name}" else ""
+        "Last backup: $stamp$count$where"
+    }
 }

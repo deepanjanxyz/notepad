@@ -24,6 +24,13 @@ written for the F-Droid / Play listing and kept under the 500-character limit:
 | `16.txt` | v1.0.16 - navigation, sorting, and backup & restore |
 | `17.txt` | v1.0.17 - animations and a safer Trash |
 | `18.txt` | v1.0.18 - home-screen widget and colourful search |
+| `19.txt` | v1.0.19 - single-file auto backup |
+| `20.txt` | v1.0.20 - five fixes across the app |
+| `21.txt` | v1.0.21 - step-by-step back navigation |
+| `22.txt` | v1.0.22 - internal cleanup |
+| `23.txt` | v1.0.23 - two fixes from a store review |
+| `24.txt` | v1.0.24 - internal cleanup |
+| `25.txt` | v1.0.25 - label and drawing fixes |
 
 ## Initial multilingual listing (v1.0.11)
 

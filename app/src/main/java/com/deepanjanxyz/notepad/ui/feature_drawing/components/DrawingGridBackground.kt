@@ -3,8 +3,22 @@ package com.deepanjanxyz.notepad.ui.feature_drawing.components
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.domain.model.CanvasGridType
+
+// A background at or below this relative luminance is treated as dark, so the grid
+// is drawn light on it. 0.5 is the midpoint of the 0..1 luminance range.
+private const val DARK_BACKGROUND_LUMINANCE = 0.5f
+
+/**
+ * True when [backgroundColor] is dark enough that the grid has to be drawn light.
+ *
+ * Derived from the colour's own luminance rather than a list of known dark values,
+ * so a background added later still gets a grid that stays visible on it.
+ */
+fun isDarkCanvasBackground(backgroundColor: Long): Boolean =
+    Color(backgroundColor).luminance() < DARK_BACKGROUND_LUMINANCE
 
 fun DrawScope.drawCanvasGrid(gridType: CanvasGridType, isDarkBg: Boolean) {
     val lineColor = if (isDarkBg) Color(0x22FFFFFF) else Color(0x1F000000)

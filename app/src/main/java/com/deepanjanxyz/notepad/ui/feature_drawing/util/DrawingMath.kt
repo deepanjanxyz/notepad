@@ -4,12 +4,19 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import com.deepanjanxyz.notepad.domain.model.DrawingPoint
 import com.deepanjanxyz.notepad.domain.model.DrawingStroke
-import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.sin
+
+// Index of each selection handle, clockwise from the top-left corner.
+private const val HANDLE_TOP_LEFT = 0
+private const val HANDLE_TOP_MID = 1
+private const val HANDLE_TOP_RIGHT = 2
+private const val HANDLE_MID_LEFT = 3
+private const val HANDLE_MID_RIGHT = 4
+private const val HANDLE_BOTTOM_LEFT = 5
+private const val HANDLE_BOTTOM_MID = 6
+private const val HANDLE_BOTTOM_RIGHT = 7
+
 
 fun getSelectionBounds(strokes: List<DrawingStroke>, selectedIndices: Set<Int>): Rect? {
     if (selectedIndices.isEmpty()) return null
@@ -31,35 +38,39 @@ fun getSelectionBounds(strokes: List<DrawingStroke>, selectedIndices: Set<Int>):
             if (p.y > maxY) maxY = p.y
         }
     }
-    if (count == 0) return null
-    val pad = 12f
-    return Rect(minX - pad, minY - pad, maxX + pad, maxY + pad)
+    return if (count == 0) {
+        null
+    } else {
+        val pad = 12f
+        Rect(minX - pad, minY - pad, maxX + pad, maxY + pad)
+    }
 }
 
 fun isStrokeHit(stroke: DrawingStroke, point: Offset, threshold: Float = 26f): Boolean {
     val r = max(stroke.strokeWidth / 2f + 14f, threshold)
     val rSq = r * r
-    for (i in stroke.points.indices) {
+    return stroke.points.indices.any { i ->
         val p = stroke.points[i]
         val dx = p.x - point.x
         val dy = p.y - point.y
-        if (dx * dx + dy * dy <= rSq) return true
-        if (i > 0) {
-            val pPrev = stroke.points[i - 1]
-            val segDx = p.x - pPrev.x
-            val segDy = p.y - pPrev.y
-            val segLenSq = segDx * segDx + segDy * segDy
-            if (segLenSq > 0f) {
-                val t = (((point.x - pPrev.x) * segDx + (point.y - pPrev.y) * segDy) / segLenSq).coerceIn(0f, 1f)
-                val projX = pPrev.x + t * segDx
-                val projY = pPrev.y + t * segDy
-                val dPx = point.x - projX
-                val dPy = point.y - projY
-                if (dPx * dPx + dPy * dPy <= rSq) return true
-            }
-        }
+        val onPoint = dx * dx + dy * dy <= rSq
+        val onSegment = i > 0 && isWithinSegment(stroke.points[i - 1], p, point, rSq)
+        onPoint || onSegment
     }
-    return false
+}
+
+/** True when [point] lies within [rSq] of the segment that runs from [pPrev] to [p]. */
+private fun isWithinSegment(pPrev: DrawingPoint, p: DrawingPoint, point: Offset, rSq: Float): Boolean {
+    val segDx = p.x - pPrev.x
+    val segDy = p.y - pPrev.y
+    val segLenSq = segDx * segDx + segDy * segDy
+    if (segLenSq <= 0f) return false
+    val t = (((point.x - pPrev.x) * segDx + (point.y - pPrev.y) * segDy) / segLenSq).coerceIn(0f, 1f)
+    val projX = pPrev.x + t * segDx
+    val projY = pPrev.y + t * segDy
+    val dPx = point.x - projX
+    val dPy = point.y - projY
+    return dPx * dPx + dPy * dPy <= rSq
 }
 
 fun isStrokeInRect(stroke: DrawingStroke, rect: Rect): Boolean {
@@ -96,38 +107,38 @@ fun isMoveTargetHit(b: Rect, touch: Offset, padding: Float = 28f): Boolean {
 fun updateBoundsWithHandle(oldB: Rect, handleIdx: Int, newPos: Offset): Rect {
     val minSize = 20f
     return when (handleIdx) {
-        0 -> { // Top-Left
+        HANDLE_TOP_LEFT -> { // Top-Left
             val left = min(newPos.x, oldB.right - minSize)
             val top = min(newPos.y, oldB.bottom - minSize)
             Rect(left, top, oldB.right, oldB.bottom)
         }
-        1 -> { // Top-Mid
+        HANDLE_TOP_MID -> { // Top-Mid
             val top = min(newPos.y, oldB.bottom - minSize)
             Rect(oldB.left, top, oldB.right, oldB.bottom)
         }
-        2 -> { // Top-Right
+        HANDLE_TOP_RIGHT -> { // Top-Right
             val right = max(newPos.x, oldB.left + minSize)
             val top = min(newPos.y, oldB.bottom - minSize)
             Rect(oldB.left, top, right, oldB.bottom)
         }
-        3 -> { // Mid-Left
+        HANDLE_MID_LEFT -> { // Mid-Left
             val left = min(newPos.x, oldB.right - minSize)
             Rect(left, oldB.top, oldB.right, oldB.bottom)
         }
-        4 -> { // Mid-Right
+        HANDLE_MID_RIGHT -> { // Mid-Right
             val right = max(newPos.x, oldB.left + minSize)
             Rect(oldB.left, oldB.top, right, oldB.bottom)
         }
-        5 -> { // Bottom-Left
+        HANDLE_BOTTOM_LEFT -> { // Bottom-Left
             val left = min(newPos.x, oldB.right - minSize)
             val bottom = max(newPos.y, oldB.top + minSize)
             Rect(left, oldB.top, oldB.right, bottom)
         }
-        6 -> { // Bottom-Mid
+        HANDLE_BOTTOM_MID -> { // Bottom-Mid
             val bottom = max(newPos.y, oldB.top + minSize)
             Rect(oldB.left, oldB.top, oldB.right, bottom)
         }
-        7 -> { // Bottom-Right
+        HANDLE_BOTTOM_RIGHT -> { // Bottom-Right
             val right = max(newPos.x, oldB.left + minSize)
             val bottom = max(newPos.y, oldB.top + minSize)
             Rect(oldB.left, oldB.top, right, bottom)
@@ -216,7 +227,11 @@ fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDrawingStroke(stroke: D
         color = androidx.compose.ui.graphics.Color(stroke.color).copy(alpha = stroke.alpha),
         style = androidx.compose.ui.graphics.drawscope.Stroke(
             width = stroke.strokeWidth,
-            cap = if (stroke.isHighlighter) androidx.compose.ui.graphics.StrokeCap.Square else androidx.compose.ui.graphics.StrokeCap.Round,
+            cap = if (stroke.isHighlighter) {
+                androidx.compose.ui.graphics.StrokeCap.Square
+            } else {
+                androidx.compose.ui.graphics.StrokeCap.Round
+            },
             join = androidx.compose.ui.graphics.StrokeJoin.Round
         )
     )

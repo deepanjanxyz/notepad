@@ -1,6 +1,6 @@
 # Privacy Policy — Elite Memo Pro
 
-This policy describes how **Elite Memo Pro** (`com.deepanjanxyz.notepad`) handles your data. It reflects how the app actually behaves as built from this repository: every statement below is based on the app's source code, its `AndroidManifest.xml` files, its Bazel build files (`MODULE.bazel` and the `BUILD.bazel` files) and the signed APK published in the Releases section.
+This policy describes how **Elite Memo Pro** (`com.deepanjanxyz.notepad`) handles your data. It reflects how the app actually behaves as built from this repository: every statement below is based on the app's source code, its `AndroidManifest.xml` files, its Gradle configuration and the signed APK published in the Releases section.
 
 Last updated: 12 October 2026
 
@@ -20,7 +20,6 @@ All app data is written to storage that is private to the app:
 
 Notes are not encrypted at rest by the app. They are protected by Android's app sandbox — another app cannot read this app's private storage — and by any device encryption you have enabled.
 
-The app also contains code for an optional, encrypted backend configuration (`EncryptedSetupStore`, DataStore `notepad_setup`, using AES-GCM with a key held in the Android Keystore). That record is written only if the backend setup flow is used; see "Network access and data transmission" below.
 
 ## Network access and data transmission
 
@@ -34,13 +33,13 @@ The permissions actually present in the installed app are:
 - `android.permission.WRITE_EXTERNAL_STORAGE` — capped at `maxSdkVersion="28"`, so it is requested only on Android 9 and below, to write a JSON backup into the public Downloads folder. On Android 10 and later the backup uses MediaStore and needs no runtime permission.
 - `android.permission.ACCESS_NETWORK_STATE` — contributed by a dependency, not requested by the app itself. It allows reading whether a network is available; it does not grant network access.
 
-The repository does contain code that would use the network if it were enabled: a Supabase/PostgREST client, email/password and email-OTP authentication, and a backend-URL reachability check in `SetupRepository`. Nothing in the app constructs or calls that code — the setup dialog that would drive it is defined but never shown — so it is not reachable from the current UI. Even if it were reachable, the missing `INTERNET` permission would prevent it from connecting.
+The app contains no networking code: there is no HTTP client, no remote-backend client, and no authentication flow anywhere in the source or in the shipped APK.
 
 The app can hand a web address to another app: the Settings screen offers "GitHub" and "Issues" links, which are opened through an Android `ACTION_VIEW` intent. In that case the browser — not Elite Memo Pro — fetches the page, under the browser's own privacy policy.
 
 ## Analytics, advertising, tracking and crash reporting
 
-None. The app bundles no analytics, advertising, tracking or crash-reporting SDK — there is no Firebase, Crashlytics, Google Play Services, ads, Sentry or comparable dependency in the build files — and no such code exists in the source.
+None. The app bundles no analytics, advertising, tracking or crash-reporting SDK — there is no Firebase, Crashlytics, Google Play Services, ads, Sentry or comparable dependency in the Gradle files — and no such code exists in the source.
 
 ## Android permissions
 
@@ -115,4 +114,4 @@ Each claim above can be checked against the repository:
 - App lock — `app/src/main/java/com/deepanjanxyz/notepad/MainActivity.kt`
 - Reminders — `app/src/main/java/com/deepanjanxyz/notepad/worker/`
 - Backup rules — `app/src/main/res/xml/backup_rules.xml` and `app/src/main/res/xml/data_extraction_rules.xml`
-- Dependencies — `MODULE.bazel`, `app/BUILD.bazel`, `core/BUILD.bazel`, `data/BUILD.bazel`, `features/BUILD.bazel`
+- Dependencies — `app/build.gradle.kts`, `core/build.gradle.kts`, `data/build.gradle.kts`, `features/build.gradle.kts`

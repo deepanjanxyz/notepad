@@ -1,6 +1,7 @@
 package com.deepanjanxyz.notepad.ui.components
 
-import androidx.compose.foundation.clickable
+import android.view.HapticFeedbackConstants
+import android.view.View
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Add
@@ -35,16 +38,31 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.delay
+
+private const val MAX_LABEL_LENGTH = 30
+
+// How long the field stays red after a keystroke that goes past the limit.
+private val LIMIT_FLASH_DURATION = 1.seconds
+
+/** A short buzz for the character-limit warning, honouring the system touch-feedback setting. */
+private fun View.buzz() {
+    performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+}
 
 @Composable
 fun EditLabelsDialog(
@@ -59,79 +77,63 @@ fun EditLabelsDialog(
     var renamingLabel by remember { mutableStateOf<String?>(null) }
     var renameInputText by remember { mutableStateOf("") }
 
-    val cleanedNew = newLabelText.trim().replace("#", "")
-    val isDuplicate = cleanedNew.isNotBlank() && labels.any { it.equals(cleanedNew, ignoreCase = true) }
+    val pendingLabel = newLabelText.trim().replace("#", "")
+    val pendingIsDuplicate = pendingLabel.isNotBlank() &&
+        labels.any { it.equals(pendingLabel, ignoreCase = true) }
 
-    // Rename sub-dialog
-    if (renamingLabel != null) {
-        val targetLabel = renamingLabel!!
-        val renameCleaned = renameInputText.trim().replace("#", "")
-        val isRenameDuplicate = renameCleaned.isNotBlank() &&
-            !renameCleaned.equals(targetLabel, ignoreCase = true) &&
-            labels.any { it.equals(renameCleaned, ignoreCase = true) }
+    // Typing a name and then tapping Done - or dismissing the dialog - used to
+    // discard it unless "+" had been pressed. Commit it the same way "+" does.
+    val commitPendingLabel = {
+        if (pendingLabel.isNotBlank() && !pendingIsDuplicate) {
+            onAddLabel(pendingLabel)
+            newLabelText = ""
+        }
+    }
 
-        AlertDialog(
-            onDismissRequest = { renamingLabel = null },
-            title = { Text("Rename Label") },
-            text = {
-                Column {
-                    OutlinedTextField(
-                        value = renameInputText,
-                        onValueChange = {
-                            renameInputText = it.take(30)
-                        },
-                        label = { Text("Label Name") },
-                        isError = isRenameDuplicate,
-                        supportingText = {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                if (isRenameDuplicate) {
-                                    Text(
-                                        text = "Label already exists",
-                                        color = MaterialTheme.colorScheme.error,
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
-                                } else {
-                                    Spacer(modifier = Modifier.weight(1f))
-                                }
-                                Text(
-                                    text = "${renameInputText.length}/30",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = if (isRenameDuplicate) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline
-                                )
-                            }
-                        },
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("rename_label_input")
-                    )
-                }
+    renamingLabel?.let { targetLabel ->
+        RenameLabelDialog(
+            targetLabel = targetLabel,
+            labels = labels,
+            renameInputText = renameInputText,
+            onInputChange = { renameInputText = it },
+            onConfirm = { newName ->
+                onRenameLabel(targetLabel, newName)
+                renamingLabel = null
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (renameCleaned.isNotBlank() && !isRenameDuplicate) {
-                            onRenameLabel(targetLabel, renameCleaned)
-                        }
-                        renamingLabel = null
-                    },
-                    enabled = renameInputText.isNotBlank() && !isRenameDuplicate,
-                    modifier = Modifier.testTag("confirm_rename_label_button")
-                ) {
-                    Text("Save")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { renamingLabel = null }) {
-                    Text("Cancel")
-                }
-            }
+            onDismiss = { renamingLabel = null }
         )
     }
 
+    EditLabelsDialogBody(
+        labels = labels,
+        newLabelText = newLabelText,
+        onNewLabelChange = { newLabelText = it },
+        onAddLabel = onAddLabel,
+        onStartRename = { label ->
+            renamingLabel = label
+            renameInputText = label
+        },
+        onDeleteLabel = onDeleteLabel,
+        onDismiss = {
+            commitPendingLabel()
+            onDismiss()
+        },
+        modifier = modifier
+    )
+}
+
+/** The dialog itself: its title, the new-label field, the list and the done row. */
+@Composable
+private fun EditLabelsDialogBody(
+    labels: List<String>,
+    newLabelText: String,
+    onNewLabelChange: (String) -> Unit,
+    onAddLabel: (String) -> Unit,
+    onStartRename: (String) -> Unit,
+    onDeleteLabel: (String) -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(24.dp),
@@ -148,7 +150,6 @@ fun EditLabelsDialog(
                     .fillMaxWidth()
                     .padding(20.dp)
             ) {
-                // Dialog Header
                 Text(
                     text = "Edit Labels",
                     style = MaterialTheme.typography.titleLarge,
@@ -158,122 +159,281 @@ fun EditLabelsDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Top Input Field: "Create new label" with max 30 char limit and trailing '+' button
-                OutlinedTextField(
-                    value = newLabelText,
-                    onValueChange = {
-                        newLabelText = it.take(30)
-                    },
-                    placeholder = { Text("Create new label") },
-                    isError = isDuplicate,
-                    trailingIcon = {
-                        ActionTooltip("Add label") {
-                            IconButton(
-                                onClick = {
-                                    if (cleanedNew.isNotBlank() && !isDuplicate) {
-                                        onAddLabel(cleanedNew)
-                                        newLabelText = ""
-                                    }
-                                },
-                                enabled = newLabelText.isNotBlank() && !isDuplicate,
-                                modifier = Modifier.testTag("add_label_plus_button")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = "Add label",
-                                    tint = if (newLabelText.isNotBlank() && !isDuplicate) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                                )
-                            }
-                        }
-                    },
-                    supportingText = {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            if (isDuplicate) {
-                                Text(
-                                    text = "Label already exists",
-                                    color = MaterialTheme.colorScheme.error,
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            } else {
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
-                            Text(
-                                text = "${newLabelText.length}/30",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (isDuplicate) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline
-                            )
-                        }
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("create_label_input")
+                NewLabelField(
+                    newLabelText = newLabelText,
+                    labels = labels,
+                    onInputChange = onNewLabelChange,
+                    onAddLabel = onAddLabel
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Existing Labels List
-                if (labels.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No labels yet. Create one above!",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                } else {
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 280.dp)
-                    ) {
-                        items(labels, key = { it }) { label ->
-                            LabelListItem(
-                                label = label,
-                                onRename = {
-                                    renamingLabel = label
-                                    renameInputText = label
-                                },
-                                onDelete = {
-                                    onDeleteLabel(label)
-                                }
-                            )
-                        }
-                    }
-                }
+                LabelList(
+                    labels = labels,
+                    onStartRename = onStartRename,
+                    onDeleteLabel = onDeleteLabel
+                )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Bottom Action: "Done" button to dismiss dialog
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.testTag("done_edit_labels_button")
-                    ) {
-                        Text(
-                            text = "Done",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
+                EditLabelsDoneRow(onDismiss = onDismiss)
             }
+        }
+    }
+}
+
+/** The field a new label is typed into, with its add button. */
+@Composable
+private fun NewLabelField(
+    newLabelText: String,
+    labels: List<String>,
+    onInputChange: (String) -> Unit,
+    onAddLabel: (String) -> Unit
+) {
+    val cleaned = newLabelText.trim().replace("#", "")
+    val isDuplicate = cleaned.isNotBlank() && labels.any { it.equals(cleaned, ignoreCase = true) }
+    val canAdd = newLabelText.isNotBlank() && !isDuplicate
+    var limitFlash by remember { mutableStateOf(false) }
+    val addIfValid = {
+        if (cleaned.isNotBlank() && !isDuplicate) {
+            onAddLabel(cleaned)
+            onInputChange("")
+        }
+    }
+
+    // Clear the red border a moment after the last over-limit keystroke, so it reads
+    // as a reaction to that keystroke rather than a standing error on the field.
+    LaunchedEffect(limitFlash) {
+        if (limitFlash) {
+            delay(LIMIT_FLASH_DURATION.inWholeMilliseconds)
+            limitFlash = false
+        }
+    }
+
+    val view = LocalView.current
+
+    OutlinedTextField(
+        value = newLabelText,
+        onValueChange = { raw ->
+            // take() drops anything past the limit; buzz and flash the border red.
+            if (raw.length > MAX_LABEL_LENGTH) {
+                view.buzz()
+                limitFlash = true
+            }
+            onInputChange(raw.take(MAX_LABEL_LENGTH))
+        },
+        placeholder = { Text("Create new label") },
+        isError = isDuplicate || limitFlash,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { addIfValid() }),
+        trailingIcon = {
+            NewLabelAddButton(canAdd = canAdd, onClick = addIfValid)
+        },
+        supportingText = {
+            LabelFieldSupportingText(length = newLabelText.length, isDuplicate = isDuplicate)
+        },
+        singleLine = true,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("create_label_input")
+    )
+}
+
+/**
+ * The add button beside the new-label field.
+ *
+ * It is kept clickable even while the name is not valid yet - the guard lives in
+ * the action - so a tap that lands near the icon is swallowed here instead of
+ * falling through to the text field or the list underneath.
+ */
+@Composable
+private fun NewLabelAddButton(canAdd: Boolean, onClick: () -> Unit) {
+    ActionTooltip("Add label") {
+        // A fixed 48dp box gives the button a hit area of its own, so a tap that
+        // lands beside the icon cannot reach the field or the list behind it.
+        Box(
+            modifier = Modifier.size(48.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            IconButton(
+                onClick = onClick,
+                modifier = Modifier.testTag("add_label_plus_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Add label",
+                    tint = if (canAdd) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.outline
+                    }
+                )
+            }
+        }
+    }
+}
+
+/** The "already exists" note and the character count under a label field. */
+@Composable
+private fun LabelFieldSupportingText(length: Int, isDuplicate: Boolean) {
+    val atLimit = length >= MAX_LABEL_LENGTH
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        when {
+            isDuplicate -> Text(
+                text = "Label already exists",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.labelSmall
+            )
+            atLimit -> Text(
+                text = "Character limit reached",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium
+            )
+            else -> Spacer(modifier = Modifier.weight(1f))
+        }
+        Text(
+            text = "$length/$MAX_LABEL_LENGTH",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = if (atLimit) FontWeight.Bold else FontWeight.Normal,
+            color = if (isDuplicate || atLimit) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.outline
+            }
+        )
+    }
+}
+
+/** The sub-dialog that renames one label. */
+@Composable
+private fun RenameLabelDialog(
+    targetLabel: String,
+    labels: List<String>,
+    renameInputText: String,
+    onInputChange: (String) -> Unit,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val view = LocalView.current
+    val cleaned = renameInputText.trim().replace("#", "")
+    val isDuplicate = cleaned.isNotBlank() &&
+        !cleaned.equals(targetLabel, ignoreCase = true) &&
+        labels.any { it.equals(cleaned, ignoreCase = true) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename Label") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = renameInputText,
+                    onValueChange = { raw ->
+                        if (raw.length > MAX_LABEL_LENGTH) {
+                            view.buzz()
+                        }
+                        onInputChange(raw.take(MAX_LABEL_LENGTH))
+                    },
+                    label = { Text("Label Name") },
+                    isError = isDuplicate,
+                    supportingText = {
+                        LabelFieldSupportingText(
+                            length = renameInputText.length,
+                            isDuplicate = isDuplicate
+                        )
+                    },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("rename_label_input")
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (cleaned.isNotBlank() && !isDuplicate) {
+                        onConfirm(cleaned)
+                    }
+                    onDismiss()
+                },
+                enabled = renameInputText.isNotBlank() && !isDuplicate,
+                modifier = Modifier.testTag("confirm_rename_label_button")
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+/** Every existing label, or a note that there are none yet. */
+@Composable
+private fun LabelList(
+    labels: List<String>,
+    onStartRename: (String) -> Unit,
+    onDeleteLabel: (String) -> Unit
+) {
+    if (labels.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(100.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "No labels yet. Create one above!",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    } else {
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 280.dp)
+        ) {
+            items(labels, key = { it }) { label ->
+                LabelListItem(
+                    label = label,
+                    onRename = { onStartRename(label) },
+                    onDelete = { onDeleteLabel(label) }
+                )
+            }
+        }
+    }
+}
+
+/** The done button that closes the dialog. */
+@Composable
+private fun EditLabelsDoneRow(onDismiss: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End
+    ) {
+        TextButton(
+            onClick = onDismiss,
+            modifier = Modifier.testTag("done_edit_labels_button")
+        ) {
+            Text(
+                text = "Done",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
@@ -285,8 +445,6 @@ private fun LabelListItem(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
-
     Surface(
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surface,
@@ -319,58 +477,69 @@ private fun LabelListItem(
             )
 
             // Trailing 3-dot overflow menu with Rename and Delete
-            Box {
-                ActionTooltip("Label options") {
-                    IconButton(
-                        onClick = { menuExpanded = true },
-                        modifier = Modifier
-                            .size(32.dp)
-                            .testTag("label_overflow_menu_$label")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Label options",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
+            LabelOverflowMenu(label = label, onRename = onRename, onDelete = onDelete)
+        }
+    }
+}
 
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Rename") },
-                        leadingIcon = {
-                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
-                        },
-                        onClick = {
-                            menuExpanded = false
-                            onRename()
-                        },
-                        modifier = Modifier.testTag("rename_menu_item_$label")
-                    )
+@Composable
+private fun LabelOverflowMenu(
+    label: String,
+    onRename: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
 
-                    DropdownMenuItem(
-                        text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        },
-                        onClick = {
-                            menuExpanded = false
-                            onDelete()
-                        },
-                        modifier = Modifier.testTag("delete_menu_item_$label")
-                    )
-                }
+    Box {
+        ActionTooltip("Label options") {
+            IconButton(
+                onClick = { menuExpanded = true },
+                modifier = Modifier
+                    .size(32.dp)
+                    .testTag("label_overflow_menu_$label")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "Label options",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
             }
+        }
+
+        DropdownMenu(
+            expanded = menuExpanded,
+            onDismissRequest = { menuExpanded = false },
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            DropdownMenuItem(
+                text = { Text("Rename") },
+                leadingIcon = {
+                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                },
+                onClick = {
+                    menuExpanded = false
+                    onRename()
+                },
+                modifier = Modifier.testTag("rename_menu_item_$label")
+            )
+
+            DropdownMenuItem(
+                text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
+                onClick = {
+                    menuExpanded = false
+                    onDelete()
+                },
+                modifier = Modifier.testTag("delete_menu_item_$label")
+            )
         }
     }
 }

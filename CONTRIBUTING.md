@@ -18,6 +18,12 @@ Keep the unit tests green, and add one when you change behaviour.
 
 Use Conventional Commits — `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`.
 
+## Naming
+
+- Do not use third-party brand names or product names in pull request titles, descriptions, commit messages or code.
+- Describe what a change does in plain words instead of naming another product.
+- When a change is inspired by another app, say which behaviour it adds, not which app it came from.
+
 ## Conduct
 
 By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).

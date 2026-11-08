@@ -40,8 +40,8 @@ android {
         applicationId = "com.deepanjanxyz.notepad"
         minSdk = 24
         targetSdk = 37
-        versionCode = 27
-        versionName = "1.0.29"
+        versionCode = 28
+        versionName = "1.0.28"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -148,7 +148,7 @@ dependencies {
     implementation("androidx.core:core-ktx:1.19.1")
     implementation("androidx.core:core-splashscreen:1.2.0")
     implementation("androidx.fragment:fragment-ktx:1.9.1")
-    implementation("androidx.biometric:biometric:1.4.0-alpha07")
+    implementation("androidx.biometric:biometric:1.4.0-beta01")
 
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.12.0")

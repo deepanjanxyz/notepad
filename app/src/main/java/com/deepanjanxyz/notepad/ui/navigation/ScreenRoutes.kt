@@ -51,6 +51,9 @@ private fun HomeRoute(routes: ScreenRouteState) {
         onNoteLongClick = { note -> routes.viewModel.toggleSelection(note.id) },
         onTogglePinSelected = { routes.viewModel.togglePinForSelected() },
         onAddNewNote = { routes.viewModel.navigateTo(Screen.Editor(0L)) },
+        onAddNewChecklistNote = {
+            routes.viewModel.navigateTo(Screen.Editor(0L, startInChecklist = true))
+        },
         onAddNewDrawingNote = { routes.viewModel.navigateTo(Screen.Drawing(0L)) },
         onClearSelection = { routes.viewModel.clearSelection() },
         onSelectAll = { routes.viewModel.selectAll(routes.filteredNotes) },
@@ -67,6 +70,7 @@ private fun HomeRoute(routes: ScreenRouteState) {
 private fun EditorRoute(routes: ScreenRouteState, screen: Screen.Editor) {
     NoteEditorScreen(
         noteId = screen.noteId,
+        startInChecklist = screen.startInChecklist,
         availableTags = routes.allTags,
         onGetNote = { id -> routes.viewModel.getNote(id) },
         onSaveNote = {

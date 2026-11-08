@@ -49,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.deepanjanxyz.notepad.domain.model.BULLET_PREFIX
 import com.deepanjanxyz.notepad.domain.model.DrawingData
 import com.deepanjanxyz.notepad.domain.model.DrawingPoint
 import com.deepanjanxyz.notepad.domain.model.DrawingSerializer
@@ -63,15 +64,30 @@ private const val MIN_STROKE_WIDTH = 1.5f
 // Length of the "[x] " / "[ ] " marker at the start of a checklist line.
 private const val CHECKLIST_MARKER_LENGTH = 4
 
-/** The checkbox markers written as their box glyphs, when the note has any. */
-private fun formatChecklistLines(content: String): String {
-    if (!content.contains("[ ] ") && !content.contains("[x] ", ignoreCase = true)) {
-        return content
-    }
+// Length of the "- " marker at the start of a bullet line.
+private const val BULLET_MARKER_LENGTH = 2
+
+/**
+ * The list markers written as the glyphs the card shows, when the note has any.
+ *
+ * A checklist marker becomes its box and a bullet becomes a dot; a numbered line
+ * already reads as "1. " in the raw text, so it is left alone.
+ */
+private fun formatStructuredLines(content: String): String {
+    val hasChecklist =
+        content.contains("[ ] ") || content.contains("[x] ", ignoreCase = true)
+    if (!hasChecklist && !content.contains(BULLET_PREFIX)) return content
     return content.lines().map { line ->
         when {
-            line.startsWith("[x] ", ignoreCase = true) -> "\u2611 " + line.substring(CHECKLIST_MARKER_LENGTH)
-            line.startsWith("[ ] ") -> "\u2610 " + line.substring(CHECKLIST_MARKER_LENGTH)
+            line.startsWith("[x] ", ignoreCase = true) ->
+                "\u2611 " + line.substring(CHECKLIST_MARKER_LENGTH)
+
+            line.startsWith("[ ] ") ->
+                "\u2610 " + line.substring(CHECKLIST_MARKER_LENGTH)
+
+            line.startsWith(BULLET_PREFIX) ->
+                "\u2022 " + line.substring(BULLET_MARKER_LENGTH)
+
             else -> line
         }
     }.joinToString("\n")
@@ -111,7 +127,7 @@ fun NoteCard(
         text = note.title.ifBlank { "Untitled Note" },
         query = searchQuery
     )
-    val formattedContent = remember(note.content) { formatChecklistLines(note.content) }
+    val formattedContent = remember(note.content) { formatStructuredLines(note.content) }
     val highlightedContent = buildHighlightedText(text = formattedContent, query = searchQuery)
 
     Card(

@@ -96,7 +96,8 @@ Planned work, roughly in order. Priorities can shift, and issues or pull request
 - [ ] **Calendar view** — see which days have notes and open a day's notes from a calendar, keeping the created date and the reminder date separate.
 - [x] **Bulk archive, trash and pin** — select several notes and archive, delete or pin them together.
 - [ ] **Bulk note actions** — re-label, recolour or export several notes together.
-- [ ] **Drawing improvements** — quicker stroke-thickness changes, custom colours, canvas zoom and pan, and stylus-pressure pen width where the device supports it.
+- [x] **Stroke thickness control** — a slider and preset sizes for the active tool, in the colour sheet.
+- [ ] **Drawing improvements** — custom colours, canvas zoom and pan, and stylus-pressure pen width where the device supports it.
 - [ ] **Encrypted backup** — a password-protected, encrypted backup file beside the JSON one, restorable on another device, with no cloud or server.
 - [ ] **Reading & editor customization** — font size, line spacing and a distraction-free reading view.
 - [ ] **Markdown export/import** — export and import notes as Markdown and share several notes at once, staying compatible with the current format.

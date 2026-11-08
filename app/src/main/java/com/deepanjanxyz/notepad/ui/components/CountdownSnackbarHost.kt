@@ -231,12 +231,14 @@ private fun Modifier.countdownRing(drained: Float, color: Color, visible: Boolea
 /** The digit itself, the next one rolling in from the top as the old one drops away. */
 @Composable
 private fun CountdownDigit(value: String) {
-    val roll = tween<Float>(DIGIT_ROLL_MS)
     AnimatedContent(
         targetState = value,
         transitionSpec = {
-            (slideInVertically(roll) { height -> -height } + fadeIn(roll)) togetherWith
-                (slideOutVertically(roll) { height -> height } + fadeOut(roll))
+            val rollingIn = slideInVertically(tween(DIGIT_ROLL_MS)) { height -> -height } +
+                fadeIn(tween(DIGIT_ROLL_MS))
+            val rollingOut = slideOutVertically(tween(DIGIT_ROLL_MS)) { height -> height } +
+                fadeOut(tween(DIGIT_ROLL_MS))
+            rollingIn togetherWith rollingOut
         },
         label = "snackbar_countdown_digit"
     ) { text ->

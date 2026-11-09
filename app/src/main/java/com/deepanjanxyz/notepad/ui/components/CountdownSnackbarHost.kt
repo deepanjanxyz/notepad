@@ -1,8 +1,8 @@
 package com.deepanjanxyz.notepad.ui.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -176,21 +176,28 @@ private fun CountdownDismiss(snackbar: SnackbarData, seconds: Int, onDismiss: ()
         }
         if (!indefinite) onDismiss()
     }
-    // The ring drains continuously rather than a second at a time, so the countdown
-    // reads as time passing instead of a number changing.
+    // The ring is the clock, not a readout of the digit: it starts full when the
+    // snackbar appears and is empty as it goes, rather than restarting each second.
+    val ring = remember(snackbar, ticks) { Animatable(1f) }
+    LaunchedEffect(snackbar, ticks) {
+        if (!indefinite) {
+            ring.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(
+                    durationMillis = (ticks * TICK_MS).toInt(),
+                    easing = LinearEasing
+                )
+            )
+        }
+    }
     // Read here: SnackbarDefaults.actionColor is composable, and the draw lambda is not.
     val ringColor = SnackbarDefaults.actionColor
-    val drained by animateFloatAsState(
-        targetValue = if (indefinite) 1f else remaining.toFloat() / ticks,
-        animationSpec = tween(durationMillis = TICK_MS.toInt(), easing = LinearEasing),
-        label = "snackbar_countdown_ring"
-    )
     Box(
         modifier = Modifier
             // A floor rather than a fixed size, so the digit is not clipped once the
             // font scale is turned up. Compose still expands the touch target to 48dp.
             .defaultMinSize(minWidth = COUNTDOWN_SIZE, minHeight = COUNTDOWN_SIZE)
-            .countdownRing(drained = drained, color = ringColor, visible = !indefinite)
+            .countdownRing(drained = ring.value, color = ringColor, visible = !indefinite)
             .clip(CircleShape)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },

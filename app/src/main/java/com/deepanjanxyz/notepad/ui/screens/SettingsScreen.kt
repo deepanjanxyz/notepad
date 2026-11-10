@@ -437,7 +437,9 @@ fun SettingsScreen(
                             FilterChip(
                                 selected = isSelected,
                                 onClick = { onThemeChange(mode) },
-                                label = { Text(label) },
+                                // One line: the chip sizes to its own label, so "System"
+                                // cannot break after "Syste".
+                                label = { Text(text = label, maxLines = 1, softWrap = false) },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = icon,
@@ -450,7 +452,7 @@ fun SettingsScreen(
                                     selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
                                 ),
                                 modifier = Modifier
-                                    .weight(1f)
+                                    .weight(1f, fill = false)
                                     .testTag("theme_chip_$mode")
                             )
                         }

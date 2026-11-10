@@ -14,6 +14,11 @@ Thanks for helping improve Elite Memo Pro. A few guidelines keep things consiste
 
 Keep the unit tests green, and add one when you change behaviour.
 
+## Branches
+
+- Open every pull request against `dev`, from a branch of your own rather than from `main`.
+- Changes reach `main` from `dev`, so nothing is merged into `main` directly.
+
 ## Commits
 
 Use Conventional Commits — `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`.

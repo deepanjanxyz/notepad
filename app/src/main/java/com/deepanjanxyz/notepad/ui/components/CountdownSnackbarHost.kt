@@ -1,6 +1,9 @@
 package com.deepanjanxyz.notepad.ui.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -35,6 +38,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalAccessibilityManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -61,6 +70,12 @@ private val CONTENT_PADDING_VERTICAL = 12.dp
  */
 private val COUNTDOWN_SIZE = 22.dp
 private val COUNTDOWN_GAP = 2.dp
+
+/** How long one digit takes to roll away and the next to take its place. */
+private const val DIGIT_ROLL_MS = 150
+
+/** The width of the ring that measures the time left. */
+private val RING_STROKE = 2.dp
 
 /**
  * A [SnackbarHost] that swaps the dismiss icon for a countdown.
@@ -161,11 +176,28 @@ private fun CountdownDismiss(snackbar: SnackbarData, seconds: Int, onDismiss: ()
         }
         if (!indefinite) onDismiss()
     }
+    // The ring is the clock, not a readout of the digit: it starts full when the
+    // snackbar appears and is empty as it goes, rather than restarting each second.
+    val ring = remember(snackbar, ticks) { Animatable(1f) }
+    LaunchedEffect(snackbar, ticks) {
+        if (!indefinite) {
+            ring.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(
+                    durationMillis = (ticks * TICK_MS).toInt(),
+                    easing = LinearEasing
+                )
+            )
+        }
+    }
+    // Read here: SnackbarDefaults.actionColor is composable, and the draw lambda is not.
+    val ringColor = SnackbarDefaults.actionColor
     Box(
         modifier = Modifier
             // A floor rather than a fixed size, so the digit is not clipped once the
             // font scale is turned up. Compose still expands the touch target to 48dp.
             .defaultMinSize(minWidth = COUNTDOWN_SIZE, minHeight = COUNTDOWN_SIZE)
+            .countdownRing(drained = ring.value, color = ringColor, visible = !indefinite)
             .clip(CircleShape)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
@@ -178,20 +210,50 @@ private fun CountdownDismiss(snackbar: SnackbarData, seconds: Int, onDismiss: ()
             .testTag("snackbar_countdown"),
         contentAlignment = Alignment.Center
     ) {
-        AnimatedContent(
-            targetState = if (indefinite) "\u221e" else remaining.toString(),
-            transitionSpec = {
-                (slideInVertically { height -> -height } + fadeIn()) togetherWith
-                    (slideOutVertically { height -> height } + fadeOut())
-            },
-            label = "snackbar_countdown_digit"
-        ) { value ->
-            Text(
-                text = value,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(horizontal = COUNTDOWN_GAP)
-            )
-        }
+        CountdownDigit(value = if (indefinite) "\u221e" else remaining.toString())
+    }
+}
+
+/**
+ * The ring that drains as the time runs out, drawn around the digit.
+ *
+ * It follows the digit's measured size rather than a fixed one, so a larger font
+ * scale widens the ring with it.
+ */
+private fun Modifier.countdownRing(drained: Float, color: Color, visible: Boolean): Modifier =
+    drawBehind {
+        if (!visible) return@drawBehind
+        val stroke = RING_STROKE.toPx()
+        drawArc(
+            color = color,
+            startAngle = -90f,
+            sweepAngle = -360f * drained,
+            useCenter = false,
+            topLeft = Offset(stroke / 2, stroke / 2),
+            size = Size(size.width - stroke, size.height - stroke),
+            style = Stroke(width = stroke, cap = StrokeCap.Round)
+        )
+    }
+
+/** The digit itself, the next one rolling in from the top as the old one drops away. */
+@Composable
+private fun CountdownDigit(value: String) {
+    AnimatedContent(
+        targetState = value,
+        transitionSpec = {
+            val rollingIn = slideInVertically(tween(DIGIT_ROLL_MS)) { height -> -height } +
+                fadeIn(tween(DIGIT_ROLL_MS))
+            val rollingOut = slideOutVertically(tween(DIGIT_ROLL_MS)) { height -> height } +
+                fadeOut(tween(DIGIT_ROLL_MS))
+            rollingIn togetherWith rollingOut
+        },
+        label = "snackbar_countdown_digit"
+    ) { text ->
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(horizontal = COUNTDOWN_GAP)
+        )
     }
 }

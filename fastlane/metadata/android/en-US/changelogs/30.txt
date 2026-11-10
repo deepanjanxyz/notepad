@@ -1,0 +1,7 @@
+Snackbar countdown animation
+
+- A thin ring around the countdown drains through the seconds left instead of ticking.
+- Each new number rolls in from the top as the old one slides away at the bottom.
+- The ring is drawn to the digit's own size, so it grows with a larger font scale.
+
+Thank you for using Elite Memo Pro!

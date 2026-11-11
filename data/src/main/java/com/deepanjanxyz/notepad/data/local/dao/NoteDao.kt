@@ -52,32 +52,80 @@ interface NoteDao {
     @Query("UPDATE notes_table SET IN_TRASH = 1, TRASHED_AT = :trashedAt WHERE ID = :id")
     suspend fun moveToTrash(id: Long, trashedAt: Long): Int
 
+    /**
+     * Moves every listed note to Trash, however long the list is.
+     *
+     * The ids are split into batches because one statement cannot bind a whole
+     * library of ids, and the batches run in one transaction so a partial move
+     * can never be left behind.
+     */
+    @Transaction
+    suspend fun moveNotesToTrash(ids: List<Long>, trashedAt: Long) {
+        ids.toStatementBatches().forEach { batch ->
+            moveNotesToTrashBatch(batch, trashedAt)
+        }
+    }
+
+    /** Moves one batch of notes to Trash; the caller keeps batches to a safe size. */
     @Query("UPDATE notes_table SET IN_TRASH = 1, TRASHED_AT = :trashedAt WHERE ID IN (:ids)")
-    suspend fun moveNotesToTrash(ids: List<Long>, trashedAt: Long): Int
+    suspend fun moveNotesToTrashBatch(ids: List<Long>, trashedAt: Long): Int
 
     @Query("UPDATE notes_table SET IN_TRASH = 0 WHERE ID = :id")
     suspend fun restoreFromTrash(id: Long): Int
 
+    /** Restores every listed note from Trash, in one transaction. */
+    @Transaction
+    suspend fun restoreNotesFromTrash(ids: List<Long>) {
+        ids.toStatementBatches().forEach { batch -> restoreNotesFromTrashBatch(batch) }
+    }
+
+    /** Restores one batch of notes from Trash. */
     @Query("UPDATE notes_table SET IN_TRASH = 0 WHERE ID IN (:ids)")
-    suspend fun restoreNotesFromTrash(ids: List<Long>): Int
+    suspend fun restoreNotesFromTrashBatch(ids: List<Long>): Int
 
     @Query("UPDATE notes_table SET IN_ARCHIVE = 1, PINNED = 0 WHERE ID = :id")
     suspend fun moveToArchive(id: Long): Int
 
+    /**
+     * Archives every listed note, however long the list is.
+     *
+     * Batched for the same reason as [moveNotesToTrash]: a whole-library
+     * selection is more ids than one statement can bind.
+     */
+    @Transaction
+    suspend fun moveNotesToArchive(ids: List<Long>) {
+        ids.toStatementBatches().forEach { batch -> moveNotesToArchiveBatch(batch) }
+    }
+
+    /** Archives one batch of notes. */
     @Query("UPDATE notes_table SET IN_ARCHIVE = 1, PINNED = 0 WHERE ID IN (:ids)")
-    suspend fun moveNotesToArchive(ids: List<Long>): Int
+    suspend fun moveNotesToArchiveBatch(ids: List<Long>): Int
 
     @Query("UPDATE notes_table SET IN_ARCHIVE = 0 WHERE ID = :id")
     suspend fun restoreFromArchive(id: Long): Int
 
+    /** Restores every listed note from the archive, in one transaction. */
+    @Transaction
+    suspend fun restoreNotesFromArchive(ids: List<Long>) {
+        ids.toStatementBatches().forEach { batch -> restoreNotesFromArchiveBatch(batch) }
+    }
+
+    /** Restores one batch of notes from the archive. */
     @Query("UPDATE notes_table SET IN_ARCHIVE = 0 WHERE ID IN (:ids)")
-    suspend fun restoreNotesFromArchive(ids: List<Long>): Int
+    suspend fun restoreNotesFromArchiveBatch(ids: List<Long>): Int
 
     @Query("DELETE FROM notes_table WHERE ID = :id")
     suspend fun deleteNoteById(id: Long): Int
 
+    /** Permanently deletes every listed note, in one transaction. */
+    @Transaction
+    suspend fun deleteNotesByIds(ids: List<Long>) {
+        ids.toStatementBatches().forEach { batch -> deleteNotesByIdsBatch(batch) }
+    }
+
+    /** Permanently deletes one batch of notes. */
     @Query("DELETE FROM notes_table WHERE ID IN (:ids)")
-    suspend fun deleteNotesByIds(ids: List<Long>): Int
+    suspend fun deleteNotesByIdsBatch(ids: List<Long>): Int
 
     @Query("DELETE FROM notes_table WHERE IN_TRASH = 1")
     suspend fun emptyTrash(): Int

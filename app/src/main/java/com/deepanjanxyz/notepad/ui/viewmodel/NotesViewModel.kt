@@ -586,9 +586,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         lastTrashedIds = idsToTrash
         viewModelScope.launch {
             noteUseCases.trashNote(idsToTrash)
-            idsToTrash.forEach { id ->
-                NoteReminderScheduler.cancelReminder(getApplication(), id)
-            }
+            cancelReminders(idsToTrash)
             clearSelection()
         }
     }
@@ -671,9 +669,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             noteUseCases.permanentlyDeleteNote(ids)
-            ids.forEach { id ->
-                NoteReminderScheduler.cancelReminder(getApplication(), id)
-            }
+            cancelReminders(ids)
             clearSelection()
         }
     }
@@ -682,6 +678,21 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             noteUseCases.emptyTrash()
             clearSelection()
+        }
+    }
+
+    /**
+     * Drops the reminders of notes that just left the list they were shown in.
+     *
+     * Every cancel is a WorkManager call, so a whole-selection action runs them
+     * off the main thread; thousands of them in a row would otherwise hold it up
+     * for long enough to look like a freeze.
+     */
+    private suspend fun cancelReminders(noteIds: List<Long>) {
+        withContext(Dispatchers.IO) {
+            noteIds.forEach { id ->
+                NoteReminderScheduler.cancelReminder(getApplication(), id)
+            }
         }
     }
 

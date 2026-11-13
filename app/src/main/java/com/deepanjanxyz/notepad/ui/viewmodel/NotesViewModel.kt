@@ -8,9 +8,12 @@ import com.deepanjanxyz.notepad.NotepadApplication
 import com.deepanjanxyz.notepad.backup.BackupFolder
 import com.deepanjanxyz.notepad.backup.BackupParseResult
 import com.deepanjanxyz.notepad.backup.DownloadsBackup
+import com.deepanjanxyz.notepad.backup.MARKDOWN_FILE_NAME
 import com.deepanjanxyz.notepad.backup.buildBackupJson
+import com.deepanjanxyz.notepad.backup.buildMarkdownNotes
 import com.deepanjanxyz.notepad.backup.isBackupWorthy
 import com.deepanjanxyz.notepad.backup.parseBackupJson
+import com.deepanjanxyz.notepad.backup.parseMarkdownNotes
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.domain.usecase.label.LabelUseCases
 import com.deepanjanxyz.notepad.domain.usecase.note.NoteUseCases
@@ -74,6 +77,18 @@ data class AutoBackupStatus(
     val location: String,
     val lastModified: Long?,
     val error: String? = null
+)
+
+/**
+ * What the last Markdown export or import did, so Settings can report it.
+ *
+ * The Markdown file is an interchange copy beside the backup rather than a
+ * backup of its own, and only the export has an outcome of its own to report:
+ * an import is counted by [ImportOutcome] like every other import.
+ */
+data class MarkdownStatus(
+    val message: String,
+    val error: Boolean = false
 )
 
 data class NotesUiState(
@@ -372,6 +387,9 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     private val _autoBackupStatus = MutableStateFlow<AutoBackupStatus?>(null)
     val autoBackupStatus: StateFlow<AutoBackupStatus?> = _autoBackupStatus.asStateFlow()
 
+    private val _markdownStatus = MutableStateFlow<MarkdownStatus?>(null)
+    val markdownStatus: StateFlow<MarkdownStatus?> = _markdownStatus.asStateFlow()
+
     private var autoBackupJob: Job? = null
 
     // The automatic backup and the "Back up now" button both write the same file,
@@ -425,6 +443,80 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     /** Writes a backup to Downloads now, used by the manual "Back up now" action. */
     fun backUp(name: String = DownloadsBackup.FILE_NAME) {
         viewModelScope.launch { writeBackup(name) }
+    }
+
+    /**
+     * Writes every note to the Markdown file in Downloads.
+     *
+     * Active and archived notes are both included, as they are in a backup, and
+     * the file is written beside the backup rather than in place of it: the
+     * Markdown copy is for reading the notes elsewhere, the backup for bringing
+     * a library back exactly.
+     */
+    fun exportMarkdown() {
+        viewModelScope.launch {
+            val notes = currentBackupNotes().filter { it.isBackupWorthy() }
+            if (notes.isEmpty()) {
+                _markdownStatus.value = MarkdownStatus(
+                    message = "There are no notes to export yet",
+                    error = true
+                )
+                return@launch
+            }
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    DownloadsBackup.write(
+                        getApplication(),
+                        buildMarkdownNotes(notes),
+                        MARKDOWN_FILE_NAME
+                    )
+                }
+            }.onSuccess {
+                _markdownStatus.value = MarkdownStatus(
+                    message = "Exported ${notes.size} notes to " +
+                        DownloadsBackup.locationLabel(MARKDOWN_FILE_NAME)
+                )
+            }.onFailure { error ->
+                Log.w(TAG, "The Markdown export failed", error)
+                _markdownStatus.value = MarkdownStatus(
+                    message = "The Markdown file could not be written: ${error.message}",
+                    error = true
+                )
+            }
+        }
+    }
+
+    /**
+     * Adds every note in the Markdown file in Downloads as a new note.
+     *
+     * A note already held on every field is skipped by [importNotesNow], so
+     * importing the same file twice does not double the library.
+     */
+    fun importMarkdown() {
+        viewModelScope.launch {
+            val text = withContext(Dispatchers.IO) {
+                DownloadsBackup.read(getApplication(), MARKDOWN_FILE_NAME)
+            }
+            val notes = text?.let { parseMarkdownNotes(it) }
+            if (notes.isNullOrEmpty()) {
+                _markdownStatus.value = MarkdownStatus(
+                    message = if (text == null) {
+                        "No Markdown file was found at " +
+                            DownloadsBackup.locationLabel(MARKDOWN_FILE_NAME)
+                    } else {
+                        "The Markdown file held no notes"
+                    },
+                    error = true
+                )
+                return@launch
+            }
+            importNotesNow(notes)
+        }
+    }
+
+    /** Clears the Markdown outcome once Settings has shown it. */
+    fun clearMarkdownStatus() {
+        _markdownStatus.value = null
     }
 
     private suspend fun writeAutoBackup() = writeBackup(DownloadsBackup.FILE_NAME)

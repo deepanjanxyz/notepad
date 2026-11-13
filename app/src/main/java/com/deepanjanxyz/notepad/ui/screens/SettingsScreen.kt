@@ -83,12 +83,14 @@ import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.backup.BackupFolder
 import com.deepanjanxyz.notepad.backup.DownloadsBackup
+import com.deepanjanxyz.notepad.backup.MARKDOWN_FILE_NAME
 import com.deepanjanxyz.notepad.backup.BackupParseResult
 import com.deepanjanxyz.notepad.backup.parseBackupJson
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 import com.deepanjanxyz.notepad.ui.viewmodel.AutoBackupStatus
 import com.deepanjanxyz.notepad.ui.viewmodel.ImportOutcome
+import com.deepanjanxyz.notepad.ui.viewmodel.MarkdownStatus
 import com.deepanjanxyz.notepad.ui.viewmodel.NotesUiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -119,6 +121,10 @@ fun SettingsScreen(
     onBackUpNow: (String) -> Unit,
     onImportNotes: (List<Note>) -> Unit,
     onImportOutcomeShown: () -> Unit,
+    onExportMarkdown: () -> Unit,
+    onImportMarkdown: () -> Unit,
+    markdownStatus: MarkdownStatus?,
+    onMarkdownStatusShown: () -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -161,6 +167,14 @@ fun SettingsScreen(
         folderGranted = granted
         val stuckCopies = withContext(Dispatchers.IO) { DownloadsBackup.needsFolderAccess(context) }
         offerFolder = !granted && (stuckCopies || autoBackupStatus?.error != null)
+    }
+
+    // The export reports through its own outcome. An import is counted by the
+    // import outcome the screen already shows, so nothing is reported twice.
+    LaunchedEffect(markdownStatus) {
+        val status = markdownStatus ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(status.message)
+        onMarkdownStatusShown()
     }
 
     val folderLauncher = rememberLauncherForActivityResult(
@@ -669,6 +683,68 @@ fun SettingsScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Restore")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Markdown",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "A plain-text copy at " +
+                            DownloadsBackup.locationLabel(MARKDOWN_FILE_NAME) +
+                            ", readable in any editor and easy to take to another app. " +
+                            "Titles and note text only - the backup above is the copy " +
+                            "that brings everything back.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onExportMarkdown()
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("markdown_export_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Upload,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Export .md")
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onImportMarkdown()
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("markdown_import_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Import .md")
                         }
                     }
                 }

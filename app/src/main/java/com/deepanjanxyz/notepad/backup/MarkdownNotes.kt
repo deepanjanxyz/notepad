@@ -50,14 +50,23 @@ private fun markdownSection(note: Note): String {
  * Keeps a line of a note from being read back as structure.
  *
  * A line that looks like the separator between notes, or like a note heading,
- * would end the note early when the file is read again, so it is escaped. Both
- * escapes render as the plain characters in Markdown.
+ * would end the note early when the file is read again, so it gets a backslash in
+ * front of it. The backslash is itself the escape character, so every backslash
+ * the note already holds is doubled first: without that a note holding a literal
+ * "\---" would come back as a plain separator line, and the text would quietly
+ * change. Both escapes render as the plain characters in Markdown.
  */
-private fun escaped(line: String): String = when {
-    line.trim() == NOTE_BREAK -> ESCAPE + NOTE_BREAK
-    line.startsWith(NOTE_HEADING) -> ESCAPE + line
-    else -> line
+private fun escaped(line: String): String {
+    val doubled = line.replace(ESCAPE, ESCAPE + ESCAPE)
+    return if (isStructural(doubled)) ESCAPE + doubled else doubled
 }
+
+/** Puts back the backslashes [escaped] doubled. */
+private fun unescaped(line: String): String = line.replace(ESCAPE + ESCAPE, ESCAPE)
+
+/** True when [line] would be read as the separator or a note heading. */
+private fun isStructural(line: String): Boolean =
+    line.trim() == NOTE_BREAK || line.trimStart().startsWith(NOTE_HEADING)
 
 /**
  * The notes a Markdown file holds, ready to be added as new notes.
@@ -82,6 +91,7 @@ fun parseMarkdownNotes(text: String): List<Note> {
     }
 
     text.replace("\r\n", "\n").split("\n").forEach { line ->
+        val escapedLine = line.removePrefix(ESCAPE)
         when {
             line.startsWith(NOTE_HEADING) -> {
                 collect()
@@ -90,9 +100,10 @@ fun parseMarkdownNotes(text: String): List<Note> {
             // Still inside the file's header: nothing to attach this line to yet.
             title == null -> Unit
             line.trim() == NOTE_BREAK -> collect()
-            line.trim() == ESCAPE + NOTE_BREAK -> body += NOTE_BREAK
-            line.startsWith(ESCAPE + NOTE_HEADING) -> body += line.removePrefix(ESCAPE)
-            else -> body += line
+            // A line the export marked is a line of the note, whatever it looks like.
+            line.startsWith(ESCAPE) && isStructural(escapedLine) ->
+                body += unescaped(escapedLine)
+            else -> body += unescaped(line)
         }
     }
     collect()

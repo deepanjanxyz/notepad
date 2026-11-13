@@ -169,10 +169,15 @@ object DownloadsBackup {
         }
     }
 
-    /** The newest copy of the backup file in the granted folder, or null. */
+    /**
+     * The newest numbered copy of the file called [name] in the granted folder.
+     *
+     * Only copies of that same file count: the folder holds the Markdown copy
+     * beside the backup, and a write for one of them must never land on the other.
+     */
     private fun newestFolderCopy(context: Context, name: String): BackupFolder.Child? =
         BackupFolder.children(context)
-            .filter { it.name != name && BackupFileNames.isNumberedCopy(it.name) }
+            .filter { BackupFileNames.isNumberedCopy(it.name, name) }
             .maxByOrNull { it.lastModified }
 
     /**
@@ -358,7 +363,7 @@ object DownloadsBackup {
         throw failure
     }
 
-    /** The newest copy of the backup file the media store shows this app. */
+    /** The newest numbered copy of the file called [name] the media store shows this app. */
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun newestCopyUri(
         context: Context,
@@ -367,7 +372,7 @@ object DownloadsBackup {
         name: String
     ): Uri? {
         val copy = readEntries(context)
-            .filter { it.name != name && BackupFileNames.isNumberedCopy(it.name) }
+            .filter { BackupFileNames.isNumberedCopy(it.name, name) }
             .maxByOrNull { it.lastModified }
             ?: return null
         return findFile(resolver, collection, copy.name)
@@ -420,8 +425,10 @@ object DownloadsBackup {
         val created = insertPendingFile(resolver, collection, name)
             ?: error("Could not create the backup file in Downloads")
         // The media store numbers the name when an older file holds it; keep that copy.
+        // Only a name belonging to the file this write is for is accepted, so a write
+        // for one file can never settle on another.
         val actual = displayName(resolver, created)
-        if (actual != null && BackupFileNames.isOurBackupName(actual)) {
+        if (actual != null && BackupFileNames.isOurBackupName(actual, name)) {
             publishOrDiscard(resolver, created, json)
             return
         }

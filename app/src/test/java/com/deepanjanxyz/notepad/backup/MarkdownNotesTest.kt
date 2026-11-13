@@ -101,4 +101,32 @@ class MarkdownNotesTest {
     fun aFileWithNoNotesYieldsNothing() {
         assertEquals(emptyList<Note>(), parseMarkdownNotes("just some text\nwith no headings"))
     }
+
+    @Test
+    fun aBackslashInANoteIsKeptAsWritten() {
+        val content = "C:\\Users\\olivia\\notes"
+
+        val restored = parseMarkdownNotes(buildMarkdownNotes(listOf(Note(title = "Paths", content = content))))
+
+        assertEquals(content, restored.first().content)
+    }
+
+    @Test
+    fun aLineThatAlreadyLooksEscapedStaysLiteral() {
+        val content = "\\---\n\\## not a heading"
+
+        val restored = parseMarkdownNotes(buildMarkdownNotes(listOf(Note(title = "Escaped", content = content))))
+
+        assertEquals(1, restored.size)
+        assertEquals(content, restored.first().content)
+    }
+
+    @Test
+    fun anIndentedSeparatorKeepsItsIndentation() {
+        val content = "  ---\n  ## indented heading"
+
+        val restored = parseMarkdownNotes(buildMarkdownNotes(listOf(Note(title = "Indented", content = content))))
+
+        assertEquals(content, restored.first().content)
+    }
 }

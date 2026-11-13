@@ -63,7 +63,6 @@ internal fun AppRoot(
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
     val autoBackupStatus by viewModel.autoBackupStatus.collectAsStateWithLifecycle()
     val importOutcome by viewModel.importOutcome.collectAsStateWithLifecycle()
-    val markdownStatus by viewModel.markdownStatus.collectAsStateWithLifecycle()
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -89,7 +88,7 @@ internal fun AppRoot(
         allTags = allTags,
         autoBackupStatus = autoBackupStatus,
         importOutcome = importOutcome,
-        markdownStatus = markdownStatus,
+        markdownCopy = viewModel.markdownCopy,
         homeSnackbarHostState = homeSnackbarHostState,
         snackbarHeight = snackbarHeight,
         drawerState = drawerState,

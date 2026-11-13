@@ -80,11 +80,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.backup.BackupFolder
 import com.deepanjanxyz.notepad.backup.DownloadsBackup
 import com.deepanjanxyz.notepad.backup.MARKDOWN_FILE_NAME
-import com.deepanjanxyz.notepad.backup.MarkdownTransfer
+import com.deepanjanxyz.notepad.backup.MarkdownCopy
 import com.deepanjanxyz.notepad.backup.BackupParseResult
 import com.deepanjanxyz.notepad.backup.parseBackupJson
 import com.deepanjanxyz.notepad.domain.model.Note
@@ -121,10 +122,7 @@ fun SettingsScreen(
     onBackUpNow: (String) -> Unit,
     onImportNotes: (List<Note>) -> Unit,
     onImportOutcomeShown: () -> Unit,
-    onExportMarkdown: () -> Unit,
-    onImportMarkdown: () -> Unit,
-    markdownStatus: MarkdownTransfer.Outcome?,
-    onMarkdownStatusShown: () -> Unit,
+    markdownCopy: MarkdownCopy,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -171,10 +169,11 @@ fun SettingsScreen(
 
     // The export reports through its own outcome. An import is counted by the
     // import outcome the screen already shows, so nothing is reported twice.
+    val markdownStatus by markdownCopy.status.collectAsStateWithLifecycle()
     LaunchedEffect(markdownStatus) {
         val status = markdownStatus ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(status.message)
-        onMarkdownStatusShown()
+        markdownCopy.clear()
     }
 
     val folderLauncher = rememberLauncherForActivityResult(
@@ -714,7 +713,7 @@ fun SettingsScreen(
                         OutlinedButton(
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onExportMarkdown()
+                                markdownCopy.exportNotes()
                             },
                             modifier = Modifier
                                 .weight(1f)
@@ -732,7 +731,7 @@ fun SettingsScreen(
                         OutlinedButton(
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onImportMarkdown()
+                                markdownCopy.importNotes()
                             },
                             modifier = Modifier
                                 .weight(1f)

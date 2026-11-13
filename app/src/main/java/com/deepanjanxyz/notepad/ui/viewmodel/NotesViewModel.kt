@@ -377,18 +377,12 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * The Markdown copy of the notes: writing it and reading it back.
      *
-     * The file work and the messages it produces live in the backup package, so
-     * this class only hands it the notes and the place to add them.
+     * The file work, its messages and the outcome it reports all live in the
+     * backup package, so this class only hands it the notes and the place to
+     * add them, and Settings asks it directly for what it needs.
      */
-    private val markdownCopy = MarkdownCopy(
-        context = getApplication(),
-        scope = viewModelScope,
-        currentNotes = { currentBackupNotes() },
-        addNotes = { notes -> importNotesNow(notes) }
-    )
-
-    /** What the last Markdown export or import did, shown by Settings. */
-    val markdownStatus: StateFlow<MarkdownTransfer.Outcome?> = markdownCopy.status
+    val markdownCopy =
+        MarkdownCopy(getApplication(), viewModelScope, ::currentBackupNotes, ::importNotesNow)
 
     private var autoBackupJob: Job? = null
 
@@ -444,15 +438,6 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     fun backUp(name: String = DownloadsBackup.FILE_NAME) {
         viewModelScope.launch { writeBackup(name) }
     }
-
-    /** Writes every note to the Markdown file in Downloads. */
-    fun exportMarkdown() = markdownCopy.exportNotes()
-
-    /** Adds every note in the Markdown file in Downloads as a new note. */
-    fun importMarkdown() = markdownCopy.importNotes()
-
-    /** Clears the Markdown outcome once Settings has shown it. */
-    fun clearMarkdownStatus() = markdownCopy.clear()
 
     private suspend fun writeAutoBackup() = writeBackup(DownloadsBackup.FILE_NAME)
 

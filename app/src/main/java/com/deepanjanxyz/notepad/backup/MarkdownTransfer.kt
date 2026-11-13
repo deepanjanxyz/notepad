@@ -8,7 +8,7 @@ import com.deepanjanxyz.notepad.domain.model.Note
  * The Markdown copy of the notes: writing it and reading it back.
  *
  * The file work lives here, beside the format it uses, so both directions are
- * described in one place and the view model only has to report what happened.
+ * described in one place and the caller only has to report what happened.
  */
 object MarkdownTransfer {
 
@@ -54,15 +54,18 @@ object MarkdownTransfer {
     /** The notes the Markdown file in Downloads holds, or the reason it holds none. */
     fun read(context: Context): Outcome {
         val text = DownloadsBackup.read(context, MARKDOWN_FILE_NAME)
-            ?: return Outcome(
+        if (text == null) {
+            return Outcome(
                 message = "No Markdown file was found at " +
                     DownloadsBackup.locationLabel(MARKDOWN_FILE_NAME),
                 error = true
             )
-        val notes = parseMarkdownNotes(text)
-        if (notes.isEmpty()) {
-            return Outcome(message = "The Markdown file held no notes", error = true)
         }
-        return Outcome(message = "Imported ${notes.size} notes from Markdown", notes = notes)
+        val notes = parseMarkdownNotes(text)
+        return if (notes.isEmpty()) {
+            Outcome(message = "The Markdown file held no notes", error = true)
+        } else {
+            Outcome(message = "Imported ${notes.size} notes from Markdown", notes = notes)
+        }
     }
 }

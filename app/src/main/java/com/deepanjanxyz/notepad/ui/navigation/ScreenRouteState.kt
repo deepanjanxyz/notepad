@@ -4,10 +4,10 @@ import androidx.compose.material3.DrawerState
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.unit.Dp
+import com.deepanjanxyz.notepad.backup.MarkdownTransfer
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.ui.viewmodel.AutoBackupStatus
 import com.deepanjanxyz.notepad.ui.viewmodel.ImportOutcome
-import com.deepanjanxyz.notepad.ui.viewmodel.MarkdownStatus
 import com.deepanjanxyz.notepad.ui.viewmodel.NotesUiState
 import com.deepanjanxyz.notepad.ui.viewmodel.NotesViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -23,7 +23,7 @@ internal data class ScreenRouteState(
     val allTags: List<String>,
     val autoBackupStatus: AutoBackupStatus?,
     val importOutcome: ImportOutcome?,
-    val markdownStatus: MarkdownStatus?,
+    val markdownStatus: MarkdownTransfer.Outcome?,
     val homeSnackbarHostState: SnackbarHostState,
     val snackbarHeight: MutableState<Dp>,
     val drawerState: DrawerState,

@@ -84,13 +84,13 @@ import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.backup.BackupFolder
 import com.deepanjanxyz.notepad.backup.DownloadsBackup
 import com.deepanjanxyz.notepad.backup.MARKDOWN_FILE_NAME
+import com.deepanjanxyz.notepad.backup.MarkdownTransfer
 import com.deepanjanxyz.notepad.backup.BackupParseResult
 import com.deepanjanxyz.notepad.backup.parseBackupJson
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 import com.deepanjanxyz.notepad.ui.viewmodel.AutoBackupStatus
 import com.deepanjanxyz.notepad.ui.viewmodel.ImportOutcome
-import com.deepanjanxyz.notepad.ui.viewmodel.MarkdownStatus
 import com.deepanjanxyz.notepad.ui.viewmodel.NotesUiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -123,7 +123,7 @@ fun SettingsScreen(
     onImportOutcomeShown: () -> Unit,
     onExportMarkdown: () -> Unit,
     onImportMarkdown: () -> Unit,
-    markdownStatus: MarkdownStatus?,
+    markdownStatus: MarkdownTransfer.Outcome?,
     onMarkdownStatusShown: () -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier

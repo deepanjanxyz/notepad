@@ -33,7 +33,12 @@ object MarkdownTransfer {
             return Outcome(message = "There are no notes to export yet", error = true)
         }
         return runCatching {
-            DownloadsBackup.write(context, buildMarkdownNotes(worth), MARKDOWN_FILE_NAME)
+            DownloadsBackup.write(
+                context,
+                buildMarkdownNotes(worth),
+                MARKDOWN_FILE_NAME,
+                MARKDOWN_MIME_TYPE
+            )
         }.fold(
             onSuccess = {
                 Outcome(
@@ -53,7 +58,10 @@ object MarkdownTransfer {
 
     /** The notes the Markdown file in Downloads holds, or the reason it holds none. */
     fun read(context: Context): Outcome {
+        // The name can come back numbered when it is already taken, so the newest
+        // Markdown file in the folder is read when the exact name finds nothing.
         val text = DownloadsBackup.read(context, MARKDOWN_FILE_NAME)
+            ?: DownloadsBackup.readNewestWithSuffix(context, BackupFileNames.MARKDOWN_SUFFIX)
         if (text == null) {
             return Outcome(
                 message = "No Markdown file was found at " +

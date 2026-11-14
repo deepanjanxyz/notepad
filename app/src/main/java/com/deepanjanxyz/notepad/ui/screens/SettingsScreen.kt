@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -79,6 +80,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deepanjanxyz.notepad.R
@@ -717,7 +719,12 @@ fun SettingsScreen(
                             },
                             modifier = Modifier
                                 .weight(1f)
-                                .testTag("markdown_export_button")
+                                .testTag("markdown_export_button"),
+                            // The default padding leaves too little room for the label
+                            // beside the icon on a narrow screen, and the label wrapped
+                            // onto a second line. The padding is trimmed and the label
+                            // is kept to one line.
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Upload,
@@ -725,7 +732,11 @@ fun SettingsScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Export .md")
+                            Text(
+                                text = "Export .md",
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
 
                         OutlinedButton(
@@ -735,7 +746,8 @@ fun SettingsScreen(
                             },
                             modifier = Modifier
                                 .weight(1f)
-                                .testTag("markdown_import_button")
+                                .testTag("markdown_import_button"),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Download,
@@ -743,7 +755,11 @@ fun SettingsScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Import .md")
+                            Text(
+                                text = "Import .md",
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }

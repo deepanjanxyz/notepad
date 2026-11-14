@@ -223,13 +223,13 @@ object BackupFolder {
      * taken with "name (1)" rather than an error, so the name that came back is
      * read and a numbered file is removed again.
      */
-    fun create(context: Context, name: String): Uri? {
+    fun create(context: Context, name: String, mimeType: String = MIME_TYPE): Uri? {
         val tree = treeUri(context) ?: return null
         val created = runCatching {
             DocumentsContract.createDocument(
                 context.contentResolver,
                 treeDocumentUri(tree),
-                MIME_TYPE,
+                mimeType,
                 name
             )
         }.getOrNull()

@@ -105,6 +105,21 @@ object DownloadsBackup {
         runCatching { resolver.delete(uri, null, null) }
     }
 
+    /**
+     * True when the folder already holds a file called [name].
+     *
+     * An export asks before it writes, so a second note with the same title lands
+     * beside the first instead of replacing it.
+     */
+    fun exists(context: Context, name: String): Boolean {
+        val names = when {
+            BackupFolder.hasAccess(context) -> BackupFolder.children(context).map { it.name }
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> readEntries(context).map { it.name }
+            else -> legacyDir().listFiles()?.map { it.name }.orEmpty()
+        }
+        return names.any { it.equals(name, ignoreCase = true) }
+    }
+
     /** Location of a backup file, phrased for display in Settings. */
     fun locationLabel(name: String = FILE_NAME): String = "Downloads/$FOLDER_NAME/$name"
 
@@ -182,7 +197,13 @@ object DownloadsBackup {
         }
         val created = insertPendingFile(resolver, collection, name, mimeType)
             ?: error("Could not create the file in Downloads")
-        writeBytesTo(resolver, created, bytes)
+        // A file that never finishes being written is deleted rather than left
+        // behind as a pending entry holding its bytes until it expires.
+        val written = runCatching { writeBytesTo(resolver, created, bytes) }
+        if (written.isFailure) {
+            runCatching { resolver.delete(created, null, null) }
+            throw written.exceptionOrNull() ?: IllegalStateException("The file could not be written")
+        }
         val published = ContentValues().apply {
             put(MediaStore.MediaColumns.IS_PENDING, 0)
         }

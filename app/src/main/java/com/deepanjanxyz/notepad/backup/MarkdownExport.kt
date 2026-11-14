@@ -100,23 +100,44 @@ object MarkdownExport {
         return bytes.toByteArray()
     }
 
-    /** Writes one note to its own file in Downloads. */
+    /**
+     * Writes one note to its own file in Downloads.
+     *
+     * The name is checked against the folder first: a second note with the same
+     * title is written beside the first as `Trip (1).md`, not over it.
+     */
     fun exportOne(context: Context, note: Note): MarkdownTransfer.Outcome {
         if (!note.isBackupWorthy()) {
-            return MarkdownTransfer.Outcome(message = "There is nothing in this note to export", error = true)
+            return MarkdownTransfer.Outcome(
+                message = "There is nothing in this note to export",
+                error = true
+            )
         }
-        val name = fileNameFor(note.title)
         return runCatching {
+            val name = freeName(context, fileNameFor(note.title))
             DownloadsBackup.write(
                 context,
                 buildMarkdownNotes(listOf(note)),
                 name,
                 MARKDOWN_MIME_TYPE
             )
+            name
         }.fold(
-            onSuccess = { written(name, 1) },
+            onSuccess = { name -> written(name, 1) },
             onFailure = { failure("The note could not be exported", it) }
         )
+    }
+
+    /** [name], or the first numbered form of it the folder does not already hold. */
+    private fun freeName(context: Context, name: String): String {
+        if (!DownloadsBackup.exists(context, name)) return name
+        val base = name.removeSuffix(BackupFileNames.MARKDOWN_SUFFIX)
+        var copy = 1
+        while (true) {
+            val candidate = "$base ($copy)${BackupFileNames.MARKDOWN_SUFFIX}"
+            if (!DownloadsBackup.exists(context, candidate)) return candidate
+            copy++
+        }
     }
 
     /** Writes the selected notes into one Markdown file. */

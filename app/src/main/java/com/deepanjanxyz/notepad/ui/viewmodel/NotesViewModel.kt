@@ -8,6 +8,8 @@ import com.deepanjanxyz.notepad.NotepadApplication
 import com.deepanjanxyz.notepad.backup.BackupFolder
 import com.deepanjanxyz.notepad.backup.BackupParseResult
 import com.deepanjanxyz.notepad.backup.DownloadsBackup
+import com.deepanjanxyz.notepad.backup.MarkdownCopy
+import com.deepanjanxyz.notepad.backup.MarkdownTransfer
 import com.deepanjanxyz.notepad.backup.buildBackupJson
 import com.deepanjanxyz.notepad.backup.isBackupWorthy
 import com.deepanjanxyz.notepad.backup.parseBackupJson
@@ -371,6 +373,16 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     // real result rather than a save that never happened.
     private val _autoBackupStatus = MutableStateFlow<AutoBackupStatus?>(null)
     val autoBackupStatus: StateFlow<AutoBackupStatus?> = _autoBackupStatus.asStateFlow()
+
+    /**
+     * The Markdown copy of the notes: writing it and reading it back.
+     *
+     * The file work, its messages and the outcome it reports all live in the
+     * backup package, so this class only hands it the notes and the place to
+     * add them, and Settings asks it directly for what it needs.
+     */
+    val markdownCopy =
+        MarkdownCopy(getApplication(), viewModelScope, ::currentBackupNotes, ::importNotesNow)
 
     private var autoBackupJob: Job? = null
 

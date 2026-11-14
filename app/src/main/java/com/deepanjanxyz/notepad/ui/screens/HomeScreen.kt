@@ -1,6 +1,10 @@
 package com.deepanjanxyz.notepad.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandVertically
@@ -56,6 +60,7 @@ import androidx.compose.material.icons.filled.Deselect
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.DropdownMenu
@@ -89,6 +94,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -105,7 +112,12 @@ import com.deepanjanxyz.notepad.ui.viewmodel.NoteSortOption
 import com.deepanjanxyz.notepad.ui.viewmodel.NotesUiState
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 import com.deepanjanxyz.notepad.ui.theme.AppColors
+import com.deepanjanxyz.notepad.backup.DownloadsBackup
+import com.deepanjanxyz.notepad.backup.MarkdownExport
+import com.deepanjanxyz.notepad.ui.components.MarkdownExportSheet
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // The gap left between the add button and a snackbar it has risen above.
 private val FAB_SNACKBAR_GAP = 12.dp
@@ -148,7 +160,59 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     var showCreateOptionsSheet by remember { mutableStateOf(false) }
+    var showExportSheet by remember { mutableStateOf(false) }
+    var pendingExport by remember { mutableStateOf<(() -> Unit)?>(null) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    // Below Android 10 an export writes to Downloads directly, which needs the
+    // storage permission unless the backup folder itself has been handed over.
+    val storagePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val pending = pendingExport
+        pendingExport = null
+        if (granted && pending != null) {
+            pending()
+        } else {
+            scope.launch {
+                homeSnackbarHostState.showSnackbar("Storage permission is needed to export")
+            }
+        }
+    }
+
+    // Writes the selected notes out as Markdown and reports what happened. One
+    // note goes straight to its own file; several ask how they should be bundled.
+    fun exportSelected(selected: List<Note>, separateFiles: Boolean) {
+        if (selected.isEmpty()) return
+        val needsPermission = DownloadsBackup.needsLegacyPermission &&
+            !DownloadsBackup.hasFolderAccess(context) &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE
+            ) != PackageManager.PERMISSION_GRANTED
+        if (needsPermission) {
+            pendingExport = { exportSelected(selected, separateFiles) }
+            storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            return
+        }
+        scope.launch {
+            val outcome = withContext(Dispatchers.IO) {
+                if (selected.size == 1) {
+                    MarkdownExport.exportOne(context, selected.first())
+                } else if (separateFiles) {
+                    MarkdownExport.exportZip(context, selected)
+                } else {
+                    MarkdownExport.exportCombined(context, selected)
+                }
+            }
+            // The selection is cleared before the snackbar is awaited: showing one
+            // suspends until it is dismissed, and a selection made in the meantime
+            // is not this export's to clear.
+            if (!outcome.error) onClearSelection()
+            homeSnackbarHostState.showSnackbar(outcome.message)
+        }
+    }
 
     // The snackbars sit at the bottom of the screen and stack when two are showing,
     // so the add button rises by their combined measured height plus a gap, and
@@ -250,6 +314,30 @@ fun HomeScreen(
                                 Icon(
                                     imageVector = Icons.Default.Archive,
                                     contentDescription = "Archive selected",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        // Export Action Button: one note exports at once, several
+                        // ask whether they travel as a zip or as one file.
+                        ActionTooltip("Export selected") {
+                            IconButton(
+                                onClick = {
+                                    val chosen = notes.filter {
+                                        uiState.selectedNoteIds.contains(it.id)
+                                    }
+                                    if (chosen.size == 1) {
+                                        exportSelected(chosen, separateFiles = false)
+                                    } else {
+                                        showExportSheet = true
+                                    }
+                                },
+                                modifier = Modifier.testTag("export_selected_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    contentDescription = "Export selected",
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             }
@@ -677,6 +765,20 @@ fun HomeScreen(
     }
 
     // Bottom Sheet: Select Note Type ("Text Note" vs "Drawing Note")
+    if (showExportSheet) {
+        MarkdownExportSheet(
+            onDismiss = { showExportSheet = false },
+            onSeparateFiles = {
+                showExportSheet = false
+                exportSelected(notes.filter { uiState.selectedNoteIds.contains(it.id) }, true)
+            },
+            onSingleFile = {
+                showExportSheet = false
+                exportSelected(notes.filter { uiState.selectedNoteIds.contains(it.id) }, false)
+            }
+        )
+    }
+
     if (showCreateOptionsSheet) {
         ModalBottomSheet(
             onDismissRequest = { showCreateOptionsSheet = false },

@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -79,12 +80,12 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.backup.BackupFolder
 import com.deepanjanxyz.notepad.backup.DownloadsBackup
-import com.deepanjanxyz.notepad.backup.MARKDOWN_FILE_NAME
 import com.deepanjanxyz.notepad.backup.MarkdownCopy
 import com.deepanjanxyz.notepad.backup.BackupParseResult
 import com.deepanjanxyz.notepad.backup.parseBackupJson
@@ -694,48 +695,34 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold
                     )
-                    Text(
-                        text = "A plain-text copy at " +
-                            DownloadsBackup.locationLabel(MARKDOWN_FILE_NAME) +
-                            ", readable in any editor and easy to take to another app. " +
-                            "Titles and note text only - the backup above is the copy " +
-                            "that brings everything back.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Spacer(modifier = Modifier.height(4.dp))
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
+                    // Export moved to the Notes screen, where the notes being
+                    // exported are the ones on screen. What stays here is the way
+                    // back in, and it sits beside the sentence that explains it so
+                    // the block does not read as an empty row with one button in it.
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        OutlinedButton(
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                markdownCopy.exportNotes()
-                            },
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("markdown_export_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Upload,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Export .md")
-                        }
+                        Text(
+                            text = "Import a .md file back into notes, in case the " +
+                                "JSON backup is gone. To export, select notes on the " +
+                                "home screen and tap Export.",
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.width(12.dp))
 
                         OutlinedButton(
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 markdownCopy.importNotes()
                             },
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("markdown_import_button")
+                            modifier = Modifier.testTag("markdown_import_button"),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Download,
@@ -743,7 +730,11 @@ fun SettingsScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Import .md")
+                            Text(
+                                text = "Import .md",
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }

@@ -17,6 +17,9 @@ object BackupFileNames {
     const val FILE_NAME = "elite-memo-backup.json"
 
     const val JSON_SUFFIX = ".json"
+
+    /** Suffix of the Markdown copy that sits beside the backup in the same folder. */
+    const val MARKDOWN_SUFFIX = ".md"
     private const val PARTIAL_SUFFIX = ".partial.json"
     private const val PREVIOUS_SUFFIX = ".previous.json"
 

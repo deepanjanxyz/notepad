@@ -170,6 +170,7 @@ private fun SettingsRoute(routes: ScreenRouteState) {
         onBackUpNow = { name -> routes.viewModel.backUp(name) },
         onImportNotes = { routes.viewModel.importNotes(it) },
         onImportOutcomeShown = { routes.viewModel.clearImportOutcome() },
+        markdownCopy = routes.markdownCopy,
         onNavigateBack = { routes.viewModel.navigateTo(Screen.Home) }
     )
 }

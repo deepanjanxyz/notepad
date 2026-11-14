@@ -46,16 +46,24 @@ object BackupFileNames {
             "$name.previous"
         }
 
-    /** True when [name] is a numbered copy of the backup file, e.g. `... (1).json`. */
-    fun isNumberedCopy(name: String): Boolean = name != FILE_NAME && isCopyOf(FILE_NAME, name)
+    /**
+     * True when [name] is a numbered copy of the file called [base], e.g.
+     * `elite-memo-backup (1).json`.
+     *
+     * The file is named so a write can tell its own copies from everything else in
+     * the folder: the Markdown copy lives in the same folder as the backup, and a
+     * write for one of them must never take the other for a copy of itself.
+     */
+    fun isNumberedCopy(name: String, base: String = FILE_NAME): Boolean =
+        name != base && isCopyOf(base, name)
 
     /** True when [name] is a temporary file a write goes through. */
     fun isWorkingName(name: String): Boolean =
         isCopyOf(partialName(FILE_NAME), name) || isCopyOf(previousName(FILE_NAME), name)
 
-    /** True when [name] is this app's backup file, a working file, or a copy of one. */
-    fun isOurBackupName(name: String): Boolean =
-        listOf(FILE_NAME, partialName(FILE_NAME), previousName(FILE_NAME))
+    /** True when [name] is the file called [base], a working file, or a copy of one. */
+    fun isOurBackupName(name: String, base: String = FILE_NAME): Boolean =
+        listOf(base, partialName(base), previousName(base))
             .any { isCopyOf(it, name) }
 
     /**
@@ -108,12 +116,20 @@ object BackupFileNames {
     /** True when a working file written at [time] is newer than the copy kept. */
     private fun isNewer(time: Long, numbered: Long?): Boolean = numbered == null || time > numbered
 
-    /** True when [name] is [candidate] itself, or the `(N)` copy the media store made of it. */
+    /**
+     * True when [name] is [candidate] itself, or the `(N)` copy the media store made
+     * of it.
+     *
+     * The numbering goes in before the extension whatever that extension is, so the
+     * same check reads the copies of the JSON backup and of the Markdown file.
+     */
     fun isCopyOf(candidate: String, name: String): Boolean {
         if (name == candidate) return true
-        val base = candidate.removeSuffix(JSON_SUFFIX)
+        val dot = candidate.lastIndexOf('.')
+        val base = if (dot > 0) candidate.substring(0, dot) else candidate
+        val extension = if (dot > 0) candidate.substring(dot) else ""
         val prefix = "$base ("
-        val suffix = ")$JSON_SUFFIX"
+        val suffix = ")$extension"
         val number = if (name.startsWith(prefix) && name.endsWith(suffix)) {
             name.substring(prefix.length, name.length - suffix.length)
         } else {

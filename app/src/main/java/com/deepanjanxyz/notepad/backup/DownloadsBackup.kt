@@ -245,7 +245,10 @@ object DownloadsBackup {
     fun read(context: Context, name: String? = null): String? {
         val target = name ?: newestName(context) ?: FILE_NAME
         return if (BackupFolder.hasAccess(context)) {
-            BackupFolder.find(context, target)?.let { BackupFolder.read(context, it.uri) }
+            // A write goes to a numbered copy when the name is already taken, so the
+            // read looks for one as well rather than reporting that nothing is there.
+            val file = BackupFolder.find(context, target) ?: newestFolderCopy(context, target)
+            file?.let { BackupFolder.read(context, it.uri) }
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             readViaMediaStore(context, target)
         } else {
@@ -511,19 +514,11 @@ object DownloadsBackup {
     private fun readViaMediaStore(context: Context, name: String): String? {
         val resolver = context.contentResolver
         val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
-        resolver.query(
-            collection,
-            arrayOf(MediaStore.MediaColumns._ID),
-            selection(),
-            selectionArgs(name),
-            null
-        )?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                val uri: Uri = ContentUris.withAppendedId(collection, cursor.getLong(0))
-                return resolver.openInputStream(uri)?.use { it.readBytes().decodeToString() }
-            }
-        }
-        return null
+        // The exact name is preferred; the numbered copy a write falls back to is
+        // read when the exact name is not there, matching the write path.
+        val uri = findFile(resolver, collection, name)
+            ?: newestCopyUri(context, resolver, collection, name)
+        return uri?.let { readBack(resolver, it) }
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)

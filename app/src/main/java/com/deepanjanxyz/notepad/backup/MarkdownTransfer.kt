@@ -1,18 +1,15 @@
 package com.deepanjanxyz.notepad.backup
 
 import android.content.Context
-import android.util.Log
 import com.deepanjanxyz.notepad.domain.model.Note
 
 /**
- * The Markdown copy of the notes: writing it and reading it back.
+ * The Markdown copy of the notes coming back in.
  *
- * The file work lives here, beside the format it uses, so both directions are
- * described in one place and the caller only has to report what happened.
+ * Exporting moved to [MarkdownExport], which the Notes screen calls with the notes
+ * the user picked; reading the file back lives here, beside the format it uses.
  */
 object MarkdownTransfer {
-
-    private const val TAG = "MarkdownTransfer"
 
     /**
      * What a transfer did, worded so it can be shown as it is.
@@ -25,36 +22,6 @@ object MarkdownTransfer {
         val error: Boolean = false,
         val notes: List<Note> = emptyList()
     )
-
-    /** Writes [notes] to the Markdown file in Downloads. */
-    fun write(context: Context, notes: List<Note>): Outcome {
-        val worth = notes.filter { it.isBackupWorthy() }
-        if (worth.isEmpty()) {
-            return Outcome(message = "There are no notes to export yet", error = true)
-        }
-        return runCatching {
-            DownloadsBackup.write(
-                context,
-                buildMarkdownNotes(worth),
-                MARKDOWN_FILE_NAME,
-                MARKDOWN_MIME_TYPE
-            )
-        }.fold(
-            onSuccess = {
-                Outcome(
-                    message = "Exported ${worth.size} notes to " +
-                        DownloadsBackup.locationLabel(MARKDOWN_FILE_NAME)
-                )
-            },
-            onFailure = { error ->
-                Log.w(TAG, "The Markdown export failed", error)
-                Outcome(
-                    message = "The Markdown file could not be written: ${error.message}",
-                    error = true
-                )
-            }
-        )
-    }
 
     /** The notes the Markdown file in Downloads holds, or the reason it holds none. */
     fun read(context: Context): Outcome {

@@ -146,6 +146,57 @@ object DownloadsBackup {
     }
 
     /**
+     * Writes [bytes] to the file called [name].
+     *
+     * The text path above verifies a write by reading it back as a string, which a
+     * zip cannot survive. A binary file is written here instead, over the same
+     * three destinations, and replaced in place when it is already there.
+     */
+    fun writeBytes(context: Context, bytes: ByteArray, name: String, mimeType: String) {
+        ensureFolder(context)
+        if (BackupFolder.hasAccess(context)) {
+            val target = BackupFolder.find(context, name)?.uri
+                ?: BackupFolder.create(context, name, mimeType)
+                ?: error("Could not create the file in Downloads")
+            BackupFolder.writeBytes(context, target, bytes)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            writeBytesViaMediaStore(context, bytes, name, mimeType)
+        } else {
+            legacyFile(name).writeBytes(bytes)
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun writeBytesViaMediaStore(
+        context: Context,
+        bytes: ByteArray,
+        name: String,
+        mimeType: String
+    ) {
+        val resolver = context.contentResolver
+        val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+        val existing = findFile(resolver, collection, name)
+        if (existing != null) {
+            writeBytesTo(resolver, existing, bytes)
+            return
+        }
+        val created = insertPendingFile(resolver, collection, name, mimeType)
+            ?: error("Could not create the file in Downloads")
+        writeBytesTo(resolver, created, bytes)
+        val published = ContentValues().apply {
+            put(MediaStore.MediaColumns.IS_PENDING, 0)
+        }
+        resolver.update(created, published, null, null)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun writeBytesTo(resolver: ContentResolver, uri: Uri, bytes: ByteArray) {
+        val stream = resolver.openOutputStream(uri, "rwt")
+            ?: error("Could not open the file for writing")
+        stream.use { it.write(bytes) }
+    }
+
+    /**
      * Writes through the folder the user granted: the file that is already there
      * is reused, and one is created only when the folder holds none at all.
      */

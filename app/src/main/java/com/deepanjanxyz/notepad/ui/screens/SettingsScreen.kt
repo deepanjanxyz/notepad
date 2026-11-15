@@ -87,6 +87,7 @@ import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.backup.BackupFolder
 import com.deepanjanxyz.notepad.backup.DownloadsBackup
 import com.deepanjanxyz.notepad.backup.MarkdownCopy
+import com.deepanjanxyz.notepad.backup.MarkdownImport
 import com.deepanjanxyz.notepad.backup.BackupParseResult
 import com.deepanjanxyz.notepad.backup.parseBackupJson
 import com.deepanjanxyz.notepad.domain.model.Note
@@ -216,6 +217,14 @@ fun SettingsScreen(
     // Turning auto backup on needs the legacy storage permission on Android 9 and
     // below; on newer versions MediaStore needs no permission at all, so it is
     // only ever requested at the moment the switch is turned on.
+    // The import reads the file the user picks, wherever it is: a Markdown file or
+    // a zip of them. Nothing is looked up in the app's own folder.
+    val markdownPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) markdownCopy.importFrom(uri)
+    }
+
     val storagePermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -719,7 +728,7 @@ fun SettingsScreen(
                         OutlinedButton(
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                markdownCopy.importNotes()
+                                markdownPicker.launch(MarkdownImport.PICKER_MIME_TYPES)
                             },
                             modifier = Modifier.testTag("markdown_import_button"),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
@@ -731,7 +740,7 @@ fun SettingsScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Import .md",
+                                text = "Import .md or .zip",
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )

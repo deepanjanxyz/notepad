@@ -1,6 +1,7 @@
 package com.deepanjanxyz.notepad.backup
 
 import android.content.Context
+import android.net.Uri
 import com.deepanjanxyz.notepad.domain.model.Note
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,14 +31,15 @@ class MarkdownCopy(
     val status: StateFlow<MarkdownTransfer.Outcome?> = _status.asStateFlow()
 
     /**
-     * Adds every note in the Markdown file in Downloads as a new note.
+     * Adds the notes in the file the user picked as new notes.
      *
-     * A note already held on every field is skipped by [addNotes], so importing
-     * the same file twice does not double the library.
+     * The file can be a Markdown file or a zip of them, and it can be anywhere on
+     * the device. A note already held on every field is skipped by [addNotes], so
+     * importing the same file twice does not double the library.
      */
-    fun importNotes() {
+    fun importFrom(uri: Uri) {
         scope.launch {
-            val outcome = withContext(Dispatchers.IO) { MarkdownTransfer.read(context) }
+            val outcome = withContext(Dispatchers.IO) { MarkdownImport.read(context, uri) }
             if (outcome.notes.isEmpty()) {
                 _status.value = outcome
             } else {

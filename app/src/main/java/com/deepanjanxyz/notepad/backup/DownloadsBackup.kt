@@ -332,28 +332,6 @@ object DownloadsBackup {
         }
     }
 
-    /**
-     * Reads the newest file in the folder whose name ends with [suffix], or null.
-     *
-     * The media store and the folder provider both number a name that is already
-     * taken, so the file a write lands in is not always the name it asked for.
-     * This is the way back to it.
-     */
-    fun readNewestWithSuffix(context: Context, suffix: String): String? {
-        val newest = if (BackupFolder.hasAccess(context)) {
-            BackupFolder.children(context)
-                .filter { it.name.endsWith(suffix) }
-                .maxByOrNull { it.lastModified }
-                ?.name
-        } else {
-            readEntries(context)
-                .filter { it.name.endsWith(suffix) }
-                .maxByOrNull { it.lastModified }
-                ?.name
-        }
-        return newest?.let { read(context, it) }
-    }
-
     /** True when [name] is a file this app keeps in the folder. */
     private fun isStoredName(name: String): Boolean =
         name.endsWith(BackupFileNames.JSON_SUFFIX) ||

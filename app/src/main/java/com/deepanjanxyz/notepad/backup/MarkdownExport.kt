@@ -128,13 +128,20 @@ object MarkdownExport {
         )
     }
 
-    /** [name], or the first numbered form of it the folder does not already hold. */
+    /**
+     * [name], or the first numbered form of it the folder does not already hold.
+     *
+     * An export is a snapshot the user keeps, so it is never written over an
+     * earlier one: the numbering goes in before the extension, whatever that is.
+     */
     private fun freeName(context: Context, name: String): String {
         if (!DownloadsBackup.exists(context, name)) return name
-        val base = name.removeSuffix(BackupFileNames.MARKDOWN_SUFFIX)
+        val dot = name.lastIndexOf('.')
+        val base = if (dot > 0) name.substring(0, dot) else name
+        val extension = if (dot > 0) name.substring(dot) else ""
         var copy = 1
         while (true) {
-            val candidate = "$base ($copy)${BackupFileNames.MARKDOWN_SUFFIX}"
+            val candidate = "$base ($copy)$extension"
             if (!DownloadsBackup.exists(context, candidate)) return candidate
             copy++
         }
@@ -147,14 +154,16 @@ object MarkdownExport {
             return MarkdownTransfer.Outcome(message = "There are no notes to export yet", error = true)
         }
         return runCatching {
+            val name = freeName(context, COMBINED_FILE_NAME)
             DownloadsBackup.write(
                 context,
                 buildCombined(worth),
-                COMBINED_FILE_NAME,
+                name,
                 MARKDOWN_MIME_TYPE
             )
+            name
         }.fold(
-            onSuccess = { written(COMBINED_FILE_NAME, worth.size) },
+            onSuccess = { name -> written(name, worth.size) },
             onFailure = { failure("The notes could not be exported", it) }
         )
     }
@@ -166,9 +175,11 @@ object MarkdownExport {
             return MarkdownTransfer.Outcome(message = "There are no notes to export yet", error = true)
         }
         return runCatching {
-            DownloadsBackup.writeBytes(context, buildZip(worth), ZIP_FILE_NAME, ZIP_MIME_TYPE)
+            val name = freeName(context, ZIP_FILE_NAME)
+            DownloadsBackup.writeBytes(context, buildZip(worth), name, ZIP_MIME_TYPE)
+            name
         }.fold(
-            onSuccess = { written(ZIP_FILE_NAME, worth.size) },
+            onSuccess = { name -> written(name, worth.size) },
             onFailure = { failure("The notes could not be exported", it) }
         )
     }

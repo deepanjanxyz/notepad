@@ -120,10 +120,15 @@ object MarkdownImport {
                 if (!entry.isDirectory && isMarkdown) {
                     val text = readEntry(zip)
                     total += text.size
-                    if (total > MAX_TOTAL_BYTES) {
-                        throw IllegalStateException("The zip holds more text than can be read")
-                    }
                     notes += parseMarkdownNotes(text.decodeToString())
+                } else {
+                    // An entry that is skipped is inflated all the same before the
+                    // next one can be reached, so its bytes count against the same
+                    // limit rather than being read for free.
+                    total += readEntry(zip).size
+                }
+                if (total > MAX_TOTAL_BYTES) {
+                    throw IllegalStateException("The zip holds more text than can be read")
                 }
                 zip.closeEntry()
                 entry = zip.nextEntry

@@ -111,13 +111,38 @@ object DownloadsBackup {
      * An export asks before it writes, so a second note with the same title lands
      * beside the first instead of replacing it.
      */
-    fun exists(context: Context, name: String): Boolean {
-        val names = when {
-            BackupFolder.hasAccess(context) -> BackupFolder.children(context).map { it.name }
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> readEntries(context).map { it.name }
-            else -> legacyDir().listFiles()?.map { it.name }.orEmpty()
+    fun exists(context: Context, name: String): Boolean =
+        storedNames(context).any { it.equals(name, ignoreCase = true) }
+
+    /**
+     * Every name in the folder, whatever the file is.
+     *
+     * Deliberately wider than [readEntries], which keeps only the names Restore
+     * lists: a zip export has to see an earlier zip to avoid taking its name, and
+     * a name the listing drops would be a name it writes over.
+     */
+    private fun storedNames(context: Context): List<String> = when {
+        BackupFolder.hasAccess(context) -> BackupFolder.children(context).map { it.name }
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> allEntryNames(context)
+        else -> legacyDir().listFiles()?.map { it.name }.orEmpty()
+    }
+
+    /** Every display name in the folder, as the media store sees it. */
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun allEntryNames(context: Context): List<String> {
+        val names = mutableListOf<String>()
+        context.contentResolver.query(
+            MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            arrayOf(MediaStore.MediaColumns.DISPLAY_NAME),
+            "${MediaStore.MediaColumns.RELATIVE_PATH} = ?",
+            arrayOf("$RELATIVE_DIR/"),
+            null
+        )?.use { cursor ->
+            while (cursor.moveToNext()) {
+                cursor.getString(0)?.let { names += it }
+            }
         }
-        return names.any { it.equals(name, ignoreCase = true) }
+        return names
     }
 
     /** Location of a backup file, phrased for display in Settings. */

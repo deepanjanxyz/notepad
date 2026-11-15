@@ -3,6 +3,8 @@ package com.deepanjanxyz.notepad.backup
 import android.content.Context
 import android.util.Log
 import com.deepanjanxyz.notepad.domain.model.Note
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.ByteArrayOutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
@@ -34,6 +36,14 @@ private val ILLEGAL_IN_NAME = charArrayOf('/', '\\', ':', '*', '?', '"', '<', '>
  * only the writing touches storage.
  */
 object MarkdownExport {
+
+    /**
+     * Held while a name is chosen and the file is written under it.
+     *
+     * Two exports started close together would otherwise both find the same name
+     * free, and the second write would land on the file the first had just made.
+     */
+    private val writeLock = Mutex()
 
     /**
      * The file name a note is exported under.
@@ -104,28 +114,32 @@ object MarkdownExport {
      * Writes one note to its own file in Downloads.
      *
      * The name is checked against the folder first: a second note with the same
-     * title is written beside the first as `Trip (1).md`, not over it.
+     * title is written beside the first as `Trip (1).md`, not over it. The file is
+     * written with [DownloadsBackup.writeBytes], which writes that exact name and
+     * nothing else, so a name that came back free cannot land on an older copy.
      */
-    fun exportOne(context: Context, note: Note): MarkdownTransfer.Outcome {
+    suspend fun exportOne(context: Context, note: Note): MarkdownTransfer.Outcome {
         if (!note.isBackupWorthy()) {
             return MarkdownTransfer.Outcome(
                 message = "There is nothing in this note to export",
                 error = true
             )
         }
-        return runCatching {
-            val name = freeName(context, fileNameFor(note.title))
-            DownloadsBackup.write(
-                context,
-                buildMarkdownNotes(listOf(note)),
-                name,
-                MARKDOWN_MIME_TYPE
+        return writeLock.withLock {
+            runCatching {
+                val name = freeName(context, fileNameFor(note.title))
+                writeMarkdown(context, buildMarkdownNotes(listOf(note)), name)
+                name
+            }.fold(
+                onSuccess = { name -> written(name, 1) },
+                onFailure = { failure("The note could not be exported", it) }
             )
-            name
-        }.fold(
-            onSuccess = { name -> written(name, 1) },
-            onFailure = { failure("The note could not be exported", it) }
-        )
+        }
+    }
+
+    /** Writes Markdown text under exactly [name]. */
+    private fun writeMarkdown(context: Context, text: String, name: String) {
+        DownloadsBackup.writeBytes(context, text.toByteArray(), name, MARKDOWN_MIME_TYPE)
     }
 
     /**
@@ -148,40 +162,45 @@ object MarkdownExport {
     }
 
     /** Writes the selected notes into one Markdown file. */
-    fun exportCombined(context: Context, notes: List<Note>): MarkdownTransfer.Outcome {
+    suspend fun exportCombined(context: Context, notes: List<Note>): MarkdownTransfer.Outcome {
         val worth = notes.filter { it.isBackupWorthy() }
         if (worth.isEmpty()) {
-            return MarkdownTransfer.Outcome(message = "There are no notes to export yet", error = true)
-        }
-        return runCatching {
-            val name = freeName(context, COMBINED_FILE_NAME)
-            DownloadsBackup.write(
-                context,
-                buildCombined(worth),
-                name,
-                MARKDOWN_MIME_TYPE
+            return MarkdownTransfer.Outcome(
+                message = "There are no notes to export yet",
+                error = true
             )
-            name
-        }.fold(
-            onSuccess = { name -> written(name, worth.size) },
-            onFailure = { failure("The notes could not be exported", it) }
-        )
+        }
+        return writeLock.withLock {
+            runCatching {
+                val name = freeName(context, COMBINED_FILE_NAME)
+                writeMarkdown(context, buildCombined(worth), name)
+                name
+            }.fold(
+                onSuccess = { name -> written(name, worth.size) },
+                onFailure = { failure("The notes could not be exported", it) }
+            )
+        }
     }
 
     /** Writes the selected notes into a zip holding one Markdown file per note. */
-    fun exportZip(context: Context, notes: List<Note>): MarkdownTransfer.Outcome {
+    suspend fun exportZip(context: Context, notes: List<Note>): MarkdownTransfer.Outcome {
         val worth = notes.filter { it.isBackupWorthy() }
         if (worth.isEmpty()) {
-            return MarkdownTransfer.Outcome(message = "There are no notes to export yet", error = true)
+            return MarkdownTransfer.Outcome(
+                message = "There are no notes to export yet",
+                error = true
+            )
         }
-        return runCatching {
-            val name = freeName(context, ZIP_FILE_NAME)
-            DownloadsBackup.writeBytes(context, buildZip(worth), name, ZIP_MIME_TYPE)
-            name
-        }.fold(
-            onSuccess = { name -> written(name, worth.size) },
-            onFailure = { failure("The notes could not be exported", it) }
-        )
+        return writeLock.withLock {
+            runCatching {
+                val name = freeName(context, ZIP_FILE_NAME)
+                DownloadsBackup.writeBytes(context, buildZip(worth), name, ZIP_MIME_TYPE)
+                name
+            }.fold(
+                onSuccess = { name -> written(name, worth.size) },
+                onFailure = { failure("The notes could not be exported", it) }
+            )
+        }
     }
 
     private fun written(name: String, count: Int): MarkdownTransfer.Outcome =

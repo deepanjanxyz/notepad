@@ -5,6 +5,7 @@ import android.net.Uri
 import com.deepanjanxyz.notepad.domain.model.Note
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.util.zip.ZipInputStream
 
 /** How many entries of a zip are looked at before the archive is refused. */
@@ -16,7 +17,10 @@ internal const val MAX_ENTRY_BYTES = 4_000_000
 /** How large all the notes of one zip may be together once uncompressed. */
 internal const val MAX_TOTAL_BYTES = 20_000_000
 
-/** How much is read from the archive at a time. */
+/** How large the picked file itself may be, before anything inside it is looked at. */
+internal const val MAX_FILE_BYTES = 25_000_000
+
+/** How much is read at a time, from the file and from each archive entry. */
 private const val READ_CHUNK = 8192
 
 /** The four bytes every zip begins with, read as text: "PK\u0003\u0004". */
@@ -48,13 +52,25 @@ object MarkdownImport {
         "application/octet-stream"
     )
 
-    /** Reads the picked file, and returns the notes it holds. */
+    /**
+     * Reads the picked file, and returns the notes it holds.
+     *
+     * The file is read a chunk at a time and refused once it passes
+     * [MAX_FILE_BYTES], rather than loaded whole: the picker can hand over any file
+     * on the device, and reading a huge one in one go would take the app down
+     * before any of the limits inside the archive are ever reached.
+     */
     fun read(context: Context, uri: Uri): MarkdownTransfer.Outcome {
         val bytes = runCatching {
-            context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            context.contentResolver.openInputStream(uri)?.use { stream ->
+                readBounded(stream, MAX_FILE_BYTES)
+            }
         }.getOrNull()
         if (bytes == null) {
-            return MarkdownTransfer.Outcome(message = "The file could not be read", error = true)
+            return MarkdownTransfer.Outcome(
+                message = "The file could not be read, or is too large to import",
+                error = true
+            )
         }
         return runCatching {
             if (isZip(bytes)) notesFromZip(bytes) else notesFromMarkdown(bytes)
@@ -79,6 +95,21 @@ object MarkdownImport {
                 )
             }
         )
+    }
+
+    /** At most [limit] bytes of [stream], or null when it holds more than that. */
+    internal fun readBounded(stream: InputStream, limit: Int): ByteArray? {
+        val out = ByteArrayOutputStream()
+        val buffer = ByteArray(READ_CHUNK)
+        var total = 0
+        while (true) {
+            val read = stream.read(buffer)
+            if (read < 0) break
+            total += read
+            if (total > limit) return null
+            out.write(buffer, 0, read)
+        }
+        return out.toByteArray()
     }
 
     /** True when the file starts with the signature every zip begins with. */

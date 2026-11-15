@@ -4,6 +4,7 @@ import com.deepanjanxyz.notepad.domain.model.Note
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
@@ -71,6 +72,15 @@ class MarkdownImportTest {
         }
 
         assertTrue(refused.isFailure)
+    }
+
+    @Test
+    fun aFileLargerThanTheLimitIsRefused() {
+        val fits = MarkdownImport.readBounded(ByteArrayInputStream(ByteArray(10)), 100)
+        assertEquals(10, fits?.size)
+
+        val tooLarge = MarkdownImport.readBounded(ByteArrayInputStream(ByteArray(200)), 100)
+        assertEquals(null, tooLarge)
     }
 
     /** A zip built the way the export builds one, entry by entry. */

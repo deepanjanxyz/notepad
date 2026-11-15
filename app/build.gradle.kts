@@ -54,14 +54,8 @@ android {
     val hasReleaseSigning = keystoreIsValid && releaseStorePass != null &&
         releaseAlias != null && releaseKeyPass != null
 
-    signingConfigs {
-        create("debugConfig") {
-            storeFile = file("${rootDir}/debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
-        }
-        if (hasReleaseSigning) {
+    if (hasReleaseSigning) {
+        signingConfigs {
             create("release") {
                 storeFile = releaseKeystore
                 storePassword = releaseStorePass
@@ -73,7 +67,7 @@ android {
 
     buildTypes {
         debug {
-            signingConfig = signingConfigs.getByName("debugConfig")
+            signingConfig = signingConfigs.getByName("debug")
         }
         release {
             isDebuggable = false

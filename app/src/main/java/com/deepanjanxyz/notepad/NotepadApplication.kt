@@ -3,8 +3,10 @@ package com.deepanjanxyz.notepad
 import android.app.Application
 import com.deepanjanxyz.notepad.backup.DownloadsBackup
 import com.deepanjanxyz.notepad.data.NoteRepositoryProvider
+import com.deepanjanxyz.notepad.data.NoteShortcutRepositoryProvider
 import com.deepanjanxyz.notepad.data.SettingsRepositoryProvider
 import com.deepanjanxyz.notepad.domain.repository.NoteRepository
+import com.deepanjanxyz.notepad.domain.repository.NoteShortcutRepository
 import com.deepanjanxyz.notepad.domain.repository.SettingsRepository
 import com.deepanjanxyz.notepad.domain.usecase.label.AddLabelUseCase
 import com.deepanjanxyz.notepad.domain.usecase.label.DeleteLabelUseCase
@@ -29,6 +31,11 @@ import com.deepanjanxyz.notepad.domain.usecase.note.TrashNoteUseCase
 import com.deepanjanxyz.notepad.domain.usecase.settings.GetSettingsUseCase
 import com.deepanjanxyz.notepad.domain.usecase.settings.SaveSettingsUseCase
 import com.deepanjanxyz.notepad.domain.usecase.settings.SettingsUseCases
+import com.deepanjanxyz.notepad.domain.usecase.widget.GetLinkedNoteIdUseCase
+import com.deepanjanxyz.notepad.domain.usecase.widget.LinkNoteUseCase
+import com.deepanjanxyz.notepad.domain.usecase.widget.NoteShortcutUseCases
+import com.deepanjanxyz.notepad.domain.usecase.widget.UnlinkNoteUseCase
+import com.deepanjanxyz.notepad.widget.NoteShortcutWidgetProvider
 import com.deepanjanxyz.notepad.widget.TaskWidgetProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -46,11 +53,10 @@ class NotepadApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        // The home-screen widget mirrors the pinned checklist notes, so it is
-        // rebuilt whenever the active notes change - a pin, unpin, edit, delete
-        // or archive is on the home screen without waiting for the app to close.
-        // A short pause after each change collapses a burst of edits into one
-        // rebuild.
+        // The home-screen widgets mirror the notes, so they are rebuilt whenever
+        // the active notes change - a pin, unpin, edit, delete or archive is on the
+        // home screen without waiting for the app to close. A short pause after
+        // each change collapses a burst of edits into one rebuild.
         appScope.launch {
             container.noteUseCases.getNotes()
                 .drop(1)
@@ -58,6 +64,7 @@ class NotepadApplication : Application() {
                 .collect {
                     delay(WIDGET_SYNC_DEBOUNCE_MS)
                     TaskWidgetProvider.refresh(this@NotepadApplication)
+                    NoteShortcutWidgetProvider.refresh(this@NotepadApplication)
                 }
         }
 
@@ -89,6 +96,8 @@ class NotepadApplication : Application() {
 class AppContainer(application: Application) {
     private val repository: NoteRepository = NoteRepositoryProvider.create(application)
     private val settingsRepository: SettingsRepository = SettingsRepositoryProvider.create(application)
+    private val shortcutRepository: NoteShortcutRepository =
+        NoteShortcutRepositoryProvider.create(application)
 
     val noteUseCases: NoteUseCases = NoteUseCases(
         getNotes = GetNotesUseCase(repository),
@@ -112,6 +121,12 @@ class AppContainer(application: Application) {
         addLabel = AddLabelUseCase(repository),
         renameLabel = RenameLabelUseCase(repository),
         deleteLabel = DeleteLabelUseCase(repository)
+    )
+
+    val noteShortcutUseCases: NoteShortcutUseCases = NoteShortcutUseCases(
+        getLinkedNoteId = GetLinkedNoteIdUseCase(shortcutRepository),
+        linkNote = LinkNoteUseCase(shortcutRepository),
+        unlinkNote = UnlinkNoteUseCase(shortcutRepository)
     )
 
     val settingsUseCases: SettingsUseCases = SettingsUseCases(

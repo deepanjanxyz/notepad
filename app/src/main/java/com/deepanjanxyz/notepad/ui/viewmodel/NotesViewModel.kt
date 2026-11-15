@@ -11,6 +11,7 @@ import com.deepanjanxyz.notepad.backup.DownloadsBackup
 import com.deepanjanxyz.notepad.backup.buildBackupJson
 import com.deepanjanxyz.notepad.backup.isBackupWorthy
 import com.deepanjanxyz.notepad.backup.parseBackupJson
+import com.deepanjanxyz.notepad.domain.model.DrawingSerializer
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.domain.usecase.label.LabelUseCases
 import com.deepanjanxyz.notepad.domain.usecase.note.NoteUseCases
@@ -313,6 +314,25 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
             if (_uiState.value.selectedTagFilter.equals(labelName, ignoreCase = true)) {
                 onTagFilterChange(null)
             }
+        }
+    }
+
+    /**
+     * Opens the note [noteId] on the screen its content calls for: a drawing opens
+     * on the drawing canvas, and everything else in the editor.
+     *
+     * Called for a reminder notification and for a note shortcut widget, neither of
+     * which knows what kind of note it points at.
+     */
+    fun openNoteById(noteId: Long) {
+        viewModelScope.launch {
+            val note = noteUseCases.getNoteById(noteId) ?: return@launch
+            val target = if (DrawingSerializer.isDrawing(note.content)) {
+                Screen.Drawing(note.id)
+            } else {
+                Screen.Editor(note.id)
+            }
+            navigateTo(target)
         }
     }
 

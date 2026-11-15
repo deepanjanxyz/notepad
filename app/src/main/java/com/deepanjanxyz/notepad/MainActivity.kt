@@ -50,6 +50,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
 import com.deepanjanxyz.notepad.ui.navigation.AppRoot
+import com.deepanjanxyz.notepad.ui.navigation.EXTRA_OPEN_NOTE_ID
 import com.deepanjanxyz.notepad.ui.viewmodel.NotesViewModel
 import com.deepanjanxyz.notepad.ui.viewmodel.Screen
 
@@ -63,24 +64,30 @@ class MainActivity : FragmentActivity() {
 
     private val viewModel: NotesViewModel by viewModels()
 
-    private fun handleNotificationIntent(intent: Intent?) {
-        val noteId = intent?.getLongExtra("open_note_id", -1L) ?: -1L
+    /**
+     * Opens the note a reminder or a shortcut widget sent the app for.
+     *
+     * The view model decides which screen suits the note, because only the stored
+     * note says whether it holds a drawing or text.
+     */
+    private fun handleOpenNoteIntent(intent: Intent?) {
+        val noteId = intent?.getLongExtra(EXTRA_OPEN_NOTE_ID, -1L) ?: -1L
         if (noteId > 0L) {
-            viewModel.navigateTo(Screen.Editor(noteId))
+            viewModel.openNoteById(noteId)
         }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleNotificationIntent(intent)
+        handleOpenNoteIntent(intent)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashAnimations()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        handleNotificationIntent(intent)
+        handleOpenNoteIntent(intent)
 
         setContent {
             AppRoot(

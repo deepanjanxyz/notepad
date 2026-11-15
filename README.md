@@ -47,6 +47,7 @@ The app is **local-first**: notes, labels and settings live in an on-device Room
 
 **Extras**
 - Home-screen widget: pin checklist notes and tick items off without opening the app.
+- Note shortcut widget: keep one note on the home screen; a single cell shows its title, and a larger one shows the note's text or a thumbnail of its drawing.
 - Share a note as plain text.
 - Back up and restore all notes to a JSON file in Downloads, with optional automatic backups.
 - Counts for active notes, pinned notes and words in Settings.

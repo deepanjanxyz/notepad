@@ -9,6 +9,9 @@ import java.util.zip.ZipInputStream
 /** How many entries of a zip are looked at, so a wrong or huge archive cannot hang the app. */
 private const val MAX_ZIP_ENTRIES = 500
 
+/** The four bytes every zip begins with, read as text: "PK\u0003\u0004". */
+private const val ZIP_SIGNATURE = "PK\u0003\u0004"
+
 /**
  * Bringing notes back in from a file the user picked.
  *
@@ -41,21 +44,22 @@ object MarkdownImport {
             return MarkdownTransfer.Outcome(message = "The file could not be read", error = true)
         }
         val notes = if (isZip(bytes)) notesFromZip(bytes) else notesFromMarkdown(bytes)
-        if (notes.isEmpty()) {
-            return MarkdownTransfer.Outcome(
+        return if (notes.isEmpty()) {
+            MarkdownTransfer.Outcome(
                 message = "That file held no notes to import",
                 error = true
             )
+        } else {
+            MarkdownTransfer.Outcome(message = "Imported ${notes.size} notes", notes = notes)
         }
-        return MarkdownTransfer.Outcome(message = "Imported ${notes.size} notes", notes = notes)
     }
 
     /** True when the file starts with the signature every zip begins with. */
     fun isZip(bytes: ByteArray): Boolean =
-        bytes.size >= 4 &&
-            bytes[0] == ZIP_SIGNATURE &&
-            bytes[1] == 'K'.code.toByte() &&
-            bytes[2] == 0x03.toByte()
+        bytes.size >= ZIP_SIGNATURE.length &&
+            ZIP_SIGNATURE.indices.all { index ->
+                bytes[index] == ZIP_SIGNATURE[index].code.toByte()
+            }
 
     /** The notes a single Markdown file holds. */
     fun notesFromMarkdown(bytes: ByteArray): List<Note> = parseMarkdownNotes(bytes.decodeToString())
@@ -87,5 +91,4 @@ object MarkdownImport {
         return notes
     }
 
-    private const val ZIP_SIGNATURE = 0x50.toByte()
 }

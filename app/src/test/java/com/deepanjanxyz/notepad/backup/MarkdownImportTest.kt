@@ -60,6 +60,19 @@ class MarkdownImportTest {
         assertEquals(emptyList<Note>(), MarkdownImport.notesFromZip(zipOf()))
     }
 
+    @Test
+    fun aZipWithTooManyEntriesIsRefusedRatherThanCutShort() {
+        val entries = (1..MAX_ZIP_ENTRIES + 1).map { index ->
+            "note$index.md" to "# Elite Memo Pro notes\n\n## Note $index\n\nbody\n"
+        }
+
+        val refused = runCatching {
+            MarkdownImport.notesFromZip(zipOf(*entries.toTypedArray()))
+        }
+
+        assertTrue(refused.isFailure)
+    }
+
     /** A zip built the way the export builds one, entry by entry. */
     private fun zipOf(vararg entries: Pair<String, String>): ByteArray {
         val bytes = ByteArrayOutputStream()

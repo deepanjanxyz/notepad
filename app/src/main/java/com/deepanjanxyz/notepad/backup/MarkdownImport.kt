@@ -4,10 +4,20 @@ import android.content.Context
 import android.net.Uri
 import com.deepanjanxyz.notepad.domain.model.Note
 import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.util.zip.ZipInputStream
 
-/** How many entries of a zip are looked at, so a wrong or huge archive cannot hang the app. */
-private const val MAX_ZIP_ENTRIES = 500
+/** How many entries of a zip are looked at before the archive is refused. */
+internal const val MAX_ZIP_ENTRIES = 500
+
+/** How large one note inside a zip may be once it is uncompressed. */
+internal const val MAX_ENTRY_BYTES = 4_000_000
+
+/** How large all the notes of one zip may be together once uncompressed. */
+internal const val MAX_TOTAL_BYTES = 20_000_000
+
+/** How much is read from the archive at a time. */
+private const val READ_CHUNK = 8192
 
 /** The four bytes every zip begins with, read as text: "PK\u0003\u0004". */
 private const val ZIP_SIGNATURE = "PK\u0003\u0004"
@@ -19,6 +29,9 @@ private const val ZIP_SIGNATURE = "PK\u0003\u0004"
  * it is either a Markdown file or a zip of them. Only the file that was picked is
  * read: nothing is looked up in the app's own folder, which belongs to the JSON
  * backup.
+ *
+ * A file that cannot be read is reported as an error rather than as a partial
+ * import: half a library brought in silently is worse than being told it failed.
  */
 object MarkdownImport {
 
@@ -43,15 +56,29 @@ object MarkdownImport {
         if (bytes == null) {
             return MarkdownTransfer.Outcome(message = "The file could not be read", error = true)
         }
-        val notes = if (isZip(bytes)) notesFromZip(bytes) else notesFromMarkdown(bytes)
-        return if (notes.isEmpty()) {
-            MarkdownTransfer.Outcome(
-                message = "That file held no notes to import",
-                error = true
-            )
-        } else {
-            MarkdownTransfer.Outcome(message = "Imported ${notes.size} notes", notes = notes)
-        }
+        return runCatching {
+            if (isZip(bytes)) notesFromZip(bytes) else notesFromMarkdown(bytes)
+        }.fold(
+            onSuccess = { notes ->
+                if (notes.isEmpty()) {
+                    MarkdownTransfer.Outcome(
+                        message = "That file held no notes to import",
+                        error = true
+                    )
+                } else {
+                    MarkdownTransfer.Outcome(
+                        message = "Imported ${notes.size} notes",
+                        notes = notes
+                    )
+                }
+            },
+            onFailure = { error ->
+                MarkdownTransfer.Outcome(
+                    message = "That file could not be read as notes: ${error.message}",
+                    error = true
+                )
+            }
+        )
     }
 
     /** True when the file starts with the signature every zip begins with. */
@@ -68,27 +95,63 @@ object MarkdownImport {
      * The notes a zip holds, one file at a time.
      *
      * Only `.md` entries count; folders and anything else in the archive are
-     * skipped, and the walk stops after [MAX_ZIP_ENTRIES] entries.
+     * skipped. An archive holding more than [MAX_ZIP_ENTRIES] entries, or a note
+     * larger than [MAX_ENTRY_BYTES], or more than [MAX_TOTAL_BYTES] in all, is
+     * refused rather than imported in part, so a whole selection is never quietly
+     * cut short. A corrupt archive throws, and [read] turns that into an error.
      */
     fun notesFromZip(bytes: ByteArray): List<Note> {
         val notes = mutableListOf<Note>()
+        var total = 0
         ZipInputStream(ByteArrayInputStream(bytes)).use { zip ->
             var entry = zip.nextEntry
             var seen = 0
-            while (entry != null && seen < MAX_ZIP_ENTRIES) {
+            while (entry != null) {
+                seen++
+                if (seen > MAX_ZIP_ENTRIES) {
+                    throw IllegalStateException(
+                        "The zip holds more than $MAX_ZIP_ENTRIES files"
+                    )
+                }
                 val isMarkdown = entry.name.endsWith(
                     BackupFileNames.MARKDOWN_SUFFIX,
                     ignoreCase = true
                 )
                 if (!entry.isDirectory && isMarkdown) {
-                    notes += parseMarkdownNotes(zip.readBytes().decodeToString())
+                    val text = readEntry(zip)
+                    total += text.size
+                    if (total > MAX_TOTAL_BYTES) {
+                        throw IllegalStateException("The zip holds more text than can be read")
+                    }
+                    notes += parseMarkdownNotes(text.decodeToString())
                 }
                 zip.closeEntry()
                 entry = zip.nextEntry
-                seen++
             }
         }
         return notes
     }
 
+    /**
+     * One entry of the archive, read a chunk at a time.
+     *
+     * The size is counted as it is read rather than trusted from the entry's
+     * header: a small compressed entry can unpack to something far larger, and the
+     * limit has to hold whatever the header claims.
+     */
+    private fun readEntry(zip: ZipInputStream): ByteArray {
+        val out = ByteArrayOutputStream()
+        val buffer = ByteArray(READ_CHUNK)
+        var total = 0
+        while (true) {
+            val read = zip.read(buffer)
+            if (read < 0) break
+            total += read
+            if (total > MAX_ENTRY_BYTES) {
+                throw IllegalStateException("A note in the zip is larger than can be read")
+            }
+            out.write(buffer, 0, read)
+        }
+        return out.toByteArray()
+    }
 }

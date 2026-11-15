@@ -10,6 +10,16 @@ import com.deepanjanxyz.notepad.domain.model.Note
  */
 const val MARKDOWN_FILE_NAME = "elite-memo-notes.md"
 
+/**
+ * The type a Markdown file is stored as.
+ *
+ * The folder and the media store both name a new file after the type they are
+ * given, so a Markdown file has to be stored as Markdown: handed over as JSON it
+ * comes back called `elite-memo-notes.md.json`, and the import then finds nothing
+ * under the name it looks for.
+ */
+const val MARKDOWN_MIME_TYPE = "text/markdown"
+
 /** The first line of the exported file, and the line that names each note. */
 private const val FILE_HEADING = "# Elite Memo Pro notes"
 private const val NOTE_HEADING = "## "

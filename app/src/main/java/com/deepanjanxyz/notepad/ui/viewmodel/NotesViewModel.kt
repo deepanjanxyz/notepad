@@ -381,8 +381,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
      * backup package, so this class only hands it the notes and the place to
      * add them, and Settings asks it directly for what it needs.
      */
-    val markdownCopy =
-        MarkdownCopy(getApplication(), viewModelScope, ::currentBackupNotes, ::importNotesNow)
+    val markdownCopy = MarkdownCopy(getApplication(), viewModelScope, ::importNotesNow)
 
     private var autoBackupJob: Job? = null
 

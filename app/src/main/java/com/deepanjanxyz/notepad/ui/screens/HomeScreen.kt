@@ -60,7 +60,7 @@ import androidx.compose.material.icons.filled.Deselect
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.DropdownMenu
@@ -101,6 +101,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -253,10 +254,15 @@ fun HomeScreen(
 
                 TopAppBar(
                     title = {
+                        // Kept to one line: the bar carries several actions beside the
+                        // title, and a larger style wrapped "Selected" in two.
                         Text(
                             text = "${uiState.selectedNoteIds.size} Selected",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
                         )
                     },
                     navigationIcon = {
@@ -341,7 +347,7 @@ fun HomeScreen(
                                 modifier = Modifier.testTag("export_selected_button")
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Share,
+                                    imageVector = Icons.Default.FileDownload,
                                     contentDescription = "Export selected",
                                     tint = MaterialTheme.colorScheme.primary
                                 )

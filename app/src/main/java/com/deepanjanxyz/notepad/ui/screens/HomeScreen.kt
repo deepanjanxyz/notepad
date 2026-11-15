@@ -86,6 +86,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -164,6 +165,9 @@ fun HomeScreen(
     var pendingExport by remember { mutableStateOf<(() -> Unit)?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    // Read inside the export coroutine, so it sees the selection as it is when the
+    // files are done rather than the one from the frame the export started in.
+    val currentSelection by rememberUpdatedState(uiState.selectedNoteIds)
 
     // Below Android 10 an export writes to Downloads directly, which needs the
     // storage permission unless the backup folder itself has been handed over.
@@ -196,6 +200,7 @@ fun HomeScreen(
             storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
             return
         }
+        val exportedIds = selected.map { it.id }.toSet()
         scope.launch {
             val outcome = withContext(Dispatchers.IO) {
                 if (selected.size == 1) {
@@ -206,10 +211,10 @@ fun HomeScreen(
                     MarkdownExport.exportCombined(context, selected)
                 }
             }
-            // The selection is cleared before the snackbar is awaited: showing one
-            // suspends until it is dismissed, and a selection made in the meantime
-            // is not this export's to clear.
-            if (!outcome.error) onClearSelection()
+            // Only the selection this export started with is cleared, and before
+            // the snackbar is awaited: the user may have cancelled it and picked
+            // other notes while the files were being written.
+            if (!outcome.error && currentSelection == exportedIds) onClearSelection()
             homeSnackbarHostState.showSnackbar(outcome.message)
         }
     }

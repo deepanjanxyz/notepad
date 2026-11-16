@@ -32,4 +32,8 @@
     <string name="widget_note_choose_empty">No notes yet. Write a note first, then place this shortcut again.</string>
     <string name="widget_note_choose_drawing">Drawing</string>
     <string name="widget_note_choose_cancel">Cancel</string>
+    <string name="widget_note_shortcut_desc">Opens a note with one tap from your home screen.</string>
+    <string name="widget_note_drawing_desc">Drawing preview</string>
+    <string name="widget_note_choose_search">Search notes…</string>
+    <string name="widget_note_choose_linked">Currently linked</string>
 </resources>

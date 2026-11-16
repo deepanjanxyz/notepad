@@ -66,6 +66,8 @@
         <activity
             android:name=".widget.NoteShortcutConfigureActivity"
             android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
             android:theme="@style/Theme.EliteMemoPro" />
 
         <!-- Supplies the widget's scrollable list. The BIND_REMOTEVIEWS

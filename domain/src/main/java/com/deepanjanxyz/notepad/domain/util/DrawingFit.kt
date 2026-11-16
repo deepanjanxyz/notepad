@@ -35,13 +35,16 @@ data class DrawingFit(
             boxHeight: Float,
             padding: Float = 0f
         ): DrawingFit {
-            val points = drawing.strokes.flatMap { stroke -> stroke.points }
+            val points = drawing.strokes.flatMap { stroke ->
+                val radius = stroke.strokeWidth.coerceAtLeast(0f) / 2f
+                stroke.points.map { point -> point to radius }
+            }
             if (points.isEmpty()) return DrawingFit(UNIT_SCALE, 0f, 0f)
 
-            val minX = points.minOf { point -> point.x }
-            val maxX = points.maxOf { point -> point.x }
-            val minY = points.minOf { point -> point.y }
-            val maxY = points.maxOf { point -> point.y }
+            val minX = points.minOf { (point, radius) -> point.x - radius }
+            val maxX = points.maxOf { (point, radius) -> point.x + radius }
+            val minY = points.minOf { (point, radius) -> point.y - radius }
+            val maxY = points.maxOf { (point, radius) -> point.y + radius }
             val spanX = (maxX - minX).takeIf { span -> span > 0f }
             val spanY = (maxY - minY).takeIf { span -> span > 0f }
 

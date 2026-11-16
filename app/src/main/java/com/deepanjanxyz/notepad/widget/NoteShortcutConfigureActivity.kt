@@ -2,13 +2,27 @@ package com.deepanjanxyz.notepad.widget
 
 import android.appwidget.AppWidgetManager
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.fragment.app.FragmentActivity
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.core.content.ContextCompat
+import com.deepanjanxyz.notepad.LockScreen
 import com.deepanjanxyz.notepad.ui.theme.EliteMemoTheme
 import kotlinx.coroutines.launch
 
@@ -20,9 +34,10 @@ import kotlinx.coroutines.launch
  * also reopened by a widget whose note has since been deleted, so the same screen
  * both sets and replaces a link.
  */
-class NoteShortcutConfigureActivity : ComponentActivity() {
+class NoteShortcutConfigureActivity : FragmentActivity() {
 
     private val viewModel: NoteShortcutConfigViewModel by viewModels()
+    private var authenticated by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,20 +49,63 @@ class NoteShortcutConfigureActivity : ComponentActivity() {
             finish()
             return
         }
+        // Tell the ViewModel which widget is being configured so it can mark the
+        // currently linked note in the picker list.
+        viewModel.setAppWidgetId(appWidgetId)
         // The host keeps the widget only when this activity reports success, so
         // backing out of the picker leaves the home screen as it was.
         setResult(RESULT_CANCELED)
 
         setContent {
             EliteMemoTheme {
+                val lockEnabled by viewModel.lockEnabled.collectAsStateWithLifecycle()
+                if (lockEnabled == null) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                    return@EliteMemoTheme
+                }
+                val isLocked = lockEnabled == true && !authenticated
+                LaunchedEffect(isLocked) {
+                    if (isLocked) showBiometricPrompt()
+                }
+                if (isLocked) {
+                    LockScreen(onUnlockRequest = ::showBiometricPrompt)
+                    return@EliteMemoTheme
+                }
                 val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
                 NoteShortcutConfigScreen(
                     uiState = uiState,
+                    onSearchQueryChange = viewModel::onSearchQueryChange,
                     onNoteSelected = { noteId -> link(appWidgetId, noteId) },
                     onCancel = { finish() }
                 )
             }
         }
+    }
+
+    private fun showBiometricPrompt() {
+        val promptBuilder = BiometricPrompt.PromptInfo.Builder()
+            .setTitle("Unlock Elite Memo Pro")
+            .setSubtitle("Confirm your biometric or device credentials")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            promptBuilder.setAllowedAuthenticators(
+                BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                    BiometricManager.Authenticators.DEVICE_CREDENTIAL
+            )
+        } else {
+            promptBuilder.setDeviceCredentialAllowed(true)
+        }
+        val promptInfo = promptBuilder.build()
+        BiometricPrompt(
+            this,
+            ContextCompat.getMainExecutor(this),
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    authenticated = true
+                }
+            }
+        ).authenticate(promptInfo)
     }
 
     private fun link(appWidgetId: Int, noteId: Long) {

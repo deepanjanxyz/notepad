@@ -8,7 +8,9 @@ import android.content.Intent
 import android.os.Bundle
 import com.deepanjanxyz.notepad.NotepadApplication
 import com.deepanjanxyz.notepad.domain.model.NoteShortcutBuilder
-import kotlinx.coroutines.CoroutineScope
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -43,9 +45,9 @@ class NoteShortcutWidgetProvider : AppWidgetProvider() {
     }
 
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {
-        val appContext = context.applicationContext
-        CoroutineScope(Dispatchers.IO).launch {
-            val shortcuts = appContext.shortcutUseCases()
+        val appContext = context.applicationContext as NotepadApplication
+        appContext.appScope.launch(Dispatchers.IO) {
+            val shortcuts = appContext.container.noteShortcutUseCases
             appWidgetIds.forEach { appWidgetId -> shortcuts.unlinkNote(appWidgetId) }
         }
     }
@@ -62,6 +64,8 @@ class NoteShortcutWidgetProvider : AppWidgetProvider() {
         private const val ACTION_REFRESH =
             "com.deepanjanxyz.notepad.widget.ACTION_REFRESH_NOTE_SHORTCUTS"
 
+        private val renderLocks = ConcurrentHashMap<Int, Mutex>()
+
         /** Redraws every placed shortcut from the notes as they are now. */
         fun refresh(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
@@ -71,30 +75,28 @@ class NoteShortcutWidgetProvider : AppWidgetProvider() {
 
         private fun render(context: Context, appWidgetIds: IntArray) {
             if (appWidgetIds.isEmpty()) return
-            val appContext = context.applicationContext
-            CoroutineScope(Dispatchers.IO).launch {
+            val appContext = context.applicationContext as NotepadApplication
+            appContext.appScope.launch(Dispatchers.IO) {
                 val manager = AppWidgetManager.getInstance(appContext)
                 val density = appContext.resources.displayMetrics.density
-                val container = (appContext as NotepadApplication).container
+                val container = appContext.container
                 for (appWidgetId in appWidgetIds) {
-                    val noteId = container.noteShortcutUseCases.getLinkedNoteId(appWidgetId)
-                    val shortcut = noteId
-                        ?.let { id -> container.noteUseCases.getNoteById(id) }
-                        ?.let(NoteShortcutBuilder::build)
-                    val sizing = NoteShortcutSizing.of(
-                        options = manager.getAppWidgetOptions(appWidgetId),
-                        density = density
-                    )
-                    manager.updateAppWidget(
-                        appWidgetId,
-                        buildShortcutViews(appContext, appWidgetId, shortcut, sizing)
-                    )
+                    renderLocks.computeIfAbsent(appWidgetId) { Mutex() }.withLock {
+                        val noteId = container.noteShortcutUseCases.getLinkedNoteId(appWidgetId)
+                        val shortcut = noteId
+                            ?.let { id -> container.noteUseCases.getNoteById(id) }
+                            ?.let(NoteShortcutBuilder::build)
+                        val sizing = NoteShortcutSizing.of(
+                            options = manager.getAppWidgetOptions(appWidgetId),
+                            density = density
+                        )
+                        manager.updateAppWidget(
+                            appWidgetId,
+                            buildShortcutViews(appContext, appWidgetId, shortcut, sizing)
+                        )
+                    }
                 }
             }
         }
     }
 }
-
-/** The shortcut use cases, reached through the app's single dependency container. */
-internal fun Context.shortcutUseCases() =
-    (applicationContext as NotepadApplication).container.noteShortcutUseCases

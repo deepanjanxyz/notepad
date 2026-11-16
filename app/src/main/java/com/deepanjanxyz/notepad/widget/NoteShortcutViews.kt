@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.view.View
 import android.widget.RemoteViews
 import com.deepanjanxyz.notepad.MainActivity
@@ -47,8 +48,11 @@ internal fun buildShortcutViews(
 }
 
 private fun titleOf(context: Context, shortcut: NoteShortcut?): String =
-    shortcut?.title?.takeIf { title -> title.isNotBlank() }
-        ?: context.getString(R.string.widget_note_untitled)
+    when {
+        shortcut == null -> context.getString(R.string.widget_note_missing)
+        shortcut.title.isNotBlank() -> shortcut.title
+        else -> context.getString(R.string.widget_note_untitled)
+    }
 
 private fun renderBody(
     context: Context,
@@ -100,6 +104,7 @@ private fun openIntent(
         }
     } else {
         Intent(context, MainActivity::class.java).apply {
+            data = Uri.parse("notepad://note/${shortcut.noteId}")
             putExtra(EXTRA_OPEN_NOTE_ID, shortcut.noteId)
             addFlags(
                 Intent.FLAG_ACTIVITY_NEW_TASK or

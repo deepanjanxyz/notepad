@@ -48,7 +48,7 @@ import kotlinx.coroutines.launch
 class NotepadApplication : Application() {
     val container: AppContainer by lazy { AppContainer(this) }
 
-    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    internal val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
         super.onCreate()

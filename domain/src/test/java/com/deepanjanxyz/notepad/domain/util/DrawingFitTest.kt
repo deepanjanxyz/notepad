@@ -39,7 +39,7 @@ class DrawingFitTest {
                 DrawingStroke(
                     points = listOf(DrawingPoint(50f, 50f)),
                     color = 0xFF000000L,
-                    strokeWidth = 2f
+                    strokeWidth = 0f
                 )
             )
         )
@@ -67,7 +67,7 @@ class DrawingFitTest {
                 DrawingStroke(
                     points = listOf(DrawingPoint(0f, 10f), DrawingPoint(100f, 10f)),
                     color = 0xFF000000L,
-                    strokeWidth = 2f
+                    strokeWidth = 0f
                 )
             )
         )
@@ -78,12 +78,32 @@ class DrawingFitTest {
         assertEquals(0f, fit.x(DrawingPoint(0f, 0f)), DELTA)
     }
 
+    @Test
+    fun `stroke width is included when fitting a short mark`() {
+        val drawing = DrawingData(
+            strokes = listOf(
+                DrawingStroke(
+                    points = listOf(DrawingPoint(0f, 0f), DrawingPoint(1f, 0f)),
+                    color = 0xFF000000L,
+                    strokeWidth = 3f
+                )
+            )
+        )
+
+        val fit = DrawingFit.of(drawing, boxWidth = 100f, boxHeight = 100f, padding = 4f)
+        val radius = 1.5f * fit.scale
+
+        assertEquals(23f, fit.scale, DELTA)
+        assertEquals(4f, fit.x(DrawingPoint(0f, 0f)) - radius, DELTA)
+        assertEquals(96f, fit.x(DrawingPoint(1f, 0f)) + radius, DELTA)
+    }
+
     private fun squareDrawing(): DrawingData = DrawingData(
         strokes = listOf(
             DrawingStroke(
                 points = listOf(DrawingPoint(0f, 0f), DrawingPoint(100f, 100f)),
                 color = 0xFF000000L,
-                strokeWidth = 4f
+                strokeWidth = 0f
             )
         )
     )

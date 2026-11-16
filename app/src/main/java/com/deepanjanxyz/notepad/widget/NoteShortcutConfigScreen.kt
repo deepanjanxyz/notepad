@@ -12,29 +12,35 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.R
 
 private val ROW_VERTICAL_PADDING = 14.dp
 private val DOT_SIZE = 10.dp
-private val SCREEN_HORIZONTAL_PADDING = 20.dp
+private val SCREEN_HORIZONTAL_PADDING = 16.dp
 
 /**
  * Picks the note one shortcut widget opens.
@@ -42,39 +48,53 @@ private val SCREEN_HORIZONTAL_PADDING = 20.dp
  * The list is the app's own notes, so choosing a shortcut is the same choice as
  * choosing a note: no second copy of the notes exists for the home screen.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun NoteShortcutConfigScreen(
     uiState: NoteShortcutConfigUiState,
+    onSearchQueryChange: (String) -> Unit,
     onNoteSelected: (Long) -> Unit,
     onCancel: () -> Unit
 ) {
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(text = stringResource(R.string.widget_note_choose_title))
+                },
+                actions = {
+                    IconButton(onClick = onCancel) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.widget_note_choose_cancel)
+                        )
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .systemBarsPadding()
+                .padding(innerPadding)
                 .padding(horizontal = SCREEN_HORIZONTAL_PADDING)
         ) {
-            Spacer(modifier = Modifier.height(SCREEN_HORIZONTAL_PADDING))
-            Text(
-                text = stringResource(R.string.widget_note_choose_title),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = stringResource(R.string.widget_note_choose_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 12.dp)
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            OutlinedTextField(
+                value = uiState.searchQuery,
+                onValueChange = onSearchQueryChange,
+                placeholder = { Text(text = stringResource(R.string.widget_note_choose_search)) },
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
+            )
             NoteShortcutChoices(uiState = uiState, onNoteSelected = onNoteSelected)
-            TextButton(onClick = onCancel, modifier = Modifier.padding(vertical = 8.dp)) {
-                Text(text = stringResource(R.string.widget_note_choose_cancel))
-            }
         }
     }
 }
@@ -152,7 +172,14 @@ private fun NoteShortcutChoiceRow(choice: NoteShortcutChoice, onClick: () -> Uni
                 )
             }
         }
-        if (choice.isDrawing) {
+        if (choice.isCurrentlyLinked) {
+            Icon(
+                imageVector = Icons.Filled.Check,
+                contentDescription = stringResource(R.string.widget_note_choose_linked),
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 8.dp)
+            )
+        } else if (choice.isDrawing) {
             Text(
                 text = stringResource(R.string.widget_note_choose_drawing),
                 style = MaterialTheme.typography.labelSmall,
@@ -160,11 +187,5 @@ private fun NoteShortcutChoiceRow(choice: NoteShortcutChoice, onClick: () -> Uni
             )
         }
     }
-    Spacer(modifier = Modifier.height(1.dp))
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(1.dp)
-            .background(MaterialTheme.colorScheme.outlineVariant)
-    )
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }

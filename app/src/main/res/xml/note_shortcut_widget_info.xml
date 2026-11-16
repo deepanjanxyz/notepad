@@ -8,8 +8,12 @@
     android:minHeight="40dp"
     android:minResizeWidth="40dp"
     android:minResizeHeight="40dp"
+    android:targetCellWidth="2"
+    android:targetCellHeight="2"
     android:updatePeriodMillis="0"
     android:initialLayout="@layout/widget_note_shortcut"
+    android:previewLayout="@layout/widget_note_shortcut"
+    android:description="@string/widget_note_shortcut_desc"
     android:configure="com.deepanjanxyz.notepad.widget.NoteShortcutConfigureActivity"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen" />

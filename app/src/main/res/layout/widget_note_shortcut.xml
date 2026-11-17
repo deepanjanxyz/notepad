@@ -1,62 +1,78 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- One note shortcut. The title always shows; the body below it shows the note's
-     text or a thumbnail of its drawing, and is hidden when the widget is only one
-     cell wide. Both body views take the space left over, and only one of them is
-     visible at a time. -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- One note shortcut. The tint sits behind everything and takes the note's own
+     colour, so a coloured note is coloured on the home screen too; it is hidden
+     for a note with no colour, leaving the plain surface. The title always shows;
+     the body below it shows the note's text or a thumbnail of its drawing, and is
+     hidden when the widget is only one cell wide. Both body views take the space
+     left over, and only one of them is visible at a time. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_shortcut_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_background"
-    android:orientation="vertical"
-    android:padding="14dp"
     android:importantForAccessibility="yes">
+
+    <ImageView
+        android:id="@+id/widget_shortcut_tint"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@null"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_tint_shape"
+        android:visibility="gone" />
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="14dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/widget_shortcut_dot"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_widget_dot" />
+
+            <TextView
+                android:id="@+id/widget_shortcut_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:text="@string/widget_note_untitled"
+                android:textColor="@color/widget_on_surface"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
 
         <ImageView
-            android:id="@+id/widget_shortcut_dot"
-            android:layout_width="10dp"
-            android:layout_height="10dp"
-            android:contentDescription="@null"
-            android:src="@drawable/ic_widget_dot" />
+            android:id="@+id/widget_shortcut_image"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="8dp"
+            android:layout_weight="1"
+            android:contentDescription="@string/widget_note_drawing_desc"
+            android:scaleType="fitCenter"
+            android:visibility="gone" />
 
         <TextView
-            android:id="@+id/widget_shortcut_title"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
+            android:id="@+id/widget_shortcut_body"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="8dp"
             android:layout_weight="1"
             android:ellipsize="end"
-            android:maxLines="2"
-            android:text="@string/widget_note_untitled"
-            android:textColor="@color/widget_on_surface"
-            android:textSize="14sp"
-            android:textStyle="bold" />
+            android:maxLines="6"
+            android:textColor="@color/widget_on_surface_variant"
+            android:textSize="13sp" />
     </LinearLayout>
-
-    <ImageView
-        android:id="@+id/widget_shortcut_image"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginTop="8dp"
-        android:layout_weight="1"
-        android:contentDescription="@string/widget_note_drawing_desc"
-        android:scaleType="fitCenter"
-        android:visibility="gone" />
-
-    <TextView
-        android:id="@+id/widget_shortcut_body"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginTop="8dp"
-        android:layout_weight="1"
-        android:ellipsize="end"
-        android:maxLines="6"
-        android:textColor="@color/widget_on_surface_variant"
-        android:textSize="13sp" />
-</LinearLayout>
+</FrameLayout>

@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import com.deepanjanxyz.notepad.NotepadApplication
 import com.deepanjanxyz.notepad.domain.model.NoteShortcutBuilder
 import java.util.concurrent.ConcurrentHashMap
@@ -65,6 +66,8 @@ class NoteShortcutWidgetProvider : AppWidgetProvider() {
 
     companion object {
 
+        private const val TAG = "NoteShortcutWidget"
+
         private const val ACTION_REFRESH =
             "com.deepanjanxyz.notepad.widget.ACTION_REFRESH_NOTE_SHORTCUTS"
 
@@ -124,21 +127,29 @@ class NoteShortcutWidgetProvider : AppWidgetProvider() {
                 // One render per widget at a time, so a compact redraw cannot land
                 // after a larger one and leave the old layout showing.
                 renderLocks.computeIfAbsent(appWidgetId) { Mutex() }.withLock {
-                    val noteId = container.noteShortcutUseCases.getLinkedNoteId(appWidgetId)
-                    // The picker offers active notes only, so a note moved to the
-                    // trash or the archive reads as gone here too.
-                    val shortcut = noteId
-                        ?.let { id -> container.noteUseCases.getNoteById(id) }
-                        ?.takeUnless { it.inTrash || it.inArchive }
-                        ?.let(NoteShortcutBuilder::build)
-                    val sizing = NoteShortcutSizing.of(
-                        options = manager.getAppWidgetOptions(appWidgetId),
-                        density = density
-                    )
-                    manager.updateAppWidget(
-                        appWidgetId,
-                        buildShortcutViews(appContext, appWidgetId, shortcut, sizing)
-                    )
+                    // One note the widget cannot draw - a drawing that will not
+                    // parse, a bitmap the binder refuses - must not take the whole
+                    // app down with it, so each widget is drawn on its own and a
+                    // failure is logged instead of thrown.
+                    runCatching {
+                        val noteId = container.noteShortcutUseCases.getLinkedNoteId(appWidgetId)
+                        // The picker offers active notes only, so a note moved to the
+                        // trash or the archive reads as gone here too.
+                        val shortcut = noteId
+                            ?.let { id -> container.noteUseCases.getNoteById(id) }
+                            ?.takeUnless { it.inTrash || it.inArchive }
+                            ?.let(NoteShortcutBuilder::build)
+                        val sizing = NoteShortcutSizing.of(
+                            options = manager.getAppWidgetOptions(appWidgetId),
+                            density = density
+                        )
+                        manager.updateAppWidget(
+                            appWidgetId,
+                            buildShortcutViews(appContext, appWidgetId, shortcut, sizing)
+                        )
+                    }.onFailure { error ->
+                        Log.w(TAG, "Shortcut widget $appWidgetId could not be drawn", error)
+                    }
                 }
             }
         }

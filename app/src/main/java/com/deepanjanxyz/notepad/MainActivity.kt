@@ -88,6 +88,11 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handleOpenNoteIntent(intent)
+        // A cold start from the app icon shows the list. The icon means "open the
+        // app", so a note opened from a widget earlier is not reopened with it.
+        if (savedInstanceState == null && intent?.hasExtra(EXTRA_OPEN_NOTE_ID) != true) {
+            viewModel.navigateTo(Screen.Home)
+        }
 
         setContent {
             AppRoot(

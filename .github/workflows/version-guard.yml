@@ -200,6 +200,14 @@ jobs:
             exit 0
           fi
 
+          # The same three words decide a pre-release here as in the release
+          # workflow, so the two never disagree about what a suffix means.
+          if echo "$pr_name" | grep -qiE '(alpha|beta|rc)'; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::versionName $pr_name is a pre-release (alpha, beta or rc)."
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
           echo "Version bump OK: versionCode $pr_code > ${latest_code:-none}, versionName $pr_name > ${latest_name:-none}"
           echo "bumped=true" >> "$GITHUB_OUTPUT"
 

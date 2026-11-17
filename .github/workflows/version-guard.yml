@@ -202,7 +202,7 @@ jobs:
 
           # The same three words decide a pre-release here as in the release
           # workflow, so the two never disagree about what a suffix means.
-          if echo "$pr_name" | grep -qiE '(alpha|beta|rc)'; then
+          if echo "$pr_name" | grep -qiE '(^|[.-])(alpha|beta|rc)[0-9]*([.-]|$)'; then
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
             echo "::notice::versionName $pr_name is a pre-release (alpha, beta or rc)."
           else

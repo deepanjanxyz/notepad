@@ -92,7 +92,7 @@ jobs:
           # Only these three words make a release a pre-release. Any other suffix,
           # "stable" or "released" for instance, is a normal release: nothing else is
           # guessed from the text.
-          if echo "$vn" | grep -qiE '(alpha|beta|rc)'; then
+          if echo "$vn" | grep -qiE '(^|[.-])(alpha|beta|rc)[0-9]*([.-]|$)'; then
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
           else
             echo "prerelease=false" >> "$GITHUB_OUTPUT"

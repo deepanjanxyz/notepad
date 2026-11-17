@@ -39,8 +39,17 @@ internal data class NoteShortcutSizing(
         private const val MIN_THUMBNAIL_PX = 1
 
         fun of(options: Bundle, density: Float): NoteShortcutSizing {
-            val widthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
-            val heightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)
+            val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
+            val maxWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH)
+            val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)
+            val maxHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT)
+            // The host reports a range on each axis, not one size: a portrait widget
+            // is at its widest when it is at its shortest, and the other way round.
+            // Pairing them keeps a tall widget from being measured by its narrowest
+            // height, which would leave it looking compact.
+            val isPortrait = maxHeight > maxWidth
+            val widthDp = if (isPortrait) minWidth else maxWidth
+            val heightDp = if (isPortrait) maxHeight else minHeight
             return NoteShortcutSizing(
                 isExpanded = widthDp >= EXPANDED_MIN_WIDTH_DP && heightDp >= EXPANDED_MIN_HEIGHT_DP,
                 thumbnailWidthPx = toPixels(widthDp - HORIZONTAL_CHROME_DP, density, MAX_THUMBNAIL_WIDTH_PX),

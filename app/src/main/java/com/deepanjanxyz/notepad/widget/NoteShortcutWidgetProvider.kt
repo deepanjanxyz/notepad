@@ -52,6 +52,10 @@ class NoteShortcutWidgetProvider : AppWidgetProvider() {
                     // empty and the cleanup would be skipped.
                     AppWidgetManager.ACTION_APPWIDGET_DELETED ->
                         unlinkNow(context, intArrayOf(intent.widgetId()))
+
+                    // A restored widget comes back under a new id, so its link is
+                    // moved across before it is drawn.
+                    AppWidgetManager.ACTION_APPWIDGET_RESTORED -> restoreNow(context, intent)
                 }
             } finally {
                 pending.finish()
@@ -68,7 +72,8 @@ class NoteShortcutWidgetProvider : AppWidgetProvider() {
             ACTION_REFRESH,
             AppWidgetManager.ACTION_APPWIDGET_UPDATE,
             AppWidgetManager.ACTION_APPWIDGET_OPTIONS_CHANGED,
-            AppWidgetManager.ACTION_APPWIDGET_DELETED
+            AppWidgetManager.ACTION_APPWIDGET_DELETED,
+            AppWidgetManager.ACTION_APPWIDGET_RESTORED
         )
 
         private val renderLocks = ConcurrentHashMap<Int, Mutex>()
@@ -85,6 +90,28 @@ class NoteShortcutWidgetProvider : AppWidgetProvider() {
             val manager = AppWidgetManager.getInstance(context)
             val component = ComponentName(context, NoteShortcutWidgetProvider::class.java)
             return manager.getAppWidgetIds(component)
+        }
+
+        /**
+         * Moves the stored links of a restored widget onto the ids it came back
+         * with, then draws them.
+         *
+         * The host hands over the old and the new ids in the same order, so each
+         * old link has exactly one new home.
+         */
+        private suspend fun restoreNow(context: Context, intent: Intent) {
+            val oldIds = intent.getIntArrayExtra(AppWidgetManager.EXTRA_APPWIDGET_OLD_IDS)
+            val newIds = intent.getIntArrayExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS)
+            if (oldIds == null || newIds == null) return
+            val appContext = context.applicationContext as NotepadApplication
+            val shortcuts = appContext.container.noteShortcutUseCases
+            oldIds.forEachIndexed { index, oldId ->
+                val newId = newIds.getOrNull(index) ?: return@forEachIndexed
+                val noteId = shortcuts.getLinkedNoteId(oldId) ?: return@forEachIndexed
+                shortcuts.linkNote(newId, noteId)
+                shortcuts.unlinkNote(oldId)
+            }
+            renderNow(context, newIds)
         }
 
         private suspend fun renderNow(context: Context, appWidgetIds: IntArray) {

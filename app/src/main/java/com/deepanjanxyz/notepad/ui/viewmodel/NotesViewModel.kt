@@ -102,10 +102,6 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         const val TAG = "NotesViewModel"
     }
 
-    init {
-        observeSettings()
-    }
-
     /**
      * Mirrors the persisted settings into the UI state. The lock flag is applied
      * only on the first emission so that unlocking during a session is not undone
@@ -402,6 +398,14 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     val autoBackupStatus: StateFlow<AutoBackupStatus?> = backupWriter.status
+
+    // Started last, once every property it reaches for exists. Settings arrive as a
+    // flow that emits at once, so starting this at the top of the class let the
+    // first emission run before [backupWriter] was built, and the app crashed on
+    // launch with a null writer.
+    init {
+        observeSettings()
+    }
 
     /**
      * Turns automatic backup on or off. The switch is reflected only once the

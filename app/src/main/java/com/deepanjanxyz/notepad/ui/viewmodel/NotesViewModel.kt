@@ -310,7 +310,10 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
      * which knows what kind of note it points at.
      */
     fun openNoteById(noteId: Long) {
-        viewModelScope.launch {
+        // A newer tap wins: the older lookup is cancelled so it cannot navigate
+        // after the newer one has already opened its note.
+        openNoteJob?.cancel()
+        openNoteJob = viewModelScope.launch {
             val note = noteUseCases.getNoteById(noteId) ?: return@launch
             val target = if (DrawingSerializer.isDrawing(note.content)) {
                 Screen.Drawing(note.id)
@@ -320,6 +323,8 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
             navigateTo(target)
         }
     }
+
+    private var openNoteJob: Job? = null
 
     fun navigateTo(screen: Screen) {
         _uiState.value = _uiState.value.copy(

@@ -71,7 +71,9 @@ class BackupWriter(
             withContext(Dispatchers.IO) { DownloadsBackup.ensureFolder(context) }
             writeAutoBackup()
             backupNotes
-                .drop(1) // the initial empty value arrives before the database loads
+                // Only the empty value from before the database loads is skipped: a
+                // change replayed while the first write runs is written too.
+                .dropWhile { it.isEmpty() }
                 .collectLatest {
                     delay(AUTO_SAVE_DELAY_MS)
                     writeAutoBackup()
@@ -144,7 +146,10 @@ class BackupWriter(
         }
         val text = withContext(Dispatchers.IO) { DownloadsBackup.read(context, name) }
         return when {
-            !present -> false
+            // Nothing under the name and nothing under a numbered copy: no backup.
+            text == null && !present -> false
+            // There but unreadable: writing over it would throw away notes this app
+            // cannot see, so the write is held back.
             text == null -> true
             else -> when (val parsed = parseBackupJson(text)) {
                 is BackupParseResult.Success -> {

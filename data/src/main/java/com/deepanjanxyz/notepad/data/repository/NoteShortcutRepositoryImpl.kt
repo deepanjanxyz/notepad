@@ -27,7 +27,8 @@ class NoteShortcutRepositoryImpl(context: Context) : NoteShortcutRepository {
 
     override suspend fun link(appWidgetId: Int, noteId: Long) {
         withContext(Dispatchers.IO) {
-            preferences.edit(commit = true) { putLong(keyFor(appWidgetId), noteId) }
+            val stored = preferences.edit().putLong(keyFor(appWidgetId), noteId).commit()
+            check(stored) { "The link for widget $appWidgetId could not be stored" }
         }
     }
 

@@ -2,6 +2,7 @@ package com.deepanjanxyz.notepad.widget
 
 import android.appwidget.AppWidgetManager
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.biometric.BiometricManager
@@ -87,9 +88,16 @@ class NoteShortcutConfigureActivity : FragmentActivity() {
         val promptBuilder = BiometricPrompt.PromptInfo.Builder()
             .setTitle("Unlock Elite Memo Pro")
             .setSubtitle("Confirm your biometric or device credentials")
+        // BIOMETRIC_STRONG with DEVICE_CREDENTIAL throws on API 28-29; BIOMETRIC_WEAK
+        // is the combination those versions accept, and it reads the same to the user.
         promptBuilder.setAllowedAuthenticators(
-            BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                BiometricManager.Authenticators.DEVICE_CREDENTIAL
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                    BiometricManager.Authenticators.DEVICE_CREDENTIAL
+            } else {
+                BiometricManager.Authenticators.BIOMETRIC_WEAK or
+                    BiometricManager.Authenticators.DEVICE_CREDENTIAL
+            }
         )
         val promptInfo = promptBuilder.build()
         BiometricPrompt(

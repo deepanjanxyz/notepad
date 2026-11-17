@@ -27,6 +27,7 @@
     <string name="widget_note_untitled">Untitled Note</string>
     <string name="widget_note_empty">Tap to open this note.</string>
     <string name="widget_note_missing">Note no longer available. Tap to choose another.</string>
+    <string name="widget_link_failed">This note could not be linked to the widget. Try again.</string>
     <string name="widget_note_choose_title">Choose a note</string>
     <string name="widget_note_choose_subtitle">This shortcut will open the note you pick.</string>
     <string name="widget_note_choose_empty">No notes yet. Write a note first, then place this shortcut again.</string>

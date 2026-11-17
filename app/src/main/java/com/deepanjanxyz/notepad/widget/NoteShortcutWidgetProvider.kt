@@ -86,8 +86,11 @@ class NoteShortcutWidgetProvider : AppWidgetProvider() {
                 for (appWidgetId in appWidgetIds) {
                     renderLocks.computeIfAbsent(appWidgetId) { Mutex() }.withLock {
                         val noteId = container.noteShortcutUseCases.getLinkedNoteId(appWidgetId)
+                        // The picker offers active notes only, so a note moved to the
+                        // trash or the archive reads as gone here too.
                         val shortcut = noteId
                             ?.let { id -> container.noteUseCases.getNoteById(id) }
+                            ?.takeUnless { it.inTrash || it.inArchive }
                             ?.let(NoteShortcutBuilder::build)
                         val sizing = NoteShortcutSizing.of(
                             options = manager.getAppWidgetOptions(appWidgetId),

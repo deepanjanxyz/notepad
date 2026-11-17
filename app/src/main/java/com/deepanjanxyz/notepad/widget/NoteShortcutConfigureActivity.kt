@@ -3,16 +3,15 @@ package com.deepanjanxyz.notepad.widget
 import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.fragment.app.FragmentActivity
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,7 +35,6 @@ import kotlinx.coroutines.launch
 class NoteShortcutConfigureActivity : FragmentActivity() {
 
     private val viewModel: NoteShortcutConfigViewModel by viewModels()
-    private var authenticated by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,6 +56,7 @@ class NoteShortcutConfigureActivity : FragmentActivity() {
         setContent {
             EliteMemoTheme {
                 val lockEnabled by viewModel.lockEnabled.collectAsStateWithLifecycle()
+                val authenticated by viewModel.unlocked.collectAsStateWithLifecycle()
                 if (lockEnabled == null) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
@@ -97,7 +96,7 @@ class NoteShortcutConfigureActivity : FragmentActivity() {
             ContextCompat.getMainExecutor(this),
             object : BiometricPrompt.AuthenticationCallback() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    authenticated = true
+                    viewModel.markUnlocked()
                 }
             }
         ).authenticate(promptInfo)
@@ -105,7 +104,18 @@ class NoteShortcutConfigureActivity : FragmentActivity() {
 
     private fun link(appWidgetId: Int, noteId: Long) {
         lifecycleScope.launch {
-            viewModel.link(appWidgetId, noteId)
+            val linked = runCatching { viewModel.link(appWidgetId, noteId) }
+            if (linked.isFailure) {
+                // The host drops the widget without a result, so say why rather
+                // than leave the home screen unchanged with no word.
+                Toast.makeText(
+                    this@NoteShortcutConfigureActivity,
+                    R.string.widget_link_failed,
+                    Toast.LENGTH_SHORT
+                ).show()
+                finish()
+                return@launch
+            }
             // The link is stored before the host is told it may place the widget,
             // and every placed shortcut is redrawn from it straight away, so the
             // home screen fills in with the note rather than a placeholder.

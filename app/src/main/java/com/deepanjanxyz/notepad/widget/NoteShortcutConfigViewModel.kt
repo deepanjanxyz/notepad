@@ -58,6 +58,14 @@ class NoteShortcutConfigViewModel(application: Application) : AndroidViewModel(a
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     private val _appWidgetId = MutableStateFlow(AppWidgetManager.INVALID_APPWIDGET_ID)
+
+    /** Set once the lock is passed, so a rotation does not ask for it again. */
+    private val _unlocked = MutableStateFlow(false)
+    val unlocked: StateFlow<Boolean> = _unlocked.asStateFlow()
+
+    fun markUnlocked() {
+        _unlocked.value = true
+    }
     private val _searchQuery = MutableStateFlow("")
 
     /**

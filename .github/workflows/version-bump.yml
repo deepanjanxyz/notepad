@@ -160,7 +160,9 @@ jobs:
           if [ -n "$latest_name" ]; then
             base_name=$(printf '%s\n%s\n' "$latest_name" "$cur_name" | sort -V | tail -n1)
           fi
-          IFS=. read -r major minor patch <<< "$base_name"
+          # A pre-release suffix is not part of the number that gets bumped.
+          base_core="${base_name%%-*}"
+          IFS=. read -r major minor patch <<< "$base_core"
           if ! [[ "$major" =~ ^[0-9]+$ && "$minor" =~ ^[0-9]+$ && "$patch" =~ ^[0-9]+$ ]]; then
             echo "::error::versionName '$base_name' is not a strict X.Y.Z value."
             exit 1

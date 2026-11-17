@@ -48,7 +48,10 @@ class NoteShortcutWidgetProvider : AppWidgetProvider() {
                     AppWidgetManager.ACTION_APPWIDGET_OPTIONS_CHANGED ->
                         renderNow(context, intArrayOf(intent.widgetId()))
 
-                    AppWidgetManager.ACTION_APPWIDGET_DELETED -> unlinkNow(context, intent.widgetIds())
+                    // A deletion arrives with the singular extra, so the plural one is
+                    // empty and the cleanup would be skipped.
+                    AppWidgetManager.ACTION_APPWIDGET_DELETED ->
+                        unlinkNow(context, intArrayOf(intent.widgetId()))
                 }
             } finally {
                 pending.finish()

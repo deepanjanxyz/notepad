@@ -97,8 +97,8 @@ jobs:
       - name: Validate version
         run: |
           version="${{ steps.version.outputs.version }}"
-          if ! echo "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "🔴 Release failed: versionName '$version' is not strict SemVer (X.Y.Z)."
+          if ! echo "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+            echo "🔴 Release failed: versionName '$version' is not SemVer (X.Y.Z or X.Y.Z-suffix)."
             exit 1
           fi
           code="${{ steps.version.outputs.version_code }}"

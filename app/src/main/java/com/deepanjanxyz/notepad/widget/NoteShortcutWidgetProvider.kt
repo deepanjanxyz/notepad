@@ -48,7 +48,10 @@ class NoteShortcutWidgetProvider : AppWidgetProvider() {
         val appContext = context.applicationContext as NotepadApplication
         appContext.appScope.launch(Dispatchers.IO) {
             val shortcuts = appContext.container.noteShortcutUseCases
-            appWidgetIds.forEach { appWidgetId -> shortcuts.unlinkNote(appWidgetId) }
+            appWidgetIds.forEach { appWidgetId ->
+                shortcuts.unlinkNote(appWidgetId)
+                renderLocks.remove(appWidgetId)
+            }
         }
     }
 

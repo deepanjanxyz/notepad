@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.deepanjanxyz.notepad.NotepadApplication
 import com.deepanjanxyz.notepad.backup.DownloadsBackup
+import com.deepanjanxyz.notepad.backup.MarkdownCopy
 import com.deepanjanxyz.notepad.domain.model.DrawingSerializer
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.domain.usecase.label.LabelUseCases
@@ -372,6 +373,15 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     // --- Backup ---------------------------------------------------------------
 
     /**
+     * The Markdown copy of the notes: writing it and reading it back.
+     *
+     * The file work, its messages and the outcome it reports all live in the
+     * backup package, so this class only hands it the notes and the place to
+     * add them, and Settings asks it directly for what it needs.
+     */
+    val markdownCopy = MarkdownCopy(getApplication(), viewModelScope, ::importNotesNow)
+
+    /**
      * The JSON backup: the automatic write and the manual one.
      *
      * The file work and its messages live in [BackupWriter], so this class hands it
@@ -386,6 +396,19 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     val autoBackupStatus: StateFlow<AutoBackupStatus?> = backupWriter.status
+
+    /**
+     * Turns automatic backup on or off. The switch is reflected only once the
+     * choice is persisted, mirroring the other settings.
+     */
+    fun setAutoBackup(enabled: Boolean) {
+        persistSetting(
+            label = "auto backup",
+            onSuccess = { _uiState.update { it.copy(autoBackup = enabled) } }
+        ) {
+            settingsUseCases.saveSettings.setAutoBackup(enabled)
+        }
+    }
 
     /** Writes a backup to Downloads now, used by the manual "Back up now" action. */
     fun backUp(name: String = DownloadsBackup.FILE_NAME) {

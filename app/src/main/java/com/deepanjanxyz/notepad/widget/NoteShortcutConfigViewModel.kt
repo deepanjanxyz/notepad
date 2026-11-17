@@ -13,11 +13,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.transform
 
 /** One note offered on the shortcut picker. */
 data class NoteShortcutChoice(
@@ -68,12 +66,14 @@ class NoteShortcutConfigViewModel(application: Application) : AndroidViewModel(a
      * is called, which is once per activity launch.
      */
     private val currentNoteId: kotlinx.coroutines.flow.Flow<Long?> =
-        _appWidgetId.flatMapLatest { widgetId ->
-            if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) {
-                flowOf(null)
-            } else {
-                flow { emit(container.noteShortcutUseCases.getLinkedNoteId(widgetId)) }
-            }
+        _appWidgetId.transform { widgetId ->
+            emit(
+                if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) {
+                    null
+                } else {
+                    container.noteShortcutUseCases.getLinkedNoteId(widgetId)
+                }
+            )
         }
 
     val uiState: StateFlow<NoteShortcutConfigUiState> = combine(

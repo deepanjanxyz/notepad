@@ -2,7 +2,6 @@ package com.deepanjanxyz.notepad.widget
 
 import android.appwidget.AppWidgetManager
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
@@ -11,9 +10,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.fragment.app.FragmentActivity
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -88,14 +85,10 @@ class NoteShortcutConfigureActivity : FragmentActivity() {
         val promptBuilder = BiometricPrompt.PromptInfo.Builder()
             .setTitle("Unlock Elite Memo Pro")
             .setSubtitle("Confirm your biometric or device credentials")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            promptBuilder.setAllowedAuthenticators(
-                BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                    BiometricManager.Authenticators.DEVICE_CREDENTIAL
-            )
-        } else {
-            promptBuilder.setDeviceCredentialAllowed(true)
-        }
+        promptBuilder.setAllowedAuthenticators(
+            BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        )
         val promptInfo = promptBuilder.build()
         BiometricPrompt(
             this,

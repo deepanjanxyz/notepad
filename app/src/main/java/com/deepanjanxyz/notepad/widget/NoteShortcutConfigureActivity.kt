@@ -21,6 +21,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.core.content.ContextCompat
 import com.deepanjanxyz.notepad.LockScreen
+import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.ui.theme.EliteMemoTheme
 import kotlinx.coroutines.launch
 

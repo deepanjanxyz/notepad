@@ -5,12 +5,7 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.deepanjanxyz.notepad.NotepadApplication
-import com.deepanjanxyz.notepad.backup.BackupFolder
-import com.deepanjanxyz.notepad.backup.BackupParseResult
 import com.deepanjanxyz.notepad.backup.DownloadsBackup
-import com.deepanjanxyz.notepad.backup.buildBackupJson
-import com.deepanjanxyz.notepad.backup.isBackupWorthy
-import com.deepanjanxyz.notepad.backup.parseBackupJson
 import com.deepanjanxyz.notepad.domain.model.DrawingSerializer
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.domain.usecase.label.LabelUseCases
@@ -19,23 +14,15 @@ import com.deepanjanxyz.notepad.domain.usecase.note.SavedNote
 import com.deepanjanxyz.notepad.domain.usecase.settings.SettingsUseCases
 import com.deepanjanxyz.notepad.ui.feature_drawing.model.DrawingToolPrefs
 import com.deepanjanxyz.notepad.worker.NoteReminderScheduler
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 import java.io.IOException
 
 // How long the view model waits after a change before it saves, in milliseconds.
@@ -135,7 +122,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
                         isLocked = if (isFirstEmission) settings.lockEnabled else current.isLocked
                     )
                 }
-                updateAutoBackup(settings.autoBackup)
+                backupWriter.followSetting(settings.autoBackup)
                 isFirstEmission = false
             }
         }
@@ -384,156 +371,26 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     // --- Backup ---------------------------------------------------------------
 
-    // Outcome of the most recent automatic backup, so Settings can report the
-    // real result rather than a save that never happened.
-    private val _autoBackupStatus = MutableStateFlow<AutoBackupStatus?>(null)
-    val autoBackupStatus: StateFlow<AutoBackupStatus?> = _autoBackupStatus.asStateFlow()
-
-    private var autoBackupJob: Job? = null
-
-    // The automatic backup and the "Back up now" button both write the same file,
-    // each on its own coroutine. Serialising them means one write can never clear
-    // the other's working file or collide with its rename.
-    private val backupWriteMutex = Mutex()
-
     /**
-     * Turns automatic backup on or off. The switch is reflected only once the
-     * choice is persisted, mirroring the other settings.
+     * The JSON backup: the automatic write and the manual one.
+     *
+     * The file work and its messages live in [BackupWriter], so this class hands it
+     * the notes and the place to put them back and nothing else.
      */
-    fun setAutoBackup(enabled: Boolean) {
-        persistSetting(
-            label = "auto backup",
-            onSuccess = { _uiState.update { it.copy(autoBackup = enabled) } }
-        ) {
-            settingsUseCases.saveSettings.setAutoBackup(enabled)
-        }
-    }
+    val backupWriter = BackupWriter(
+        context = getApplication(),
+        scope = viewModelScope,
+        backupNotes = backupNotes,
+        currentNotes = { noteUseCases.getNotes().first() + noteUseCases.getArchiveNotes().first() },
+        importNotes = ::importNotesNow
+    )
 
-    /**
-     * Starts or stops the automatic backup to match the persisted setting. While
-     * it is on, the backup file in Downloads is rewritten whenever the set of
-     * notes changes, so a new note, an edit or a delete is reflected at once.
-     */
-    private fun updateAutoBackup(enabled: Boolean) {
-        if (!enabled) {
-            autoBackupJob?.cancel()
-            autoBackupJob = null
-            return
-        }
-        if (autoBackupJob?.isActive == true) return
-        autoBackupJob = viewModelScope.launch {
-            // Turning the switch on is also the point to make sure the folder the
-            // backup lives in is there, so there is somewhere to write even when
-            // there is nothing to write yet.
-            withContext(Dispatchers.IO) { DownloadsBackup.ensureFolder(getApplication()) }
-            // Take a snapshot straight away, so turning the switch on is all the
-            // user has to do - no manual "Back up now" step is needed.
-            writeAutoBackup()
-            backupNotes
-                .drop(1) // ignore the initial empty value emitted before the database loads
-                .collectLatest {
-                    // Wait for a quiet moment so a burst of changes becomes one write.
-                    delay(AUTO_SAVE_DELAY_MS)
-                    writeAutoBackup()
-                }
-        }
-    }
+    val autoBackupStatus: StateFlow<AutoBackupStatus?> = backupWriter.status
 
     /** Writes a backup to Downloads now, used by the manual "Back up now" action. */
     fun backUp(name: String = DownloadsBackup.FILE_NAME) {
-        viewModelScope.launch { writeBackup(name) }
+        backupWriter.backUp(name)
     }
-
-    private suspend fun writeAutoBackup() = writeBackup(DownloadsBackup.FILE_NAME)
-
-    private suspend fun writeBackup(name: String) {
-        backupWriteMutex.withLock { writeBackupLocked(name) }
-    }
-
-    /** The body of [writeBackup], run with the backup write lock held. */
-    private suspend fun writeBackupLocked(name: String) {
-        val context = getApplication<Application>()
-        // A folder the user has just handed over may already hold a backup written
-        // by an earlier installation. Its notes are brought in before the file is
-        // written over, so the write replaces it with everything the user has
-        // rather than with only what this installation knows about. The adoption
-        // stays pending until the import is done, and the write is held back while
-        // it cannot be.
-        if (BackupFolder.hasAdoption(context)) {
-            if (adoptExistingBackup(context)) {
-                _autoBackupStatus.value = AutoBackupStatus(
-                    location = DownloadsBackup.locationLabel(name),
-                    lastModified = null,
-                    error = "The backup already in the folder could not be read; " +
-                        "delete it in Downloads to back up again"
-                )
-                return
-            }
-            BackupFolder.finishAdoption(context)
-        }
-        // Never write an empty backup file. When there is nothing to store - every
-        // note deleted, say - the last non-empty backup is deliberately kept
-        // rather than replaced with an empty one: a backup still holding
-        // yesterday's notes is worth more than one holding nothing.
-        val notes = currentBackupNotes().filter { it.isBackupWorthy() }
-        if (notes.isEmpty()) {
-            Log.d(TAG, "Skipped the backup: there are no notes to store")
-            return
-        }
-        runCatching {
-            withContext(Dispatchers.IO) {
-                DownloadsBackup.write(context, buildBackupJson(notes), name)
-            }
-        }.onSuccess {
-            _autoBackupStatus.value = AutoBackupStatus(
-                location = DownloadsBackup.locationLabel(name),
-                lastModified = System.currentTimeMillis()
-            )
-        }.onFailure { error ->
-            Log.w(TAG, "Backup to Downloads failed", error)
-            _autoBackupStatus.value = AutoBackupStatus(
-                location = DownloadsBackup.locationLabel(name),
-                lastModified = null,
-                error = error.message
-            )
-        }
-    }
-
-    /**
-     * Brings in the notes of a backup that was already in a folder just handed
-     * over. Returns true when the folder holds a backup that could not be read,
-     * which is the one case where the write has to be held back: writing over a
-     * file this app cannot read would throw away notes it cannot see.
-     */
-    private suspend fun adoptExistingBackup(context: Application): Boolean {
-        // The file the earlier installation left, not the newest one: the newest may
-        // be a copy this app wrote itself, and its notes are already in the database.
-        val name = DownloadsBackup.FILE_NAME
-        val present = withContext(Dispatchers.IO) {
-            DownloadsBackup.list(context).any { it.name == name }
-        }
-        val text = withContext(Dispatchers.IO) { DownloadsBackup.read(context, name) }
-        return when {
-            !present -> false
-            // There but unreadable: writing over it would throw away notes this app
-            // cannot see, so the write is held back.
-            text == null -> true
-            else -> when (val parsed = parseBackupJson(text)) {
-                is BackupParseResult.Success -> {
-                    importNotesNow(parsed.notes)
-                    false
-                }
-                is BackupParseResult.Failure -> {
-                    Log.w(TAG, "The backup already in the folder was not read: ${parsed.reason}")
-                    true
-                }
-            }
-        }
-    }
-
-    /** Every note a backup contains: active notes plus archived notes. */
-    private suspend fun currentBackupNotes(): List<Note> =
-        noteUseCases.getNotes().first() + noteUseCases.getArchiveNotes().first()
 
     fun toggleSelection(noteId: Long) {
         val current = _uiState.value.selectedNoteIds.toMutableSet()

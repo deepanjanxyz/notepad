@@ -11,6 +11,7 @@ import com.deepanjanxyz.notepad.MainActivity
 import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.domain.model.NoteShortcut
 import com.deepanjanxyz.notepad.ui.navigation.EXTRA_OPEN_NOTE_ID
+import com.deepanjanxyz.notepad.ui.theme.NoteColorOptions
 
 /** The colour a note without its own falls back to, as the app's notes list does. */
 private const val DEFAULT_COLOR_INDEX = 0
@@ -38,11 +39,20 @@ internal fun buildShortcutViews(
         openIntent(context, appWidgetId, shortcut)
     )
     views.setTextViewText(R.id.widget_shortcut_title, titleOf(context, shortcut))
-    views.setInt(
-        R.id.widget_shortcut_dot,
-        "setColorFilter",
-        noteAccentColor(context, shortcut?.colorIndex ?: DEFAULT_COLOR_INDEX)
-    )
+    val colorIndex = shortcut?.colorIndex ?: DEFAULT_COLOR_INDEX
+    views.setInt(R.id.widget_shortcut_dot, "setColorFilter", noteAccentColor(context, colorIndex))
+    // A coloured note colours the whole cell, not just its dot: the tint sits
+    // behind the text, so the widget reads as the note does in the app.
+    if (colorIndex in 1 until NoteColorOptions.size) {
+        views.setViewVisibility(R.id.widget_shortcut_tint, View.VISIBLE)
+        views.setInt(
+            R.id.widget_shortcut_tint,
+            "setColorFilter",
+            noteAccentColor(context, colorIndex)
+        )
+    } else {
+        views.setViewVisibility(R.id.widget_shortcut_tint, View.GONE)
+    }
     renderBody(context, views, shortcut, sizing)
     return views
 }

@@ -8,6 +8,8 @@ import androidx.biometric.BiometricPrompt
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.fragment.app.FragmentActivity
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf

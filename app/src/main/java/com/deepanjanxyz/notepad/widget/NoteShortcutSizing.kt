@@ -53,7 +53,7 @@ internal data class NoteShortcutSizing(
         fun of(
             options: Bundle,
             density: Float,
-            orientation: Int = Configuration.ORIENTATION_UNDETERMINED
+            orientation: Int = Configuration.ORIENTATION_UNDEFINED
         ): NoteShortcutSizing {
             val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
             val maxWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH)

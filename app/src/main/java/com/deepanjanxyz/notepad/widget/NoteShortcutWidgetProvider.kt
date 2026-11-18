@@ -157,7 +157,11 @@ class NoteShortcutWidgetProvider : AppWidgetProvider() {
                             ?.let(NoteShortcutBuilder::build)
                         val sizing = NoteShortcutSizing.of(
                             options = manager.getAppWidgetOptions(appWidgetId),
-                            density = density
+                            density = density,
+                            // The host reports the portrait and the landscape size
+                            // together, so the pair to read depends on how the
+                            // device is held right now.
+                            orientation = appContext.resources.configuration.orientation
                         )
                         manager.updateAppWidget(
                             appWidgetId,

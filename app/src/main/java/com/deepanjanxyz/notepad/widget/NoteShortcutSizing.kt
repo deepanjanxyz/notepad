@@ -1,6 +1,7 @@
 package com.deepanjanxyz.notepad.widget
 
 import android.appwidget.AppWidgetManager
+import android.content.res.Configuration
 import android.os.Bundle
 
 /**
@@ -38,21 +39,44 @@ internal data class NoteShortcutSizing(
         /** The smallest bitmap still worth drawing into. */
         private const val MIN_THUMBNAIL_PX = 1
 
-        fun of(options: Bundle, density: Float): NoteShortcutSizing {
+        /**
+         * Reads the size the widget has in [orientation].
+         *
+         * The host reports a range on each axis, not one size: the minimum width
+         * is the widget's width in portrait and the maximum width is its width in
+         * landscape, and the heights are paired the same way. Which pair applies
+         * therefore depends on the orientation on screen right now, not on which
+         * of the two numbers happens to be larger - a 200x160dp portrait widget
+         * whose landscape size is 240x90dp must still read as expanded while the
+         * device is held upright.
+         */
+        fun of(
+            options: Bundle,
+            density: Float,
+            orientation: Int = Configuration.ORIENTATION_UNDETERMINED
+        ): NoteShortcutSizing {
             val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
             val maxWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH)
             val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)
             val maxHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT)
-            // The host reports a range on each axis, not one size: a portrait widget
-            // is at its widest when it is at its shortest, and the other way round.
-            // Pairing them keeps a tall widget from being measured by its narrowest
-            // height, which would leave it looking compact.
-            val isPortrait = maxHeight > maxWidth
-            val widthDp = if (isPortrait) minWidth else maxWidth
-            val heightDp = if (isPortrait) maxHeight else minHeight
+            val (widthDp, heightDp) = when (orientation) {
+                Configuration.ORIENTATION_PORTRAIT -> minWidth to maxHeight
+                Configuration.ORIENTATION_LANDSCAPE -> maxWidth to minHeight
+                // No orientation to go on: take the pair that gives the widget the
+                // most room, so a body is shown rather than hidden by a guess.
+                else -> if (maxWidth * maxHeight >= minWidth * minHeight) {
+                    maxWidth to maxHeight
+                } else {
+                    minWidth to minHeight
+                }
+            }
             return NoteShortcutSizing(
                 isExpanded = widthDp >= EXPANDED_MIN_WIDTH_DP && heightDp >= EXPANDED_MIN_HEIGHT_DP,
-                thumbnailWidthPx = toPixels(widthDp - HORIZONTAL_CHROME_DP, density, MAX_THUMBNAIL_WIDTH_PX),
+                thumbnailWidthPx = toPixels(
+                    widthDp - HORIZONTAL_CHROME_DP,
+                    density,
+                    MAX_THUMBNAIL_WIDTH_PX
+                ),
                 thumbnailHeightPx = toPixels(heightDp - CHROME_DP, density, MAX_THUMBNAIL_HEIGHT_PX)
             )
         }

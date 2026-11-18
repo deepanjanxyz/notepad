@@ -245,8 +245,8 @@ fun HighlighterToolIcon(tipColor: Color, isSelected: Boolean) {
  *
  * It sits over the canvas rather than in a bar of its own, so the drawing area
  * keeps the full height of the screen. The five tools are always visible; the
- * colour swatch on the right opens the palette for whichever brush is active,
- * which is the one control that changes constantly while drawing.
+ * colour swatch on the right shows the active brush's colour and opens its
+ * palette, which is the one control that changes constantly while drawing.
  */
 @Composable
 fun DrawingBottomToolbar(
@@ -256,7 +256,6 @@ fun DrawingBottomToolbar(
     penColor: Long = selectedColor,
     markerColor: Long = selectedColor,
     highlighterColor: Long = selectedColor,
-    onOpenPalette: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -301,7 +300,10 @@ fun DrawingBottomToolbar(
 
             Spacer(modifier = Modifier.width(Spacing.xs))
 
-            ColorSwatchButton(color = selectedColor, onClick = onOpenPalette)
+            ColorSwatchButton(
+                color = selectedColor,
+                onClick = { onToolClick(activeTool) }
+            )
         }
     }
 }
@@ -310,7 +312,8 @@ fun DrawingBottomToolbar(
  * The current colour, as a round swatch that opens the palette.
  *
  * It shows the colour the active brush will draw with, so the palette does not
- * have to be open for the current colour to be known.
+ * have to be open for the current colour to be known. Tapping it re-selects the
+ * active tool, which is what opens that tool's options.
  */
 @Composable
 private fun ColorSwatchButton(color: Long, onClick: () -> Unit) {

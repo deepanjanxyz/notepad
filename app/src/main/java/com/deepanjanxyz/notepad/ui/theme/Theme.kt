@@ -29,7 +29,19 @@ private val LightColorScheme = lightColorScheme(
     onSurface = OnSurfaceLight,
     surfaceVariant = SurfaceVariantLight,
     onSurfaceVariant = OnSurfaceVariantLight,
-    outline = OutlineLight
+    outline = OutlineLight,
+    outlineVariant = OutlineVariantLight,
+    surfaceContainerLowest = SurfaceContainerLowestLight,
+    surfaceContainerLow = SurfaceContainerLowLight,
+    surfaceContainer = SurfaceContainerLight,
+    surfaceContainerHigh = SurfaceContainerHighLight,
+    surfaceContainerHighest = SurfaceContainerHighestLight,
+    inverseSurface = InverseSurfaceLight,
+    inverseOnSurface = InverseOnSurfaceLight,
+    error = ErrorLight,
+    onError = OnErrorLight,
+    errorContainer = ErrorContainerLight,
+    onErrorContainer = OnErrorContainerLight
 )
 
 private val DarkColorScheme = darkColorScheme(
@@ -51,20 +63,38 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = OnSurfaceDark,
     surfaceVariant = SurfaceVariantDark,
     onSurfaceVariant = OnSurfaceVariantDark,
-    outline = OutlineDark
+    outline = OutlineDark,
+    outlineVariant = OutlineVariantDark,
+    surfaceContainerLowest = SurfaceContainerLowestDark,
+    surfaceContainerLow = SurfaceContainerLowDark,
+    surfaceContainer = SurfaceContainerDark,
+    surfaceContainerHigh = SurfaceContainerHighDark,
+    surfaceContainerHighest = SurfaceContainerHighestDark,
+    inverseSurface = InverseSurfaceDark,
+    inverseOnSurface = InverseOnSurfaceDark,
+    error = ErrorDark,
+    onError = OnErrorDark,
+    errorContainer = ErrorContainerDark,
+    onErrorContainer = OnErrorContainerDark
 )
 
+/**
+ * The app theme: colour scheme, type scale and shape scale from one place.
+ *
+ * Dark is the default, because the app is mostly read at night and the note
+ * tints are tuned for it. `themeMode` still honours an explicit light or system
+ * choice, and dynamic colour is opt-in so the palette stays recognisable.
+ */
 @Composable
 fun EliteMemoTheme(
     themeMode: String = "dark",
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    // Dark mode is forced as the default app theme
     val darkTheme = when (themeMode) {
         "light" -> false
         "system" -> isSystemInDarkTheme()
-        else -> true // default to true (Dark Mode)
+        else -> true
     }
 
     val context = LocalContext.current
@@ -79,6 +109,7 @@ fun EliteMemoTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = AppShapes,
         content = content
     )
 }

@@ -1,10 +1,16 @@
+@file:Suppress("MagicNumber")
+
 package com.deepanjanxyz.notepad.ui.feature_drawing.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -42,10 +48,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deepanjanxyz.notepad.domain.model.CanvasGridType
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
+import com.deepanjanxyz.notepad.ui.theme.Radii
+import com.deepanjanxyz.notepad.ui.theme.Spacing
 
 // Spoken name of the drawing's title field.
 private const val TITLE_CONTENT_DESCRIPTION = "Drawing title"
 
+/**
+ * The drawing screen's top bar.
+ *
+ * Only the actions used while drawing stay on the bar: back, the title, undo and
+ * redo. Everything that changes the canvas itself - its background, its grid and
+ * clearing it - lives in the overflow menu, so the bar stays quiet and the
+ * destructive action is never one stray tap away.
+ */
 @Composable
 fun DrawingTopBar(
     title: String,
@@ -64,54 +80,61 @@ fun DrawingTopBar(
     val enabledTint = MaterialTheme.colorScheme.onSurface
     val disabledTint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f)
 
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
+            .background(MaterialTheme.colorScheme.surface)
             .statusBarsPadding()
-            .padding(horizontal = 4.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
     ) {
-        DrawingTopBarIcon(
-            tooltip = "Back",
-            icon = Icons.AutoMirrored.Filled.ArrowBack,
-            tint = enabledTint,
-            testTag = "drawing_back_button",
-            onClick = onNavigateBack
-        )
-
-        DrawingTitleField(
-            title = title,
-            onTitleChange = onTitleChange,
+        Row(
             modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 8.dp)
-        )
+                .fillMaxWidth()
+                .padding(horizontal = Spacing.xs, vertical = Spacing.xs),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            DrawingTopBarIcon(
+                tooltip = "Back",
+                icon = Icons.AutoMirrored.Filled.ArrowBack,
+                tint = enabledTint,
+                testTag = "drawing_back_button",
+                onClick = onNavigateBack
+            )
 
-        DrawingTopBarIcon(
-            tooltip = "Undo",
-            icon = Icons.AutoMirrored.Filled.Undo,
-            tint = if (canUndo) enabledTint else disabledTint,
-            testTag = "drawing_undo_button",
-            enabled = canUndo,
-            onClick = onUndo
-        )
+            DrawingTitleField(
+                title = title,
+                onTitleChange = onTitleChange,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = Spacing.sm)
+            )
 
-        DrawingTopBarIcon(
-            tooltip = "Redo",
-            icon = Icons.AutoMirrored.Filled.Redo,
-            tint = if (canRedo) enabledTint else disabledTint,
-            testTag = "drawing_redo_button",
-            enabled = canRedo,
-            onClick = onRedo
-        )
+            DrawingTopBarIcon(
+                tooltip = "Undo",
+                icon = Icons.AutoMirrored.Filled.Undo,
+                tint = if (canUndo) enabledTint else disabledTint,
+                testTag = "drawing_undo_button",
+                enabled = canUndo,
+                onClick = onUndo
+            )
 
-        DrawingOverflowMenu(
-            onOpenBackgroundDialog = onOpenBackgroundDialog,
-            onClearCanvas = onClearCanvas,
-            currentGridType = currentGridType,
-            onGridTypeChange = onGridTypeChange
-        )
+            DrawingTopBarIcon(
+                tooltip = "Redo",
+                icon = Icons.AutoMirrored.Filled.Redo,
+                tint = if (canRedo) enabledTint else disabledTint,
+                testTag = "drawing_redo_button",
+                enabled = canRedo,
+                onClick = onRedo
+            )
+
+            DrawingOverflowMenu(
+                onOpenBackgroundDialog = onOpenBackgroundDialog,
+                onClearCanvas = onClearCanvas,
+                currentGridType = currentGridType,
+                onGridTypeChange = onGridTypeChange
+            )
+        }
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     }
 }
 
@@ -150,12 +173,9 @@ private fun DrawingTitleField(
     Box(modifier = modifier) {
         if (title.isEmpty()) {
             Text(
-                text = "Title",
-                style = TextStyle(
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
-                )
+                text = "Untitled drawing",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
             )
         }
         BasicTextField(
@@ -163,8 +183,8 @@ private fun DrawingTitleField(
             onValueChange = onTitleChange,
             singleLine = true,
             textStyle = TextStyle(
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             ),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
@@ -176,7 +196,12 @@ private fun DrawingTitleField(
     }
 }
 
-/** The drawing top bar's overflow menu. */
+/**
+ * The drawing top bar's overflow menu.
+ *
+ * The canvas settings live here rather than on the bar, so the bar keeps only
+ * the actions that are used while drawing.
+ */
 @Composable
 private fun DrawingOverflowMenu(
     onOpenBackgroundDialog: () -> Unit,
@@ -198,41 +223,17 @@ private fun DrawingOverflowMenu(
         DropdownMenu(
             expanded = showMenu,
             onDismissRequest = { showMenu = false },
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(Radii.md)
         ) {
-            DropdownMenuItem(
-                text = { Text("Canvas Background & Grid") },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.ColorLens,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                },
-                onClick = {
-                    showMenu = false
-                    onOpenBackgroundDialog()
-                },
-                modifier = Modifier.testTag("menu_canvas_background")
-            )
-
-            DropdownMenuItem(
-                text = { Text("Clear canvas") },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.DeleteOutline,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                },
-                onClick = {
-                    showMenu = false
-                    onClearCanvas()
-                },
-                modifier = Modifier.testTag("menu_clear_canvas")
-            )
-
-            HorizontalDivider()
+            MenuAction(
+                label = "Canvas background",
+                icon = Icons.Default.ColorLens,
+                tint = MaterialTheme.colorScheme.primary,
+                testTag = "menu_canvas_background"
+            ) {
+                showMenu = false
+                onOpenBackgroundDialog()
+            }
 
             GridTypeMenuItems(
                 currentGridType = currentGridType,
@@ -241,8 +242,40 @@ private fun DrawingOverflowMenu(
                     showMenu = false
                 }
             )
+
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = Spacing.xs),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+            )
+
+            MenuAction(
+                label = "Clear canvas",
+                icon = Icons.Default.DeleteOutline,
+                tint = MaterialTheme.colorScheme.error,
+                testTag = "menu_clear_canvas"
+            ) {
+                showMenu = false
+                onClearCanvas()
+            }
         }
     }
+}
+
+/** One row of the drawing top bar's overflow menu. */
+@Composable
+private fun MenuAction(
+    label: String,
+    icon: ImageVector,
+    tint: Color,
+    testTag: String,
+    onClick: () -> Unit
+) {
+    DropdownMenuItem(
+        text = { Text(label) },
+        leadingIcon = { Icon(imageVector = icon, contentDescription = null, tint = tint) },
+        onClick = onClick,
+        modifier = Modifier.testTag(testTag)
+    )
 }
 
 /** The "Background grid" heading and the grid choices under it. */
@@ -253,32 +286,36 @@ private fun GridTypeMenuItems(
 ) {
     Text(
         text = "Background grid",
-        style = MaterialTheme.typography.labelSmall,
+        style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+        modifier = Modifier.padding(start = Spacing.lg, end = Spacing.lg, top = Spacing.sm)
     )
 
     CanvasGridType.entries.forEach { gridType ->
         DropdownMenuItem(
-            text = {
-                val label = when (gridType) {
-                    CanvasGridType.NONE -> "Blank"
-                    CanvasGridType.RULED -> "Ruled"
-                    CanvasGridType.GRID -> "Grid"
-                    CanvasGridType.DOTS -> "Dots"
-                }
-                Text(label)
-            },
+            text = { Text(gridType.label()) },
             trailingIcon = {
                 if (currentGridType == gridType) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = "Selected",
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             },
-            onClick = { onGridTypeSelected(gridType) }
+            onClick = { onGridTypeSelected(gridType) },
+            modifier = Modifier.testTag("menu_grid_${gridType.name.lowercase()}")
         )
     }
+
+    Spacer(modifier = Modifier.height(Spacing.xs))
+}
+
+/** The name shown for a grid pattern. */
+internal fun CanvasGridType.label(): String = when (this) {
+    CanvasGridType.NONE -> "Blank"
+    CanvasGridType.RULED -> "Ruled"
+    CanvasGridType.GRID -> "Grid"
+    CanvasGridType.DOTS -> "Dots"
 }

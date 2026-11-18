@@ -101,10 +101,6 @@ class NoteShortcutWidgetProvider : AppWidgetProvider() {
          *
          * The host hands over the old and the new ids in the same order, so each
          * old link has exactly one new home.
-         *
-         * The new ids can overlap the old ones ([2, 3] coming back as [3, 4]), so
-         * every link is read before any is written: writing in place would
-         * overwrite a link that a later step still has to read.
          */
         private suspend fun restoreNow(context: Context, intent: Intent) {
             val oldIds = intent.getIntArrayExtra(AppWidgetManager.EXTRA_APPWIDGET_OLD_IDS)
@@ -112,13 +108,24 @@ class NoteShortcutWidgetProvider : AppWidgetProvider() {
             if (oldIds == null || newIds == null) return
             val appContext = context.applicationContext as NotepadApplication
             val shortcuts = appContext.container.noteShortcutUseCases
+            // Every old link is read before anything is written: the host may hand
+            // back ids that overlap the old ones (2,3 -> 3,4), and writing in place
+            // would overwrite a link that has not been read yet.
             val moved = oldIds.mapIndexedNotNull { index, oldId ->
                 val newId = newIds.getOrNull(index) ?: return@mapIndexedNotNull null
                 val noteId = shortcuts.getLinkedNoteId(oldId) ?: return@mapIndexedNotNull null
-                newId to noteId
+                Triple(oldId, newId, noteId)
             }
-            oldIds.forEach { oldId -> shortcuts.unlinkNote(oldId) }
-            moved.forEach { (newId, noteId) -> shortcuts.linkNote(newId, noteId) }
+            moved.forEach { (_, newId, noteId) ->
+                shortcuts.linkNote(newId, noteId)
+            }
+            // The old keys are cleared only after every new link is in place, and
+            // never when the old id is also one of the new ones: that key now holds
+            // the note it was just given.
+            val destinations = newIds.toSet()
+            moved.forEach { (oldId, _, _) ->
+                if (oldId !in destinations) shortcuts.unlinkNote(oldId)
+            }
             renderNow(context, newIds)
         }
 

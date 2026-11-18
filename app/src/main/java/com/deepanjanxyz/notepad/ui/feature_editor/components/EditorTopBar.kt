@@ -12,20 +12,31 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,7 +47,18 @@ import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 import com.deepanjanxyz.notepad.ui.feature_editor.model.EditorFormat
 import com.deepanjanxyz.notepad.ui.theme.AppColors
+import com.deepanjanxyz.notepad.ui.theme.Radii
+import com.deepanjanxyz.notepad.ui.theme.Spacing
 
+/**
+ * The editor's top bar.
+ *
+ * The bar keeps the actions that are used while writing - back, pin, reminder,
+ * the format menu, the drawing and the done button. The three that are set once
+ * per note - the colour tint, sharing and archiving - sit in the overflow menu,
+ * which leaves the bar readable on a narrow screen instead of squeezing eight
+ * icons into one row.
+ */
 @Composable
 fun EditorTopBar(
     isPinned: Boolean,
@@ -60,95 +82,135 @@ fun EditorTopBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .padding(horizontal = Spacing.sm, vertical = Spacing.xs),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Back Button
         TopBarAction(
             "Back", Icons.AutoMirrored.Filled.ArrowBack,
             textPrimary, "editor_back_button", onNavigateBack
         )
 
-        EditorActionsRow(
-            isPinned = isPinned,
-            hasReminder = hasReminder,
-            editorFormat = editorFormat,
-            hasColor = hasColor,
-            hasDrawing = hasDrawing,
-            textPrimary = textPrimary,
-            amberAccent = amberAccent,
-            onTogglePin = onTogglePin,
-            onOpenReminder = onOpenReminder,
-            onFormatSelected = onFormatSelected,
-            onOpenColorPicker = onOpenColorPicker,
-            onOpenDrawing = onOpenDrawing,
-            onShare = onShare,
-            onArchive = onArchive,
-            onSaveAndClose = onSaveAndClose
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.xxs)
+        ) {
+            TopBarAction(
+                if (isPinned) "Unpin note" else "Pin note",
+                if (isPinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                if (isPinned) amberAccent else textPrimary, "toggle_pin_button", onTogglePin
+            )
+            TopBarAction(
+                if (hasReminder) "Edit reminder" else "Add reminder",
+                if (hasReminder) Icons.Filled.NotificationsActive else Icons.Outlined.Notifications,
+                if (hasReminder) amberAccent else textPrimary, "toggle_reminder_button", onOpenReminder
+            )
+            EditorFormatMenu(
+                currentFormat = editorFormat,
+                onFormatSelected = onFormatSelected
+            )
+            TopBarAction(
+                "Drawing", Icons.Filled.Brush,
+                if (hasDrawing) amberAccent else textPrimary, "open_drawing_button", onOpenDrawing
+            )
+
+            EditorOverflowMenu(
+                hasColor = hasColor,
+                amberAccent = amberAccent,
+                textPrimary = textPrimary,
+                onOpenColorPicker = onOpenColorPicker,
+                onShare = onShare,
+                onArchive = onArchive
+            )
+
+            Spacer(modifier = Modifier.width(Spacing.xs))
+
+            EditorSaveButton(amberAccent = amberAccent, onSaveAndClose = onSaveAndClose)
+        }
     }
 }
 
-/** The action icons on the right of the editor's top bar, and the done button. */
+/**
+ * The editor's overflow menu: the actions that are set once per note.
+ *
+ * Each row carries its icon and its name, so the menu explains itself without
+ * the user having to recognise an icon first.
+ */
 @Composable
-private fun EditorActionsRow(
-    isPinned: Boolean,
-    hasReminder: Boolean,
-    editorFormat: EditorFormat,
+private fun EditorOverflowMenu(
     hasColor: Boolean,
-    hasDrawing: Boolean,
-    textPrimary: Color,
     amberAccent: Color,
-    onTogglePin: () -> Unit,
-    onOpenReminder: () -> Unit,
-    onFormatSelected: (EditorFormat) -> Unit,
+    textPrimary: Color,
     onOpenColorPicker: () -> Unit,
-    onOpenDrawing: () -> Unit,
     onShare: () -> Unit,
-    onArchive: () -> Unit,
-    onSaveAndClose: () -> Unit
+    onArchive: () -> Unit
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        // Pin / Unpin
-        TopBarAction(
-            if (isPinned) "Unpin Note" else "Pin Note",
-            if (isPinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
-            if (isPinned) amberAccent else textPrimary, "toggle_pin_button", onTogglePin
-        )
-        // Reminder Button
-        TopBarAction(
-            if (hasReminder) "Edit reminder" else "Add reminder",
-            if (hasReminder) Icons.Filled.NotificationsActive else Icons.Outlined.Notifications,
-            if (hasReminder) amberAccent else textPrimary, "toggle_reminder_button", onOpenReminder
-        )
-        // Format menu: plain text, checklist, bulleted list or numbered list
-        EditorFormatMenu(
-            currentFormat = editorFormat,
-            onFormatSelected = onFormatSelected
-        )
-        // Color Tint Palette
-        TopBarAction(
-            "Color palette", Icons.Default.Palette,
-            if (hasColor) amberAccent else textPrimary, "toggle_color_picker_button", onOpenColorPicker
-        )
-        // Drawing Action
-        TopBarAction(
-            "Drawing", Icons.Filled.Brush,
-            if (hasDrawing) amberAccent else textPrimary, "open_drawing_button", onOpenDrawing
-        )
-        // Share Action
-        TopBarAction("Share Note", Icons.Default.Share, textPrimary, "share_note_button", onShare)
-        // Archive Action
-        TopBarAction("Archive Note", Icons.Default.Archive, textPrimary, "archive_note_button", onArchive)
+    var showMenu by remember { mutableStateOf(false) }
 
-        Spacer(modifier = Modifier.width(4.dp))
+    Box {
+        TopBarAction(
+            "More options", Icons.Default.MoreVert,
+            textPrimary, "editor_more_button", { showMenu = true }
+        )
 
-        EditorSaveButton(amberAccent = amberAccent, onSaveAndClose = onSaveAndClose)
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false },
+            shape = RoundedCornerShape(Radii.md)
+        ) {
+            EditorMenuItem(
+                label = "Note colour",
+                icon = Icons.Default.Palette,
+                tint = if (hasColor) amberAccent else MaterialTheme.colorScheme.onSurfaceVariant,
+                testTag = "toggle_color_picker_button"
+            ) {
+                showMenu = false
+                onOpenColorPicker()
+            }
+
+            EditorMenuItem(
+                label = "Share",
+                icon = Icons.Default.Share,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                testTag = "share_note_button"
+            ) {
+                showMenu = false
+                onShare()
+            }
+
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = Spacing.xs),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+            )
+
+            EditorMenuItem(
+                label = "Archive",
+                icon = Icons.Default.Archive,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                testTag = "archive_note_button"
+            ) {
+                showMenu = false
+                onArchive()
+            }
+        }
     }
+}
+
+/** One row of the editor's overflow menu. */
+@Composable
+private fun EditorMenuItem(
+    label: String,
+    icon: ImageVector,
+    tint: Color,
+    testTag: String,
+    onClick: () -> Unit
+) {
+    DropdownMenuItem(
+        text = { Text(label) },
+        leadingIcon = { Icon(imageVector = icon, contentDescription = null, tint = tint) },
+        onClick = onClick,
+        modifier = Modifier.testTag(testTag)
+    )
 }
 
 /** The circular done button that saves and closes the editor. */
@@ -166,7 +228,7 @@ private fun EditorSaveButton(amberAccent: Color, onSaveAndClose: () -> Unit) {
     ) {
         Icon(
             imageVector = Icons.Default.Check,
-            contentDescription = "Save and Close",
+            contentDescription = "Save and close",
             tint = amberAccent,
             modifier = Modifier.size(22.dp)
         )

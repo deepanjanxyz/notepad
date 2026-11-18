@@ -25,6 +25,18 @@ val OnSurfaceLight = Color(0xFF191C20)
 val SurfaceVariantLight = Color(0xFFE1E2EC)
 val OnSurfaceVariantLight = Color(0xFF44474F)
 val OutlineLight = Color(0xFF74777F)
+val OutlineVariantLight = Color(0xFFC4C6D0)
+val SurfaceContainerLowestLight = Color(0xFFFFFFFF)
+val SurfaceContainerLowLight = Color(0xFFF3F4FA)
+val SurfaceContainerLight = Color(0xFFEDEEF4)
+val SurfaceContainerHighLight = Color(0xFFE7E8EE)
+val SurfaceContainerHighestLight = Color(0xFFE1E2E8)
+val InverseSurfaceLight = Color(0xFF2E3135)
+val InverseOnSurfaceLight = Color(0xFFEFF0F7)
+val ErrorLight = Color(0xFFBA1A1A)
+val OnErrorLight = Color(0xFFFFFFFF)
+val ErrorContainerLight = Color(0xFFFFDAD6)
+val OnErrorContainerLight = Color(0xFF410002)
 
 // Dark Theme Palette - Deep Modern Midnight
 val PrimaryDark = Color(0xFF9ECAFF)
@@ -49,8 +61,20 @@ val OnSurfaceDark = Color(0xFFE4E5EC)
 val SurfaceVariantDark = Color(0xFF202533)
 val OnSurfaceVariantDark = Color(0xFFC4C7D4)
 val OutlineDark = Color(0xFF8D92A0)
+val OutlineVariantDark = Color(0xFF3A3F4C)
+val SurfaceContainerLowestDark = Color(0xFF0A0C10)
+val SurfaceContainerLowDark = Color(0xFF12151C)
+val SurfaceContainerDark = Color(0xFF181C25)
+val SurfaceContainerHighDark = Color(0xFF1F2430)
+val SurfaceContainerHighestDark = Color(0xFF262C39)
+val InverseSurfaceDark = Color(0xFFE4E5EC)
+val InverseOnSurfaceDark = Color(0xFF2B2F36)
+val ErrorDark = Color(0xFFFFB4AB)
+val OnErrorDark = Color(0xFF690005)
+val ErrorContainerDark = Color(0xFF93000A)
+val OnErrorContainerDark = Color(0xFFFFDAD6)
 
-// Rich, High-Contrast Google Keep-style Dark Palette
+// Rich, high-contrast note tints for the dark palette
 val NoteColorOptions = listOf(
     Color(0x00000000), // 0: Default / None
     Color(0xFF85222E), // 1: Crimson Red

@@ -1,6 +1,11 @@
 package com.deepanjanxyz.notepad
 
 import android.app.Application
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import androidx.core.content.ContextCompat
 import com.deepanjanxyz.notepad.backup.DownloadsBackup
 import com.deepanjanxyz.notepad.data.NoteRepositoryProvider
 import com.deepanjanxyz.notepad.data.NoteShortcutRepositoryProvider
@@ -67,6 +72,21 @@ class NotepadApplication : Application() {
                     NoteShortcutWidgetProvider.refresh(this@NotepadApplication)
                 }
         }
+
+        // A shortcut widget reads the portrait and the landscape size the host
+        // reports, so a rotation changes which pair applies and the widget has to
+        // be redrawn at its new size. The host sends no resize for this, so the
+        // app listens for the configuration change itself.
+        ContextCompat.registerReceiver(
+            this,
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context, intent: Intent) {
+                    NoteShortcutWidgetProvider.refresh(context)
+                }
+            },
+            IntentFilter(Intent.ACTION_CONFIGURATION_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
 
         // Deleted notes are kept for a fixed window and then dropped, so the
         // purge runs once per launch rather than on every trash action.

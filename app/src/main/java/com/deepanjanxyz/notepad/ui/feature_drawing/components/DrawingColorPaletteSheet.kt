@@ -1,5 +1,10 @@
+@file:Suppress("MagicNumber")
+
 package com.deepanjanxyz.notepad.ui.feature_drawing.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,10 +21,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,14 +35,15 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.deepanjanxyz.notepad.domain.model.DrawingTool
 import com.deepanjanxyz.notepad.ui.feature_drawing.model.KeepColorGrid
 import com.deepanjanxyz.notepad.ui.feature_drawing.model.KeepThicknessLevels
 import com.deepanjanxyz.notepad.ui.theme.AppColors
+import com.deepanjanxyz.notepad.ui.theme.Motion
+import com.deepanjanxyz.notepad.ui.theme.Radii
+import com.deepanjanxyz.notepad.ui.theme.Spacing
 import kotlin.math.roundToInt
 
 // Base of the hexadecimal colour written into the swatch test tag.
@@ -46,17 +54,40 @@ private const val THICKNESS_MAX_DP = 22f
 // The range the thickness slider covers, in dp.
 private const val THICKNESS_SLIDER_MIN_DP = 2f
 private const val THICKNESS_SLIDER_MAX_DP = 54f
+// How close a thickness has to be to a preset to count as that preset.
+private const val PRESET_TOLERANCE = 2f
 
+/**
+ * One colour in the palette.
+ *
+ * The selected swatch grows and gains a ring rather than only changing colour,
+ * so the current choice is visible even for a colour close to its neighbours.
+ */
 @Composable
 fun ColorCircleItem(
     color: Long,
     isSelected: Boolean,
     onSelect: () -> Unit
 ) {
-    val size = if (isSelected) 36.dp else 26.dp
+    val size by animateDpAsState(
+        targetValue = if (isSelected) 34.dp else 26.dp,
+        animationSpec = tween(Motion.short),
+        label = "swatch_size"
+    )
+    val ring by animateColorAsState(
+        targetValue = when {
+            isSelected -> AppColors.Accent
+            color == AppColors.OPAQUE_WHITE -> AppColors.SwatchIdle
+            else -> Color.Transparent
+        },
+        animationSpec = tween(Motion.short),
+        label = "swatch_ring"
+    )
+
     Box(
         modifier = Modifier
             .size(40.dp)
+            .clip(CircleShape)
             .clickable(onClick = onSelect)
             .semantics {
                 contentDescription = "Colour ${color.toString(HEX_RADIX)}"
@@ -71,18 +102,21 @@ fun ColorCircleItem(
                 .clip(CircleShape)
                 .background(Color(color))
                 .border(
-                    width = if (color == AppColors.OPAQUE_WHITE) 1.dp else if (isSelected) 2.5.dp else 0.dp,
-                    color = when {
-                        color == AppColors.OPAQUE_WHITE -> AppColors.SwatchIdle
-                        isSelected -> AppColors.Accent
-                        else -> Color.Transparent
-                    },
+                    width = if (isSelected) 2.5.dp else 1.dp,
+                    color = ring,
                     shape = CircleShape
                 )
         )
     }
 }
 
+/**
+ * The palette for the active brush: its size, its quick presets and its colours.
+ *
+ * It opens above the dock as a panel rather than a modal sheet, so the canvas
+ * stays visible and a colour can be judged against the drawing while it is
+ * being picked.
+ */
 @Composable
 fun DrawingColorPaletteSheet(
     activeTool: DrawingTool = DrawingTool.PEN,
@@ -96,10 +130,8 @@ fun DrawingColorPaletteSheet(
         modifier = modifier
             .fillMaxWidth()
             .background(AppColors.SheetSurfaceAlt)
-            .padding(vertical = 12.dp, horizontal = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md)
     ) {
-        // Tool header with size indicator and preview
         ToolHeaderRow(
             toolTitle = toolTitleOf(activeTool),
             selectedThickness = selectedThickness,
@@ -107,34 +139,31 @@ fun DrawingColorPaletteSheet(
             activeTool = activeTool
         )
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(Spacing.sm))
 
-        // Interactive Pencil Size Slider
         ThicknessSliderRow(
             selectedThickness = selectedThickness,
             onThicknessSelected = onThicknessSelected
         )
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(Spacing.xs))
 
-        // 7 Quick Preset Dots
         ThicknessPresetRow(
             selectedThickness = selectedThickness,
             onThicknessSelected = onThicknessSelected
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Spacing.sm))
         HorizontalDivider(color = AppColors.DividerLine, thickness = 1.dp)
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Spacing.sm))
 
-        // 4 rows of 7 colors
         ColorGrid(selectedColor = selectedColor, onColorSelected = onColorSelected)
     }
 }
 
 /** The name shown for the tool whose colours are being picked. */
 private fun toolTitleOf(activeTool: DrawingTool): String = when (activeTool) {
-    DrawingTool.PEN -> "Pencil / Pen"
+    DrawingTool.PEN -> "Pen"
     DrawingTool.MARKER -> "Marker"
     DrawingTool.HIGHLIGHTER -> "Highlighter"
     else -> "Brush"
@@ -149,31 +178,24 @@ private fun ToolHeaderRow(
     activeTool: DrawingTool
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 2.dp),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
             Text(
                 text = toolTitle,
-                style = TextStyle(
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White
-                )
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = AppColors.TextPrimary
             )
             Text(
                 text = "${selectedThickness.roundToInt()} px",
-                style = TextStyle(
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = AppColors.Accent
-                ),
+                style = MaterialTheme.typography.labelMedium,
+                color = AppColors.Accent,
                 modifier = Modifier.testTag("pencil_size_label")
             )
         }
@@ -195,16 +217,16 @@ private fun StrokePreview(
 ) {
     Box(
         modifier = Modifier
-            .width(60.dp)
+            .width(64.dp)
             .height(28.dp)
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(Radii.xs))
             .background(AppColors.FieldSurface),
         contentAlignment = Alignment.Center
     ) {
         Box(
             modifier = Modifier
                 .size(
-                    width = 44.dp,
+                    width = 46.dp,
                     height = previewStrokeHeightDp(selectedThickness).dp
                 )
                 .clip(CircleShape)
@@ -219,8 +241,8 @@ private fun StrokePreview(
 
 /**
  * The preview's stroke height for [thickness], scaled across the slider's whole
- * range so it keeps growing right up to the 54 px maximum instead of flattening
- * out once it passes the preview's own limit.
+ * range so it keeps growing right up to the maximum instead of flattening out
+ * once it passes the preview's own limit.
  */
 private fun previewStrokeHeightDp(thickness: Float): Float {
     val ratio = ((thickness - THICKNESS_SLIDER_MIN_DP) /
@@ -235,16 +257,15 @@ private fun ThicknessSliderRow(
     onThicknessSelected: (Float) -> Unit
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         Text(
             text = "Size",
-            style = TextStyle(fontSize = 12.sp, color = AppColors.TextFaint),
-            modifier = Modifier.width(32.dp)
+            style = MaterialTheme.typography.labelMedium,
+            color = AppColors.TextLabel,
+            modifier = Modifier.width(30.dp)
         )
         Slider(
             value = selectedThickness,
@@ -270,14 +291,12 @@ private fun ThicknessPresetRow(
     onThicknessSelected: (Float) -> Unit
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         KeepThicknessLevels.forEach { (thick, _) ->
-            val isSelected = (selectedThickness - thick).let { it >= -2f && it <= 2f }
+            val isSelected = (selectedThickness - thick) in -PRESET_TOLERANCE..PRESET_TOLERANCE
             ThicknessPresetDot(
                 thick = thick,
                 isSelected = isSelected,
@@ -306,7 +325,7 @@ private fun ThicknessPresetDot(
 
     Box(
         modifier = Modifier
-            .size(44.dp)
+            .size(42.dp)
             .clip(CircleShape)
             .clickable { onThicknessSelected(thick) }
             .semantics {
@@ -319,7 +338,7 @@ private fun ThicknessPresetDot(
         if (isSelected) {
             Box(
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(34.dp)
                     .clip(CircleShape)
                     .border(2.dp, AppColors.Accent, CircleShape),
                 contentAlignment = Alignment.Center
@@ -349,7 +368,7 @@ private fun ColorGrid(selectedColor: Long, onColorSelected: (Long) -> Unit) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 2.dp),
+                .padding(vertical = 1.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {

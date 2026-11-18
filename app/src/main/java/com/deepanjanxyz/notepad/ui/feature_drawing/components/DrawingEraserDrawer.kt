@@ -1,5 +1,9 @@
+@file:Suppress("MagicNumber")
+
 package com.deepanjanxyz.notepad.ui.feature_drawing.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -7,14 +11,17 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,81 +30,89 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.deepanjanxyz.notepad.domain.model.EraserMode
 import com.deepanjanxyz.notepad.ui.theme.AppColors
+import com.deepanjanxyz.notepad.ui.theme.Motion
+import com.deepanjanxyz.notepad.ui.theme.Radii
+import com.deepanjanxyz.notepad.ui.theme.Spacing
 import kotlin.math.abs
-import androidx.compose.foundation.layout.RowScope
 
 // The three eraser sizes offered as presets, in pixels.
 private const val ERASER_SMALL_RADIUS_PX = 18f
 private const val ERASER_MEDIUM_RADIUS_PX = 32f
 private const val ERASER_LARGE_RADIUS_PX = 48f
+// How close a radius has to be to a preset to count as that preset.
+private const val ERASER_PRESET_TOLERANCE = 5f
 
+/**
+ * The eraser's options: how it erases and how wide it is.
+ *
+ * Clearing the whole canvas used to sit here as a red button next to the size
+ * presets, which put a destructive action in the middle of a frequently used
+ * panel. It now lives in the top bar's overflow menu, so this panel only holds
+ * the two settings that belong to the eraser.
+ */
 @Composable
 fun DrawingEraserDrawer(
     currentMode: EraserMode,
     onModeSelected: (EraserMode) -> Unit,
     currentRadiusPx: Float,
     onRadiusChanged: (Float) -> Unit,
-    onClearCanvas: () -> Unit
-) = EraserOptionsDrawer(currentMode, onModeSelected, currentRadiusPx, onRadiusChanged, onClearCanvas)
-
-@Composable
-fun EraserOptionsDrawer(
-    currentMode: EraserMode,
-    onModeSelected: (EraserMode) -> Unit,
-    currentRadiusPx: Float,
-    onRadiusChanged: (Float) -> Unit,
-    onClearCanvas: () -> Unit
+    modifier: Modifier = Modifier
 ) {
     Surface(
-        color = AppColors.Panel,
-        contentColor = Color.White,
-        modifier = Modifier.fillMaxWidth()
+        color = AppColors.SheetSurfaceAlt,
+        contentColor = AppColors.TextPrimary,
+        modifier = modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            // Eraser Mode selection: Precision (touch only) vs Whole Stroke
+            Text(
+                text = "Eraser",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = AppColors.TextPrimary
+            )
+
             EraserModeRow(currentMode = currentMode, onModeSelected = onModeSelected)
 
-            // Eraser size presets & Clear Canvas
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Text(
+                    text = "Size",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = AppColors.TextLabel
+                )
                 EraserSizeRow(currentRadiusPx = currentRadiusPx, onRadiusChanged = onRadiusChanged)
-
-                // Clear Canvas button
-                ClearCanvasButton(onClearCanvas = onClearCanvas)
             }
         }
     }
 }
 
-/** The Precision / Whole Stroke pair of mode buttons. */
+/** The Precision / Whole stroke pair of mode buttons. */
 @Composable
 private fun EraserModeRow(currentMode: EraserMode, onModeSelected: (EraserMode) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         verticalAlignment = Alignment.CenterVertically
     ) {
         EraserModeChip(
-            label = "Precision (Touch only)",
+            label = "Precision",
             isSelected = currentMode == EraserMode.SEGMENT,
             onClick = { onModeSelected(EraserMode.SEGMENT) }
         )
         EraserModeChip(
-            label = "Stroke (Whole line)",
+            label = "Whole stroke",
             isSelected = currentMode == EraserMode.STROKE,
             onClick = { onModeSelected(EraserMode.STROKE) }
         )
@@ -106,9 +121,15 @@ private fun EraserModeRow(currentMode: EraserMode, onModeSelected: (EraserMode) 
 
 @Composable
 private fun RowScope.EraserModeChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
+    val container by animateColorAsState(
+        targetValue = if (isSelected) AppColors.Accent else AppColors.ControlIdle,
+        animationSpec = tween(Motion.short),
+        label = "eraser_mode_container"
+    )
+
     Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = if (isSelected) AppColors.Accent else AppColors.ControlIdle,
+        shape = RoundedCornerShape(Radii.pill),
+        color = container,
         border = BorderStroke(
             1.dp,
             if (isSelected) AppColors.AccentEdge else AppColors.ControlEdge
@@ -118,18 +139,15 @@ private fun RowScope.EraserModeChip(label: String, isSelected: Boolean, onClick:
             .clickable(onClick = onClick)
             .semantics { selected = isSelected }
     ) {
-        Row(
-            modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+        Box(
+            modifier = Modifier.padding(vertical = Spacing.sm, horizontal = Spacing.md),
+            contentAlignment = Alignment.Center
         ) {
             Text(
                 text = label,
-                style = TextStyle(
-                    fontSize = 12.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                    color = if (isSelected) Color.White else AppColors.TextIdle
-                )
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                color = if (isSelected) Color.White else AppColors.TextIdle
             )
         }
     }
@@ -139,19 +157,15 @@ private fun RowScope.EraserModeChip(label: String, isSelected: Boolean, onClick:
 @Composable
 private fun EraserSizeRow(currentRadiusPx: Float, onRadiusChanged: (Float) -> Unit) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "Size:",
-            style = TextStyle(fontSize = 12.sp, color = AppColors.TextLabel)
-        )
         listOf(
             Triple(ERASER_SMALL_RADIUS_PX, "S", "Small eraser"),
             Triple(ERASER_MEDIUM_RADIUS_PX, "M", "Medium eraser"),
             Triple(ERASER_LARGE_RADIUS_PX, "L", "Large eraser")
         ).forEach { (rad, label, description) ->
-            val isSelected = abs(currentRadiusPx - rad) < 5f
+            val isSelected = abs(currentRadiusPx - rad) < ERASER_PRESET_TOLERANCE
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -173,29 +187,12 @@ private fun EraserSizeRow(currentRadiusPx: Float, onRadiusChanged: (Float) -> Un
                 ) {
                     Text(
                         text = label,
-                        style = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
                     )
                 }
             }
         }
-    }
-}
-
-/** The destructive "clear the whole canvas" button. */
-@Composable
-private fun ClearCanvasButton(onClearCanvas: () -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = AppColors.DangerSurface,
-        border = BorderStroke(1.dp, AppColors.Danger.copy(alpha = 0.4f)),
-        modifier = Modifier
-            .clickable { onClearCanvas() }
-            .testTag("eraser_clear_all_button")
-    ) {
-        Text(
-            text = "Clear All",
-            style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppColors.Danger),
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
-        )
     }
 }

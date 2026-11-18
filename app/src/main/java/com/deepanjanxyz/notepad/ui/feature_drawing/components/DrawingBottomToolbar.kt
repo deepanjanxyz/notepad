@@ -1,20 +1,27 @@
+@file:Suppress("MagicNumber")
+
 package com.deepanjanxyz.notepad.ui.feature_drawing.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,6 +32,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -32,12 +41,25 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.domain.model.DrawingTool
 import com.deepanjanxyz.notepad.ui.theme.AppColors
+import com.deepanjanxyz.notepad.ui.theme.Motion
+import com.deepanjanxyz.notepad.ui.theme.Radii
+import com.deepanjanxyz.notepad.ui.theme.Spacing
 
 // Dash pattern of the guide line drawn across the canvas, in pixels.
 private const val GUIDE_DASH_LENGTH_PX = 4f
 private const val GUIDE_DASH_GAP_PX = 3f
 
+// Size of one tool target in the dock.
+private val TOOL_TARGET = 48.dp
 
+/**
+ * One tool in the floating dock.
+ *
+ * The selected tool sits on a filled pill and the others stay flat, so the
+ * current tool is readable without reading the icons. The pill animates between
+ * tools instead of appearing, which makes the change of tool feel like one
+ * control moving rather than two redrawing.
+ */
 @Composable
 fun DockToolButton(
     isSelected: Boolean,
@@ -46,35 +68,48 @@ fun DockToolButton(
     label: String,
     content: @Composable () -> Unit
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+    val haptics = LocalHapticFeedback.current
+    val background by animateColorAsState(
+        targetValue = if (isSelected) AppColors.DockSelected else Color.Transparent,
+        animationSpec = tween(Motion.short),
+        label = "dock_tool_background"
+    )
+    val size by animateDpAsState(
+        targetValue = if (isSelected) TOOL_TARGET else TOOL_TARGET - 4.dp,
+        animationSpec = tween(Motion.short),
+        label = "dock_tool_size"
+    )
+
+    Box(
         modifier = Modifier
-            .width(54.dp)
-            .height(54.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
+            .size(TOOL_TARGET)
+            .clip(RoundedCornerShape(Radii.sm))
+            .clickable {
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
             .semantics {
                 contentDescription = label
                 selected = isSelected
             }
-            .testTag(testTag)
+            .testTag(testTag),
+        contentAlignment = Alignment.Center
     ) {
-        content()
-        Spacer(modifier = Modifier.height(3.dp))
         Box(
             modifier = Modifier
-                .width(22.dp)
-                .height(3.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(if (isSelected) AppColors.Accent else Color.Transparent)
-        )
+                .size(size)
+                .clip(RoundedCornerShape(Radii.sm))
+                .background(background),
+            contentAlignment = Alignment.Center
+        ) {
+            content()
+        }
     }
 }
 
 @Composable
 fun SelectionToolIcon(isSelected: Boolean) {
-    Canvas(modifier = Modifier.size(24.dp)) {
+    Canvas(modifier = Modifier.size(22.dp)) {
         val color = if (isSelected) AppColors.Accent else AppColors.TextMuted
         val strokeW = 1.6.dp.toPx()
         val w = size.width
@@ -87,7 +122,9 @@ fun SelectionToolIcon(isSelected: Boolean) {
             size = Size(w - pad * 2, h - pad * 2),
             style = Stroke(
                 width = strokeW,
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(GUIDE_DASH_LENGTH_PX, GUIDE_DASH_GAP_PX))
+                pathEffect = PathEffect.dashPathEffect(
+                    floatArrayOf(GUIDE_DASH_LENGTH_PX, GUIDE_DASH_GAP_PX)
+                )
             )
         )
 
@@ -104,7 +141,7 @@ fun SelectionToolIcon(isSelected: Boolean) {
 
 @Composable
 fun EraserToolIcon(isSelected: Boolean) {
-    Canvas(modifier = Modifier.size(24.dp)) {
+    Canvas(modifier = Modifier.size(22.dp)) {
         val bodyColor = if (isSelected) AppColors.Accent else AppColors.TextMuted
         val capColor = if (isSelected) Color.White else AppColors.IconIdleOnTool
 
@@ -127,7 +164,7 @@ fun EraserToolIcon(isSelected: Boolean) {
 
 @Composable
 fun PenToolIcon(tipColor: Color, isSelected: Boolean) {
-    Canvas(modifier = Modifier.size(24.dp)) {
+    Canvas(modifier = Modifier.size(22.dp)) {
         val bodyColor = if (isSelected) Color.White else AppColors.TextMuted
 
         val body = Path().apply {
@@ -153,7 +190,7 @@ fun PenToolIcon(tipColor: Color, isSelected: Boolean) {
 
 @Composable
 fun MarkerToolIcon(tipColor: Color, isSelected: Boolean) {
-    Canvas(modifier = Modifier.size(24.dp)) {
+    Canvas(modifier = Modifier.size(22.dp)) {
         val bodyColor = if (isSelected) Color.White else AppColors.TextMuted
 
         val barrel = Path().apply {
@@ -179,7 +216,7 @@ fun MarkerToolIcon(tipColor: Color, isSelected: Boolean) {
 
 @Composable
 fun HighlighterToolIcon(tipColor: Color, isSelected: Boolean) {
-    Canvas(modifier = Modifier.size(24.dp)) {
+    Canvas(modifier = Modifier.size(22.dp)) {
         val bodyColor = if (isSelected) Color.White else AppColors.TextMuted
 
         val barrel = Path().apply {
@@ -203,6 +240,14 @@ fun HighlighterToolIcon(tipColor: Color, isSelected: Boolean) {
     }
 }
 
+/**
+ * The floating tool dock.
+ *
+ * It sits over the canvas rather than in a bar of its own, so the drawing area
+ * keeps the full height of the screen. The five tools are always visible; the
+ * colour swatch on the right opens the palette for whichever brush is active,
+ * which is the one control that changes constantly while drawing.
+ */
 @Composable
 fun DrawingBottomToolbar(
     activeTool: DrawingTool,
@@ -211,52 +256,84 @@ fun DrawingBottomToolbar(
     penColor: Long = selectedColor,
     markerColor: Long = selectedColor,
     highlighterColor: Long = selectedColor,
+    onOpenPalette: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    ToolRow(
-        activeTool = activeTool,
-        onToolClick = onToolClick,
-        penColor = penColor,
-        markerColor = markerColor,
-        highlighterColor = highlighterColor,
-        modifier = modifier
-    )
-}
-
-/** The row of tool buttons the toolbar draws, one per drawing tool. */
-@Composable
-private fun ToolRow(
-    activeTool: DrawingTool,
-    onToolClick: (DrawingTool) -> Unit,
-    penColor: Long,
-    markerColor: Long,
-    highlighterColor: Long,
-    modifier: Modifier = Modifier
-) {
-    Row(
+    Surface(
         modifier = modifier
             .fillMaxWidth()
-            .height(60.dp)
-            .background(AppColors.PanelDeep)
-            .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceAround
+            .padding(horizontal = Spacing.md, vertical = Spacing.sm),
+        shape = RoundedCornerShape(Radii.lg),
+        color = AppColors.DockSurface,
+        tonalElevation = 0.dp,
+        shadowElevation = 8.dp
     ) {
-        ToolDockButton(DrawingTool.SELECT, activeTool, "tool_select", "Select", onToolClick) {
-            SelectionToolIcon(isSelected = activeTool == DrawingTool.SELECT)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Spacing.xs, vertical = Spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            ToolDockButton(DrawingTool.SELECT, activeTool, "tool_select", "Select", onToolClick) {
+                SelectionToolIcon(isSelected = activeTool == DrawingTool.SELECT)
+            }
+            ToolDockButton(DrawingTool.ERASER, activeTool, "tool_eraser", "Eraser", onToolClick) {
+                EraserToolIcon(isSelected = activeTool == DrawingTool.ERASER)
+            }
+            ToolDockButton(DrawingTool.PEN, activeTool, "tool_pen", "Pen", onToolClick) {
+                PenToolIcon(tipColor = Color(penColor), isSelected = activeTool == DrawingTool.PEN)
+            }
+            ToolDockButton(DrawingTool.MARKER, activeTool, "tool_marker", "Marker", onToolClick) {
+                MarkerToolIcon(
+                    tipColor = Color(markerColor),
+                    isSelected = activeTool == DrawingTool.MARKER
+                )
+            }
+            ToolDockButton(
+                DrawingTool.HIGHLIGHTER, activeTool, "tool_highlighter", "Highlighter", onToolClick
+            ) {
+                HighlighterToolIcon(
+                    tipColor = Color(highlighterColor),
+                    isSelected = activeTool == DrawingTool.HIGHLIGHTER
+                )
+            }
+
+            Spacer(modifier = Modifier.width(Spacing.xs))
+
+            ColorSwatchButton(color = selectedColor, onClick = onOpenPalette)
         }
-        ToolDockButton(DrawingTool.ERASER, activeTool, "tool_eraser", "Eraser", onToolClick) {
-            EraserToolIcon(isSelected = activeTool == DrawingTool.ERASER)
-        }
-        ToolDockButton(DrawingTool.PEN, activeTool, "tool_pen", "Pen", onToolClick) {
-            PenToolIcon(tipColor = Color(penColor), isSelected = activeTool == DrawingTool.PEN)
-        }
-        ToolDockButton(DrawingTool.MARKER, activeTool, "tool_marker", "Marker", onToolClick) {
-            MarkerToolIcon(tipColor = Color(markerColor), isSelected = activeTool == DrawingTool.MARKER)
-        }
-        ToolDockButton(DrawingTool.HIGHLIGHTER, activeTool, "tool_highlighter", "Highlighter", onToolClick) {
-            HighlighterToolIcon(tipColor = Color(highlighterColor), isSelected = activeTool == DrawingTool.HIGHLIGHTER)
-        }
+    }
+}
+
+/**
+ * The current colour, as a round swatch that opens the palette.
+ *
+ * It shows the colour the active brush will draw with, so the palette does not
+ * have to be open for the current colour to be known.
+ */
+@Composable
+private fun ColorSwatchButton(color: Long, onClick: () -> Unit) {
+    val haptics = LocalHapticFeedback.current
+    Box(
+        modifier = Modifier
+            .size(TOOL_TARGET)
+            .clip(CircleShape)
+            .clickable {
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
+            .semantics { contentDescription = "Colour and size" }
+            .testTag("tool_color_swatch"),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(26.dp)
+                .clip(CircleShape)
+                .background(Color(color))
+                .border(2.dp, AppColors.DockEdge, CircleShape)
+        )
     }
 }
 

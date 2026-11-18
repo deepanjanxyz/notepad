@@ -7,8 +7,7 @@ import androidx.compose.ui.graphics.Color
  *
  * These screens sit on their own dark chrome rather than on the app's Material
  * palette, so their colours are kept here as named values instead of being
- * written out as literals at each use. Every value is exactly the one the
- * screens used before, so nothing on screen changes.
+ * written out as literals at each use.
  */
 object AppColors {
 
@@ -42,6 +41,18 @@ object AppColors {
 
     /** Background of the drawing screen and its bottom toolbar. */
     val PanelDeep = Color(0xFF131314)
+
+    /** Floating dock that holds the drawing tools. */
+    val DockSurface = Color(0xFF1C1D22)
+
+    /** Fill behind the tool that is currently selected. */
+    val DockSelected = Color(0xFF23364D)
+
+    /** Hairline around the floating dock. */
+    val DockEdge = Color(0xFF2E3038)
+
+    /** Hint text drawn on an empty canvas. */
+    val CanvasHint = Color(0x66000000)
 
     /** Background of the canvas background dialog. */
     val DialogSurface = Color(0xFF202124)

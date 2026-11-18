@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -59,6 +60,7 @@ import com.deepanjanxyz.notepad.ui.feature_drawing.util.eraseSegmentAt
 import com.deepanjanxyz.notepad.ui.feature_drawing.util.getSelectionBounds as utilGetSelectionBounds
 import com.deepanjanxyz.notepad.ui.feature_drawing.util.isStrokeHit
 import com.deepanjanxyz.notepad.ui.theme.AppColors
+import com.deepanjanxyz.notepad.ui.theme.Spacing
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -397,6 +399,14 @@ fun DrawingScreen(
                 )
             )
 
+            if (strokes.isEmpty() && currentStroke == null) {
+                EmptyCanvasHint(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(horizontal = Spacing.xxxl)
+                )
+            }
+
             if (activeTool == DrawingTool.SELECT && selectedStrokeIndices.isNotEmpty()) {
                 FloatingSelectionBar(
                     selectedCount = selectedStrokeIndices.size,
@@ -458,8 +468,7 @@ fun DrawingScreen(
                 currentMode = eraserMode,
                 onModeSelected = { eraserMode = it },
                 currentRadiusPx = eraserRadiusPx,
-                onRadiusChanged = { eraserRadiusPx = it },
-                onClearCanvas = { showClearConfirm = true }
+                onRadiusChanged = { eraserRadiusPx = it }
             )
         }
 
@@ -518,6 +527,32 @@ fun DrawingScreen(
             penColor = penColor,
             markerColor = markerColor,
             highlighterColor = highlighterColor
+        )
+    }
+}
+
+/**
+ * The hint shown on a canvas that has nothing on it yet.
+ *
+ * It is drawn over the canvas but takes no input, and it disappears the moment
+ * the first mark is made.
+ */
+@Composable
+private fun EmptyCanvasHint(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Start drawing",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+        )
+        Text(
+            text = "Pick a tool below, then drag on the canvas",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
+            modifier = Modifier.padding(top = Spacing.xs)
         )
     }
 }

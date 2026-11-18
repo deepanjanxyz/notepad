@@ -114,9 +114,11 @@ class NoteShortcutWidgetProvider : AppWidgetProvider() {
             val moved = ArrayList<Triple<Int, Int, Long>>(oldIds.size)
             for (index in oldIds.indices) {
                 val oldId = oldIds[index]
-                val newId = newIds.getOrNull(index) ?: continue
-                val noteId = shortcuts.getLinkedNoteId(oldId) ?: continue
-                moved += Triple(oldId, newId, noteId)
+                val newId = newIds.getOrNull(index)
+                val noteId = shortcuts.getLinkedNoteId(oldId)
+                if (newId != null && noteId != null) {
+                    moved += Triple(oldId, newId, noteId)
+                }
             }
             moved.forEach { (_, newId, noteId) ->
                 shortcuts.linkNote(newId, noteId)

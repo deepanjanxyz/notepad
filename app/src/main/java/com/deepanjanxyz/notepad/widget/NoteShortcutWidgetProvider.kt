@@ -111,11 +111,12 @@ class NoteShortcutWidgetProvider : AppWidgetProvider() {
             // Every old link is read before anything is written: the host may hand
             // back ids that overlap the old ones (2,3 -> 3,4), and writing in place
             // would overwrite a link that has not been read yet.
-            val moved = oldIds.indices.mapNotNull { index ->
+            val moved = ArrayList<Triple<Int, Int, Long>>(oldIds.size)
+            for (index in oldIds.indices) {
                 val oldId = oldIds[index]
-                val newId = newIds.getOrNull(index) ?: return@mapNotNull null
-                val noteId = shortcuts.getLinkedNoteId(oldId) ?: return@mapNotNull null
-                Triple(oldId, newId, noteId)
+                val newId = newIds.getOrNull(index) ?: continue
+                val noteId = shortcuts.getLinkedNoteId(oldId) ?: continue
+                moved += Triple(oldId, newId, noteId)
             }
             moved.forEach { (_, newId, noteId) ->
                 shortcuts.linkNote(newId, noteId)

@@ -1,0 +1,9 @@
+Note shortcuts, Markdown transfer and safer backups
+
+- Add home-screen note shortcuts with text previews and drawing thumbnails.
+- Import Markdown or ZIP files; export one note, selected notes together, or separate .md files in a ZIP.
+- Improve JSON backup handling, Downloads storage and recovery.
+- Batch large archive, trash, restore and delete operations in transactions.
+- Animate snackbar countdowns and improve theme selection scrolling.
+
+Thank you for using Elite Memo Pro!

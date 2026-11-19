@@ -57,10 +57,10 @@ private fun markdownSection(note: Note): String {
     // no escapes, so those lines are written exactly as the note holds them: a
     // `C:\Users` path must not come back as `C:\\Users` in another editor.
     var fence: Fence? = null
-    val body = note.content
+    val lines = note.content
         .replace("\r\n", "\n")
         .split("\n")
-        .joinToString("\n") { line ->
+        .map { line ->
             val open = fence
             when {
                 open != null -> {
@@ -73,8 +73,12 @@ private fun markdownSection(note: Note): String {
                 }
             }
         }
-        .trim('\n')
-        .trimEnd()
+        .toMutableList()
+    // A note that ends inside a fence gets the fence closed here. Left open, the
+    // block would run past the end of the note and swallow the next note's heading
+    // when the file is read back, merging two notes into one.
+    fence?.let { open -> lines += open.marker.toString().repeat(open.length) }
+    val body = lines.joinToString("\n").trim('\n').trimEnd()
     return if (body.isEmpty()) NOTE_HEADING + title else NOTE_HEADING + title + "\n\n" + body
 }
 
@@ -106,7 +110,10 @@ private fun openingFence(line: String): Fence? {
  */
 private fun closesFence(line: String, fence: Fence): Boolean {
     val trimmed = line.trim()
-    return trimmed.length >= fence.length && trimmed.all { it == fence.marker }
+    val indent = line.length - line.trimStart().length
+    return indent <= FENCE_INDENT_MAX &&
+        trimmed.length >= fence.length &&
+        trimmed.all { it == fence.marker }
 }
 
 /**

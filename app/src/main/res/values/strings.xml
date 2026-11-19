@@ -22,4 +22,5 @@
     <string name="widget_title">Tasks</string>
     <string name="widget_refresh">Refresh tasks</string>
     <string name="widget_empty">Pin a checklist note to see its tasks here.</string>
+    <string name="snackbar_countdown_dismiss">Dismiss</string>
 </resources>

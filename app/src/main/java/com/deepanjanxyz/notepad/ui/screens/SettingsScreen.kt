@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -425,7 +426,11 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        // The chips take the width their labels need and the row scrolls
+                        // if they do not fit, so no label is ever clipped.
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         listOf(
@@ -437,7 +442,9 @@ fun SettingsScreen(
                             FilterChip(
                                 selected = isSelected,
                                 onClick = { onThemeChange(mode) },
-                                label = { Text(label) },
+                                // One line: the chip sizes to its own label, so "System"
+                                // cannot break after "Syste".
+                                label = { Text(text = label, maxLines = 1, softWrap = false) },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = icon,
@@ -449,9 +456,7 @@ fun SettingsScreen(
                                     selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                                     selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
                                 ),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .testTag("theme_chip_$mode")
+                                modifier = Modifier.testTag("theme_chip_$mode")
                             )
                         }
                     }

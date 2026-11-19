@@ -397,7 +397,10 @@ object DownloadsBackup {
             // Restore parses JSON, so only JSON files are offered: the Markdown
             // copy and an exported archive sit in the same folder and are not
             // backups, and picking one would fail to parse rather than restore.
-            .filter { it.name.endsWith(BackupFileNames.JSON_SUFFIX) }
+            // The suffix is matched without case: a backup copied in from
+            // elsewhere can arrive as `archive.JSON`, and it restores just
+            // as well as the name this app writes.
+            .filter { it.name.endsWith(BackupFileNames.JSON_SUFFIX, ignoreCase = true) }
             .filter { !BackupFileNames.isOurBackupName(it.name) || it.name in keep }
             .sortedByDescending { it.lastModified }
     }

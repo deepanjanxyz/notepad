@@ -37,4 +37,6 @@
     <string name="widget_note_drawing_desc">Drawing preview</string>
     <string name="widget_note_choose_search">Search notes…</string>
     <string name="widget_note_choose_linked">Currently linked</string>
+    <string name="widget_note_unlock_title">Unlock Elite Memo Pro</string>
+    <string name="widget_note_unlock_subtitle">Confirm your biometric or device credentials</string>
 </resources>

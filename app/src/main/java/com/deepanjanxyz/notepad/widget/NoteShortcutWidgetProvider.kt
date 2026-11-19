@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.util.Log
 import com.deepanjanxyz.notepad.NotepadApplication
 import com.deepanjanxyz.notepad.domain.model.NoteShortcutBuilder
@@ -108,11 +109,18 @@ class NoteShortcutWidgetProvider : AppWidgetProvider() {
             if (oldIds == null || newIds == null) return
             val appContext = context.applicationContext as NotepadApplication
             val shortcuts = appContext.container.noteShortcutUseCases
-            oldIds.forEachIndexed { index, oldId ->
-                val newId = newIds.getOrNull(index) ?: return@forEachIndexed
-                val noteId = shortcuts.getLinkedNoteId(oldId) ?: return@forEachIndexed
-                shortcuts.linkNote(newId, noteId)
-                shortcuts.unlinkNote(oldId)
+            // A link that will not store must not take the app down with it, and
+            // one bad id must not stop the rest: the widget that failed is simply
+            // left unlinked, which is how an unlinked widget already reads.
+            runCatching {
+                oldIds.forEachIndexed { index, oldId ->
+                    val newId = newIds.getOrNull(index) ?: return@forEachIndexed
+                    val noteId = shortcuts.getLinkedNoteId(oldId) ?: return@forEachIndexed
+                    shortcuts.linkNote(newId, noteId)
+                    shortcuts.unlinkNote(oldId)
+                }
+            }.onFailure { error ->
+                Log.w(TAG, "A restored shortcut widget could not be relinked", error)
             }
             renderNow(context, newIds)
         }
@@ -141,7 +149,9 @@ class NoteShortcutWidgetProvider : AppWidgetProvider() {
                             ?.let(NoteShortcutBuilder::build)
                         val sizing = NoteShortcutSizing.of(
                             options = manager.getAppWidgetOptions(appWidgetId),
-                            density = density
+                            density = density,
+                            isPortrait = appContext.resources.configuration.orientation ==
+                                Configuration.ORIENTATION_PORTRAIT
                         )
                         manager.updateAppWidget(
                             appWidgetId,
@@ -158,7 +168,12 @@ class NoteShortcutWidgetProvider : AppWidgetProvider() {
             val appContext = context.applicationContext as NotepadApplication
             val shortcuts = appContext.container.noteShortcutUseCases
             appWidgetIds.forEach { appWidgetId ->
-                shortcuts.unlinkNote(appWidgetId)
+                // The widget is gone either way, so a store that refuses the delete
+                // is logged rather than thrown into the app's scope.
+                runCatching { shortcuts.unlinkNote(appWidgetId) }
+                    .onFailure { error ->
+                        Log.w(TAG, "Shortcut widget $appWidgetId could not be unlinked", error)
+                    }
                 renderLocks.remove(appWidgetId)
             }
         }

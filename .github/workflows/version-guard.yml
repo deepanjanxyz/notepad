@@ -151,8 +151,29 @@ jobs:
             exit 0
           fi
           if [ -n "$latest_name" ]; then
-            highest=$(printf '%s\n%s\n' "$latest_name" "$pr_name" | sort -V | tail -n1)
-            if [ "$pr_name" = "$latest_name" ] || [ "$highest" != "$pr_name" ]; then
+            # sort -V does not follow SemVer for a pre-release suffix: it orders
+            # 1.2.3-rc1 after 1.2.3, so a pre-release would read as a bump over the
+            # release it belongs to. Compare the X.Y.Z core first, and only then let
+            # a suffix decide, which keeps a pre-release below its own release.
+            pr_core="${pr_name%%-*}"
+            latest_core="${latest_name%%-*}"
+            bumped_name=false
+            if [ "$pr_core" = "$latest_core" ]; then
+              # The same X.Y.Z: the release beats its own pre-releases, and between
+              # two pre-releases sort -V does order the suffixes correctly. sort -V
+              # on its own would put 1.2.3-rc1 above 1.2.3, which is the wrong way
+              # round, so the release-versus-pre-release case is decided here.
+              if [ "$pr_name" = "$pr_core" ] && [ "$latest_name" != "$latest_core" ]; then
+                bumped_name=true
+              elif [ "$pr_name" != "$pr_core" ] && [ "$latest_name" != "$latest_core" ]; then
+                highest=$(printf '%s\n%s\n' "$latest_name" "$pr_name" | sort -V | tail -n1)
+                [ "$highest" = "$pr_name" ] && bumped_name=true
+              fi
+            else
+              highest=$(printf '%s\n%s\n' "$latest_core" "$pr_core" | sort -V | tail -n1)
+              [ "$highest" = "$pr_core" ] && bumped_name=true
+            fi
+            if [ "$bumped_name" != "true" ]; then
               echo "versionName not bumped: $pr_name <= $latest_name"
               echo "bumped=false" >> "$GITHUB_OUTPUT"
               echo "reason=name" >> "$GITHUB_OUTPUT"

@@ -1,6 +1,7 @@
 package com.deepanjanxyz.notepad.widget
 
 import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -48,6 +49,19 @@ class NoteShortcutConfigureActivity : FragmentActivity() {
             finish()
             return
         }
+        // This activity is exported so the launcher can start it, which also means
+        // any other app can. A widget this provider does not own is refused; one the
+        // host has not bound yet is let through, since some launchers configure a
+        // widget before they bind it.
+        val boundTo = AppWidgetManager.getInstance(this)
+            .getAppWidgetInfo(appWidgetId)
+            ?.provider
+        if (boundTo != null &&
+            boundTo != ComponentName(this, NoteShortcutWidgetProvider::class.java)
+        ) {
+            finish()
+            return
+        }
         // Tell the ViewModel which widget is being configured so it can mark the
         // currently linked note in the picker list.
         viewModel.setAppWidgetId(appWidgetId)
@@ -86,8 +100,8 @@ class NoteShortcutConfigureActivity : FragmentActivity() {
 
     private fun showBiometricPrompt() {
         val promptBuilder = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Unlock Elite Memo Pro")
-            .setSubtitle("Confirm your biometric or device credentials")
+            .setTitle(getString(R.string.widget_note_unlock_title))
+            .setSubtitle(getString(R.string.widget_note_unlock_subtitle))
         // BIOMETRIC_STRONG with DEVICE_CREDENTIAL throws on API 28-29; BIOMETRIC_WEAK
         // is the combination those versions accept, and it reads the same to the user.
         promptBuilder.setAllowedAuthenticators(

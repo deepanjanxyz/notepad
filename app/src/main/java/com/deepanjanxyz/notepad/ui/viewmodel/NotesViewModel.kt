@@ -312,6 +312,13 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         openNoteJob?.cancel()
         openNoteJob = viewModelScope.launch {
             val note = noteUseCases.getNoteById(noteId) ?: return@launch
+            // A reminder or a stale shortcut can outlive the note's place in the
+            // list, and the widget already treats such a note as gone: opening it
+            // would show an editor for a note the user cannot find anywhere.
+            if (note.inTrash || note.inArchive) {
+                navigateTo(Screen.Home)
+                return@launch
+            }
             val target = if (DrawingSerializer.isDrawing(note.content)) {
                 Screen.Drawing(note.id)
             } else {

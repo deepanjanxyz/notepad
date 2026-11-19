@@ -70,11 +70,11 @@ class MainActivity : FragmentActivity() {
      * The view model decides which screen suits the note, because only the stored
      * note says whether it holds a drawing or text.
      */
-    private fun handleOpenNoteIntent(intent: Intent?) {
+    private fun handleOpenNoteIntent(intent: Intent?): Boolean {
         val noteId = intent?.getLongExtra(EXTRA_OPEN_NOTE_ID, -1L) ?: -1L
-        if (noteId > 0L) {
-            viewModel.openNoteById(noteId)
-        }
+        if (noteId <= 0L) return false
+        viewModel.openNoteById(noteId)
+        return true
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -87,10 +87,13 @@ class MainActivity : FragmentActivity() {
         installSplashAnimations()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        handleOpenNoteIntent(intent)
+        // The note lookup suspends, so the navigation it starts lands after this
+        // method returns: showing the list here would briefly win the first frame.
+        // The answer decides instead of the ordering.
+        val openedNote = handleOpenNoteIntent(intent)
         // A cold start from the app icon shows the list. The icon means "open the
         // app", so a note opened from a widget earlier is not reopened with it.
-        if (savedInstanceState == null && intent?.hasExtra(EXTRA_OPEN_NOTE_ID) != true) {
+        if (savedInstanceState == null && !openedNote) {
             viewModel.navigateTo(Screen.Home)
         }
 

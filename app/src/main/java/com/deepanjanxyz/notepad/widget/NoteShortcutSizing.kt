@@ -38,7 +38,7 @@ internal data class NoteShortcutSizing(
         /** The smallest bitmap still worth drawing into. */
         private const val MIN_THUMBNAIL_PX = 1
 
-        fun of(options: Bundle, density: Float): NoteShortcutSizing {
+        fun of(options: Bundle, density: Float, isPortrait: Boolean): NoteShortcutSizing {
             val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
             val maxWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH)
             val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)
@@ -46,8 +46,10 @@ internal data class NoteShortcutSizing(
             // The host reports a range on each axis, not one size: a portrait widget
             // is at its widest when it is at its shortest, and the other way round.
             // Pairing them keeps a tall widget from being measured by its narrowest
-            // height, which would leave it looking compact.
-            val isPortrait = maxHeight > maxWidth
+            // height, which would leave it looking compact. Which of the two the
+            // widget is comes from the configuration: comparing the ranges says
+            // nothing about how the widget is laid out now, since a wide, short cell
+            // on a tall screen satisfies the same test.
             val widthDp = if (isPortrait) minWidth else maxWidth
             val heightDp = if (isPortrait) maxHeight else minHeight
             return NoteShortcutSizing(

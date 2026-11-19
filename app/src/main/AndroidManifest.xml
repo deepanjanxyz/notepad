@@ -47,6 +47,29 @@
                 android:resource="@xml/task_widget_info" />
         </receiver>
 
+        <!-- A shortcut to a single note. Each placed widget is pointed at its note
+             by the configure activity below. -->
+        <receiver
+            android:name=".widget.NoteShortcutWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_note_shortcut_title">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/note_shortcut_widget_info" />
+        </receiver>
+
+        <!-- Started by the home screen when a shortcut widget is placed, so it has
+             to be reachable from the launcher; it takes no other input. -->
+        <activity
+            android:name=".widget.NoteShortcutConfigureActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.EliteMemoPro" />
+
         <!-- Supplies the widget's scrollable list. The BIND_REMOTEVIEWS
              permission keeps the service private to the app widget host. -->
         <service

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A rounded, solid shape drawn behind the widget content and recoloured at
+     runtime with the note's own colour, so a coloured note looks coloured on the
+     home screen the way it does in the app. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@android:color/white" />
+    <corners android:radius="20dp" />
+</shape>

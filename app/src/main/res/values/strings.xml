@@ -23,4 +23,18 @@
     <string name="widget_refresh">Refresh tasks</string>
     <string name="widget_empty">Pin a checklist note to see its tasks here.</string>
     <string name="snackbar_countdown_dismiss">Dismiss</string>
+    <string name="widget_note_shortcut_title">Note shortcut</string>
+    <string name="widget_note_untitled">Untitled Note</string>
+    <string name="widget_note_empty">Tap to open this note.</string>
+    <string name="widget_note_missing">Note no longer available. Tap to choose another.</string>
+    <string name="widget_link_failed">This note could not be linked to the widget. Try again.</string>
+    <string name="widget_note_choose_title">Choose a note</string>
+    <string name="widget_note_choose_subtitle">This shortcut will open the note you pick.</string>
+    <string name="widget_note_choose_empty">No notes yet. Write a note first, then place this shortcut again.</string>
+    <string name="widget_note_choose_drawing">Drawing</string>
+    <string name="widget_note_choose_cancel">Cancel</string>
+    <string name="widget_note_shortcut_desc">Opens a note with one tap from your home screen.</string>
+    <string name="widget_note_drawing_desc">Drawing preview</string>
+    <string name="widget_note_choose_search">Search notes…</string>
+    <string name="widget_note_choose_linked">Currently linked</string>
 </resources>

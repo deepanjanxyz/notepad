@@ -83,7 +83,7 @@ internal fun buildRowViews(context: Context, row: WidgetRow): RemoteViews {
             views.setViewVisibility(R.id.widget_row_header, View.VISIBLE)
             views.setViewVisibility(R.id.widget_row_task, View.GONE)
             views.setTextViewText(R.id.widget_group_title, row.note.title.ifBlank { UNTITLED_NOTE })
-            views.setInt(R.id.widget_group_dot, "setColorFilter", noteAccentColor(context, row.note))
+            views.setInt(R.id.widget_group_dot, "setColorFilter", noteAccentColor(context, row.note.colorIndex))
             views.setOnClickFillInIntent(R.id.widget_row_root, Intent())
         }
 
@@ -132,10 +132,13 @@ private fun itemText(task: WidgetTask): CharSequence =
  * The dot mirrors the note's own colour so a group is recognisable at a glance,
  * exactly as the note card is in the app. Notes left on the default colour fall
  * back to the widget accent.
+ *
+ * Shared with the note shortcut widget, which shows the same dot for the note it
+ * opens.
  */
-private fun noteAccentColor(context: Context, note: Note): Int =
-    if (note.colorIndex in 1 until NoteColorOptions.size) {
-        NoteColorOptions[note.colorIndex].toArgb()
+internal fun noteAccentColor(context: Context, colorIndex: Int): Int =
+    if (colorIndex in 1 until NoteColorOptions.size) {
+        NoteColorOptions[colorIndex].toArgb()
     } else {
         context.getColor(R.color.widget_accent)
     }

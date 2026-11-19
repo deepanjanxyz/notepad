@@ -13,6 +13,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.deepanjanxyz.notepad.MainActivity
+import com.deepanjanxyz.notepad.ui.navigation.EXTRA_OPEN_NOTE_ID
 import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.data.NoteRepositoryProvider
 import com.deepanjanxyz.notepad.domain.model.DrawingSerializer
@@ -135,7 +136,7 @@ class NoteReminderWorker(
         // Tap intent to open MainActivity with specific note
         val openIntent = Intent(applicationContext, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra("open_note_id", noteId)
+            putExtra(EXTRA_OPEN_NOTE_ID, noteId)
         }
 
         val pendingIntent = PendingIntent.getActivity(

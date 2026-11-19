@@ -121,7 +121,16 @@ private fun ColumnScope.NoteShortcutChoices(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = stringResource(R.string.widget_note_choose_empty),
+                // A search that matched nothing is not an empty vault: saying
+                // "no notes yet" there would send the user looking for notes they
+                // already have.
+                text = stringResource(
+                    if (uiState.searchQuery.isBlank()) {
+                        R.string.widget_note_choose_empty
+                    } else {
+                        R.string.widget_note_choose_no_results
+                    }
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

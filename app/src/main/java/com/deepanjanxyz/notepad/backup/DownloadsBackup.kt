@@ -394,8 +394,10 @@ object DownloadsBackup {
         }
         val keep = BackupFileNames.keptNames(entries.map { it.name to it.lastModified })
         return entries
-            // The Markdown copy is not a backup, so Restore never offers it.
-            .filterNot { it.name.endsWith(BackupFileNames.MARKDOWN_SUFFIX) }
+            // Restore parses JSON, so only JSON files are offered: the Markdown
+            // copy and an exported archive sit in the same folder and are not
+            // backups, and picking one would fail to parse rather than restore.
+            .filter { it.name.endsWith(BackupFileNames.JSON_SUFFIX) }
             .filter { !BackupFileNames.isOurBackupName(it.name) || it.name in keep }
             .sortedByDescending { it.lastModified }
     }

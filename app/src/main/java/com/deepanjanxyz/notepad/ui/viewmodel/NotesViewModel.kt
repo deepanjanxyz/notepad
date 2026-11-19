@@ -324,6 +324,10 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     private var openNoteJob: Job? = null
 
     fun navigateTo(screen: Screen) {
+        // Any other navigation wins over a lookup still running: the note it was
+        // about to open must not replace the screen the user has just chosen.
+        openNoteJob?.cancel()
+        openNoteJob = null
         _uiState.value = _uiState.value.copy(
             currentScreen = screen,
             isSelectionMode = false,

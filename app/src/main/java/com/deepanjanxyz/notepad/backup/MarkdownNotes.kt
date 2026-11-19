@@ -91,13 +91,13 @@ private data class Fence(val marker: Char, val length: Int)
  */
 private fun openingFence(line: String): Fence? {
     val trimmed = line.trimStart()
-    if (line.length - trimmed.length > FENCE_INDENT_MAX) return null
     val marker = trimmed.firstOrNull() ?: return null
-    if (marker != '`' && marker != '~') return null
-    val run = trimmed.takeWhile { it == marker }.length
-    if (run < FENCE_MIN) return null
-    if (marker == '`' && trimmed.substring(run).contains('`')) return null
-    return Fence(marker, run)
+    val run = if (marker == '`' || marker == '~') trimmed.takeWhile { it == marker }.length else 0
+    val opens = (marker == '`' || marker == '~') &&
+        run >= FENCE_MIN &&
+        line.length - trimmed.length <= FENCE_INDENT_MAX &&
+        (marker != '`' || !trimmed.substring(run).contains('`'))
+    return if (opens) Fence(marker, run) else null
 }
 
 /**
@@ -131,6 +131,10 @@ private fun unescaped(line: String): String = line.replace(ESCAPE + ESCAPE, ESCA
 private fun isStructural(line: String): Boolean =
     line.trim() == NOTE_BREAK || line.trimStart().startsWith(NOTE_HEADING)
 
+/** True when [line] carries the mark that says it is a line of the note. */
+private fun isMarkedAsContent(line: String): Boolean =
+    line.startsWith(ESCAPE) && isStructural(line.removePrefix(ESCAPE))
+
 /**
  * The notes a Markdown file holds, ready to be added as new notes.
  *
@@ -156,7 +160,6 @@ fun parseMarkdownNotes(text: String): List<Note> {
     var fence: Fence? = null
 
     text.replace("\r\n", "\n").split("\n").forEach { line ->
-        val escapedLine = line.removePrefix(ESCAPE)
         val open = fence
         when {
             // Inside a fenced block nothing is structure and nothing is escaped:
@@ -164,7 +167,7 @@ fun parseMarkdownNotes(text: String): List<Note> {
             // same way, a separator or a note heading among them included.
             open != null -> {
                 if (closesFence(line, open)) fence = null
-                if (title != null) body += line
+                title?.let { body += line }
             }
             line.startsWith(NOTE_HEADING) -> {
                 collect()
@@ -174,8 +177,7 @@ fun parseMarkdownNotes(text: String): List<Note> {
             title == null -> Unit
             line.trim() == NOTE_BREAK -> collect()
             // A line the export marked is a line of the note, whatever it looks like.
-            line.startsWith(ESCAPE) && isStructural(escapedLine) ->
-                body += unescaped(escapedLine)
+            isMarkedAsContent(line) -> body += unescaped(line.removePrefix(ESCAPE))
             else -> {
                 openingFence(line)?.let { opened -> fence = opened }
                 body += unescaped(line)

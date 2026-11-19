@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A shortcut to one note. It starts at a single cell, where it shows the note's
+     title, and grows into the note's text or drawing thumbnail when it is made
+     larger. It does not poll: the app redraws it whenever a note changes, and the
+     widget re-reads its note when the host reports a resize. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="40dp"
+    android:minHeight="40dp"
+    android:minResizeWidth="40dp"
+    android:minResizeHeight="40dp"
+    android:targetCellWidth="2"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/widget_note_shortcut"
+    android:previewLayout="@layout/widget_note_shortcut"
+    android:description="@string/widget_note_shortcut_desc"
+    android:configure="com.deepanjanxyz.notepad.widget.NoteShortcutConfigureActivity"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen" />

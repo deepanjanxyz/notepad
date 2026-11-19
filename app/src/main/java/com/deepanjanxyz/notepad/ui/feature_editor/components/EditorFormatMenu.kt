@@ -17,7 +17,7 @@ import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.FormatListNumbered
-import androidx.compose.material.icons.filled.Notes
+import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -47,7 +47,7 @@ private const val MARKER_MS = 160
 /** The icon that stands for [this] format, in the menu and on the button. */
 private val EditorFormat.icon: ImageVector
     get() = when (this) {
-        EditorFormat.PlainText -> Icons.Default.Notes
+        EditorFormat.PlainText -> Icons.AutoMirrored.Filled.Notes
         EditorFormat.Checklist -> Icons.Default.Checklist
         EditorFormat.BulletedList -> Icons.AutoMirrored.Filled.FormatListBulleted
         // Material icons ships no automirrored FormatListNumbered, so this one stands in.

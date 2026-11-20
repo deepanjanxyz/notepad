@@ -107,7 +107,7 @@ jobs:
       - name: Validate version
         run: |
           version="${{ steps.version.outputs.version }}"
-          if ! python3 .github/scripts/semver.py compare "$version" "$version" >/dev/null; then
+          if ! python3 .github/scripts/semver.py validate "$version"; then
             echo "🔴 Release failed: versionName '$version' is not valid SemVer."
             exit 1
           fi

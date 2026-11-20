@@ -94,7 +94,9 @@ jobs:
           # Only these three words make a release a pre-release. Any other suffix,
           # "stable" or "released" for instance, is a normal release: nothing else is
           # guessed from the text.
-          if echo "$vn" | grep -qiE '(^|[.-])(alpha|beta|rc)[0-9]*([.-]|$)'; then
+          # Build metadata does not affect SemVer precedence or prerelease status.
+          release_version="${vn%%+*}"
+          if echo "$release_version" | grep -qiE '(^|[.-])(alpha|beta|rc)[0-9]*([.-]|$)'; then
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
           else
             echo "prerelease=false" >> "$GITHUB_OUTPUT"

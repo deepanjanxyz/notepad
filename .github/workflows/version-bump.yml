@@ -101,7 +101,9 @@ jobs:
           set -euo pipefail
 
           # The same rules the version guard enforces: above the latest release.
-          latest_tag=$(git tag --list 'v*' --sort=-v:refname | head -n1 || true)
+          latest_tag=$(git tag --list 'v*' \
+            | sed -E 's/^(v[0-9]+\.[0-9]+\.[0-9]+)-/\1~/' \
+            | sort -V | tail -n1 | sed 's/~/-/' || true)
           latest_name=""
           latest_code=""
           if [ -n "$latest_tag" ]; then

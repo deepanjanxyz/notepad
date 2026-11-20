@@ -124,9 +124,7 @@ jobs:
           set -euo pipefail
           vn="${{ steps.version.outputs.version }}"
           vc="${{ steps.version.outputs.version_code }}"
-          latest_tag=$(git tag --list 'v*' \
-            | sed -E 's/^(v[0-9]+\.[0-9]+\.[0-9]+)-/\1~/' \
-            | sort -V | tail -n1 | sed 's/~/-/' || true)
+          latest_tag=$(git tag --list 'v*' | python3 .github/scripts/semver.py max || true)
           if [ -z "$latest_tag" ]; then
             echo "No previous release; nothing to compare against."
             exit 0
@@ -138,11 +136,7 @@ jobs:
             echo "🔴 Release failed: versionCode $vc is not newer than $latest_tag ($latest_code). Re-bump and open a new pull request."
             exit 1
           fi
-          # SemVer precedence: `sort -V` ranks 1.0.31-beta01 above 1.0.31, so the
-          # pre-release is written with `~`, which sorts below the plain release.
-          normalise() { printf '%s' "$1" | sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+)-/\1~/'; }
-          if [ "$(printf '%s\n%s\n' "$(normalise "$latest_name")" "$(normalise "$vn")" \
-                | sort -V | tail -n1)" != "$(normalise "$vn")" ]; then
+          if [ "$(python3 .github/scripts/semver.py compare "$vn" "$latest_name")" -le 0 ]; then
             echo "🔴 Release failed: versionName $vn is not newer than $latest_tag ($latest_name). Re-bump and open a new pull request."
             exit 1
           fi

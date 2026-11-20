@@ -34,7 +34,11 @@ fun findConfig(key: String): String? = sequenceOf(
 
 android {
     namespace = "com.deepanjanxyz.notepad"
-    compileSdk = 37
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 2
+        }
+    }
 
     defaultConfig {
         applicationId = "com.deepanjanxyz.notepad"

@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -79,10 +80,14 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.backup.BackupFolder
 import com.deepanjanxyz.notepad.backup.DownloadsBackup
+import com.deepanjanxyz.notepad.backup.MarkdownCopy
+import com.deepanjanxyz.notepad.backup.MarkdownImport
 import com.deepanjanxyz.notepad.backup.BackupParseResult
 import com.deepanjanxyz.notepad.backup.parseBackupJson
 import com.deepanjanxyz.notepad.domain.model.Note
@@ -119,6 +124,7 @@ fun SettingsScreen(
     onBackUpNow: (String) -> Unit,
     onImportNotes: (List<Note>) -> Unit,
     onImportOutcomeShown: () -> Unit,
+    markdownCopy: MarkdownCopy,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -163,6 +169,15 @@ fun SettingsScreen(
         offerFolder = !granted && (stuckCopies || autoBackupStatus?.error != null)
     }
 
+    // The export reports through its own outcome. An import is counted by the
+    // import outcome the screen already shows, so nothing is reported twice.
+    val markdownStatus by markdownCopy.status.collectAsStateWithLifecycle()
+    LaunchedEffect(markdownStatus) {
+        val status = markdownStatus ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(status.message)
+        markdownCopy.clear()
+    }
+
     val folderLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
@@ -202,6 +217,14 @@ fun SettingsScreen(
     // Turning auto backup on needs the legacy storage permission on Android 9 and
     // below; on newer versions MediaStore needs no permission at all, so it is
     // only ever requested at the moment the switch is turned on.
+    // The import reads the file the user picks, wherever it is: a Markdown file or
+    // a zip of them. Nothing is looked up in the app's own folder.
+    val markdownPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) markdownCopy.importFrom(uri)
+    }
+
     val storagePermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -669,6 +692,58 @@ fun SettingsScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Restore")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Markdown",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Export moved to the Notes screen, where the notes being
+                    // exported are the ones on screen. What stays here is the way
+                    // back in, and it sits beside the sentence that explains it so
+                    // the block does not read as an empty row with one button in it.
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Import a .md file back into notes, in case the " +
+                                "JSON backup is gone. To export, select notes on the " +
+                                "home screen and tap Export.",
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        OutlinedButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                markdownPicker.launch(MarkdownImport.PICKER_MIME_TYPES)
+                            },
+                            modifier = Modifier.testTag("markdown_import_button"),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Import .md or .zip",
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }

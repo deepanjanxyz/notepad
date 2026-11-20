@@ -217,19 +217,32 @@ object BackupFolder {
     }
 
     /**
+     * Writes [bytes] over the document at [uri].
+     *
+     * A zip is not text, so it cannot be read back and compared the way a backup
+     * is; it is written in one go, and a failed write leaves the document to the
+     * next export rather than reporting a success it did not have.
+     */
+    fun writeBytes(context: Context, uri: Uri, bytes: ByteArray) {
+        val stream = context.contentResolver.openOutputStream(uri, WRITE_MODE)
+            ?: throw IOException("Could not open the file for writing")
+        stream.use { it.write(bytes) }
+    }
+
+    /**
      * Creates the file under exactly this name, or returns null when the folder
      * will not give it that name - which is what keeps a second file from ever
      * being written beside the first. A provider answers a name that is already
      * taken with "name (1)" rather than an error, so the name that came back is
      * read and a numbered file is removed again.
      */
-    fun create(context: Context, name: String): Uri? {
+    fun create(context: Context, name: String, mimeType: String = MIME_TYPE): Uri? {
         val tree = treeUri(context) ?: return null
         val created = runCatching {
             DocumentsContract.createDocument(
                 context.contentResolver,
                 treeDocumentUri(tree),
-                MIME_TYPE,
+                mimeType,
                 name
             )
         }.getOrNull()

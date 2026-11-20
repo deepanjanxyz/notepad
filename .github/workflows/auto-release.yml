@@ -54,7 +54,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up JDK 21
+      - name: Set up JDK 25
         uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
@@ -89,6 +89,14 @@ jobs:
           fi
 
           echo "Releasing v$vn ($vc) from commit $(git rev-parse HEAD)"
+          # Only these three words make a release a pre-release. Any other suffix,
+          # "stable" or "released" for instance, is a normal release: nothing else is
+          # guessed from the text.
+          if echo "$vn" | grep -qiE '(^|[.-])(alpha|beta|rc)[0-9]*([.-]|$)'; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
           {
             echo "app_name=$app_name"
             echo "version=$vn"
@@ -97,8 +105,8 @@ jobs:
       - name: Validate version
         run: |
           version="${{ steps.version.outputs.version }}"
-          if ! echo "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "🔴 Release failed: versionName '$version' is not strict SemVer (X.Y.Z)."
+          if ! echo "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+            echo "🔴 Release failed: versionName '$version' is not SemVer (X.Y.Z or X.Y.Z-suffix)."
             exit 1
           fi
           code="${{ steps.version.outputs.version_code }}"
@@ -414,8 +422,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          prerelease_flag=""
+          if [ "${{ steps.version.outputs.prerelease }}" = "true" ]; then
+            prerelease_flag="--prerelease"
+          fi
           gh release create "v${{ steps.version.outputs.version }}" \
             app/build/outputs/apk/release/*.apk \
             --target "${{ github.sha }}" \
             --title "v${{ steps.version.outputs.version }}" \
-            --notes-file /tmp/release-notes.md
+            --notes-file /tmp/release-notes.md \
+            $prerelease_flag

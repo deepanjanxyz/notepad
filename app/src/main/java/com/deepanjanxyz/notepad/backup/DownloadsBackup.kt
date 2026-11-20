@@ -96,9 +96,53 @@ object DownloadsBackup {
         // in it, and has no way to make one on its own, so an entry is placed and
         // taken away again.
         val resolver = context.contentResolver
-        val uri = insertPendingFile(resolver, MediaStore.Downloads.EXTERNAL_CONTENT_URI, FOLDER_MARKER)
-            ?: return
+        val uri = insertPendingFile(
+            resolver,
+            MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            FOLDER_MARKER,
+            MIME_TYPE
+        ) ?: return
         runCatching { resolver.delete(uri, null, null) }
+    }
+
+    /**
+     * True when the folder already holds a file called [name].
+     *
+     * An export asks before it writes, so a second note with the same title lands
+     * beside the first instead of replacing it.
+     */
+    fun exists(context: Context, name: String): Boolean =
+        storedNames(context).any { it.equals(name, ignoreCase = true) }
+
+    /**
+     * Every name in the folder, whatever the file is.
+     *
+     * Deliberately wider than [readEntries], which keeps only the names Restore
+     * lists: a zip export has to see an earlier zip to avoid taking its name, and
+     * a name the listing drops would be a name it writes over.
+     */
+    private fun storedNames(context: Context): List<String> = when {
+        BackupFolder.hasAccess(context) -> BackupFolder.children(context).map { it.name }
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> allEntryNames(context)
+        else -> legacyDir().listFiles()?.map { it.name }.orEmpty()
+    }
+
+    /** Every display name in the folder, as the media store sees it. */
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun allEntryNames(context: Context): List<String> {
+        val names = mutableListOf<String>()
+        context.contentResolver.query(
+            MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            arrayOf(MediaStore.MediaColumns.DISPLAY_NAME),
+            "${MediaStore.MediaColumns.RELATIVE_PATH} = ?",
+            arrayOf("$RELATIVE_DIR/"),
+            null
+        )?.use { cursor ->
+            while (cursor.moveToNext()) {
+                cursor.getString(0)?.let { names += it }
+            }
+        }
+        return names
     }
 
     /** Location of a backup file, phrased for display in Settings. */
@@ -119,7 +163,7 @@ object DownloadsBackup {
      * failed or interrupted write cannot leave the user without their last good
      * backup.
      */
-    fun write(context: Context, json: String, name: String = FILE_NAME) {
+    fun write(context: Context, json: String, name: String = FILE_NAME, mimeType: String = MIME_TYPE) {
         // The folder is put back if it has been removed, so a write always has
         // somewhere to go.
         ensureFolder(context)
@@ -133,19 +177,76 @@ object DownloadsBackup {
         // cannot collide with one of them.
         cleanUpCopies(context)
         if (BackupFolder.hasAccess(context)) {
-            writeViaFolder(context, json, name)
+            writeViaFolder(context, json, name, mimeType)
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            writeViaMediaStore(context, json, name)
+            writeViaMediaStore(context, json, name, mimeType)
         } else {
             writeViaFile(json, name)
         }
     }
 
     /**
+     * Writes [bytes] to the file called [name].
+     *
+     * The text path above verifies a write by reading it back as a string, which a
+     * zip cannot survive. A binary file is written here instead, over the same
+     * three destinations, and replaced in place when it is already there.
+     */
+    fun writeBytes(context: Context, bytes: ByteArray, name: String, mimeType: String) {
+        ensureFolder(context)
+        if (BackupFolder.hasAccess(context)) {
+            val target = BackupFolder.find(context, name)?.uri
+                ?: BackupFolder.create(context, name, mimeType)
+                ?: error("Could not create the file in Downloads")
+            BackupFolder.writeBytes(context, target, bytes)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            writeBytesViaMediaStore(context, bytes, name, mimeType)
+        } else {
+            legacyFile(name).writeBytes(bytes)
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun writeBytesViaMediaStore(
+        context: Context,
+        bytes: ByteArray,
+        name: String,
+        mimeType: String
+    ) {
+        val resolver = context.contentResolver
+        val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+        val existing = findFile(resolver, collection, name)
+        if (existing != null) {
+            writeBytesTo(resolver, existing, bytes)
+            return
+        }
+        val created = insertPendingFile(resolver, collection, name, mimeType)
+            ?: error("Could not create the file in Downloads")
+        // A file that never finishes being written is deleted rather than left
+        // behind as a pending entry holding its bytes until it expires.
+        val written = runCatching { writeBytesTo(resolver, created, bytes) }
+        if (written.isFailure) {
+            runCatching { resolver.delete(created, null, null) }
+            throw written.exceptionOrNull() ?: IllegalStateException("The file could not be written")
+        }
+        val published = ContentValues().apply {
+            put(MediaStore.MediaColumns.IS_PENDING, 0)
+        }
+        resolver.update(created, published, null, null)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun writeBytesTo(resolver: ContentResolver, uri: Uri, bytes: ByteArray) {
+        val stream = resolver.openOutputStream(uri, "rwt")
+            ?: error("Could not open the file for writing")
+        stream.use { it.write(bytes) }
+    }
+
+    /**
      * Writes through the folder the user granted: the file that is already there
      * is reused, and one is created only when the folder holds none at all.
      */
-    private fun writeViaFolder(context: Context, json: String, name: String) {
+    private fun writeViaFolder(context: Context, json: String, name: String, mimeType: String) {
         if (!BackupFolder.isReachable(context)) {
             // The folder the user granted has been removed or renamed. Forget the
             // grant so Settings asks for it again, and fail loudly rather than
@@ -158,7 +259,7 @@ object DownloadsBackup {
             BackupFolder.write(context, existing.uri, json)
             return
         }
-        val created = BackupFolder.create(context, name)
+        val created = BackupFolder.create(context, name, mimeType)
             ?: error("Could not create the backup file in Downloads")
         try {
             BackupFolder.write(context, created, json)
@@ -169,10 +270,15 @@ object DownloadsBackup {
         }
     }
 
-    /** The newest copy of the backup file in the granted folder, or null. */
+    /**
+     * The newest numbered copy of the file called [name] in the granted folder.
+     *
+     * Only copies of that same file count: the folder holds the Markdown copy
+     * beside the backup, and a write for one of them must never land on the other.
+     */
     private fun newestFolderCopy(context: Context, name: String): BackupFolder.Child? =
         BackupFolder.children(context)
-            .filter { it.name != name && BackupFileNames.isNumberedCopy(it.name) }
+            .filter { BackupFileNames.isNumberedCopy(it.name, name) }
             .maxByOrNull { it.lastModified }
 
     /**
@@ -240,13 +346,21 @@ object DownloadsBackup {
     fun read(context: Context, name: String? = null): String? {
         val target = name ?: newestName(context) ?: FILE_NAME
         return if (BackupFolder.hasAccess(context)) {
-            BackupFolder.find(context, target)?.let { BackupFolder.read(context, it.uri) }
+            // A write goes to a numbered copy when the name is already taken, so the
+            // read looks for one as well rather than reporting that nothing is there.
+            val file = BackupFolder.find(context, target) ?: newestFolderCopy(context, target)
+            file?.let { BackupFolder.read(context, it.uri) }
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             readViaMediaStore(context, target)
         } else {
             legacyFile(target).takeIf { it.exists() }?.readText()
         }
     }
+
+    /** True when [name] is a file this app keeps in the folder. */
+    private fun isStoredName(name: String): Boolean =
+        name.endsWith(BackupFileNames.JSON_SUFFIX) ||
+            name.endsWith(BackupFileNames.MARKDOWN_SUFFIX)
 
     /** The file the newest backup is in, or null when there is none. */
     private fun newestName(context: Context): String? = info(context)?.name
@@ -280,6 +394,13 @@ object DownloadsBackup {
         }
         val keep = BackupFileNames.keptNames(entries.map { it.name to it.lastModified })
         return entries
+            // Restore parses JSON, so only JSON files are offered: the Markdown
+            // copy and an exported archive sit in the same folder and are not
+            // backups, and picking one would fail to parse rather than restore.
+            // The suffix is matched without case: a backup copied in from
+            // elsewhere can arrive as `archive.JSON`, and it restores just
+            // as well as the name this app writes.
+            .filter { it.name.endsWith(BackupFileNames.JSON_SUFFIX, ignoreCase = true) }
             .filter { !BackupFileNames.isOurBackupName(it.name) || it.name in keep }
             .sortedByDescending { it.lastModified }
     }
@@ -297,7 +418,7 @@ object DownloadsBackup {
             )?.use { cursor ->
                 while (cursor.moveToNext()) {
                     val name = cursor.getString(0)
-                    if (name != null && name.endsWith(BackupFileNames.JSON_SUFFIX)) {
+                    if (name != null && isStoredName(name)) {
                         entries += Entry(name, cursor.getLong(1) * MILLIS_PER_SECOND)
                     }
                 }
@@ -305,7 +426,7 @@ object DownloadsBackup {
             return entries
         }
         return legacyDir()
-            .listFiles { file -> file.isFile && file.name.endsWith(BackupFileNames.JSON_SUFFIX) }
+            .listFiles { file -> file.isFile && isStoredName(file.name) }
             ?.map { Entry(it.name, it.lastModified()) }
             .orEmpty()
     }
@@ -338,7 +459,7 @@ object DownloadsBackup {
      * folder to a single file.
      */
     @RequiresApi(Build.VERSION_CODES.Q)
-    private fun writeViaMediaStore(context: Context, json: String, name: String) {
+    private fun writeViaMediaStore(context: Context, json: String, name: String, mimeType: String) {
         val resolver = context.contentResolver
         val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
         val exact = findFile(resolver, collection, name)
@@ -346,7 +467,7 @@ object DownloadsBackup {
         // The exact name belongs to an older installation; replace the copy we own.
         val copy = newestCopyUri(context, resolver, collection, name)
         if (copy != null && replace(resolver, copy, json)) return
-        insertNewFile(resolver, collection, name, json)
+        insertNewFile(resolver, collection, name, json, mimeType)
     }
 
     /** Replaces the contents; false only when the file is not this app's to replace. */
@@ -358,7 +479,7 @@ object DownloadsBackup {
         throw failure
     }
 
-    /** The newest copy of the backup file the media store shows this app. */
+    /** The newest numbered copy of the file called [name] the media store shows this app. */
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun newestCopyUri(
         context: Context,
@@ -367,7 +488,7 @@ object DownloadsBackup {
         name: String
     ): Uri? {
         val copy = readEntries(context)
-            .filter { it.name != name && BackupFileNames.isNumberedCopy(it.name) }
+            .filter { BackupFileNames.isNumberedCopy(it.name, name) }
             .maxByOrNull { it.lastModified }
             ?: return null
         return findFile(resolver, collection, copy.name)
@@ -416,12 +537,20 @@ object DownloadsBackup {
 
     /** Creates the file the first time a backup is written. */
     @RequiresApi(Build.VERSION_CODES.Q)
-    private fun insertNewFile(resolver: ContentResolver, collection: Uri, name: String, json: String) {
-        val created = insertPendingFile(resolver, collection, name)
+    private fun insertNewFile(
+        resolver: ContentResolver,
+        collection: Uri,
+        name: String,
+        json: String,
+        mimeType: String
+    ) {
+        val created = insertPendingFile(resolver, collection, name, mimeType)
             ?: error("Could not create the backup file in Downloads")
         // The media store numbers the name when an older file holds it; keep that copy.
+        // Only a name belonging to the file this write is for is accepted, so a write
+        // for one file can never settle on another.
         val actual = displayName(resolver, created)
-        if (actual != null && BackupFileNames.isOurBackupName(actual)) {
+        if (actual != null && BackupFileNames.isOurBackupName(actual, name)) {
             publishOrDiscard(resolver, created, json)
             return
         }
@@ -473,11 +602,12 @@ object DownloadsBackup {
     private fun insertPendingFile(
         resolver: ContentResolver,
         collection: Uri,
-        name: String
+        name: String,
+        mimeType: String
     ): Uri? {
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, name)
-            put(MediaStore.MediaColumns.MIME_TYPE, MIME_TYPE)
+            put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
             put(MediaStore.MediaColumns.RELATIVE_PATH, RELATIVE_DIR)
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
@@ -504,19 +634,11 @@ object DownloadsBackup {
     private fun readViaMediaStore(context: Context, name: String): String? {
         val resolver = context.contentResolver
         val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
-        resolver.query(
-            collection,
-            arrayOf(MediaStore.MediaColumns._ID),
-            selection(),
-            selectionArgs(name),
-            null
-        )?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                val uri: Uri = ContentUris.withAppendedId(collection, cursor.getLong(0))
-                return resolver.openInputStream(uri)?.use { it.readBytes().decodeToString() }
-            }
-        }
-        return null
+        // The exact name is preferred; the numbered copy a write falls back to is
+        // read when the exact name is not there, matching the write path.
+        val uri = findFile(resolver, collection, name)
+            ?: newestCopyUri(context, resolver, collection, name)
+        return uri?.let { readBack(resolver, it) }
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)

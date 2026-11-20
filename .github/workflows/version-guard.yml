@@ -142,21 +142,65 @@ jobs:
             exit 0
           fi
 
-          # 2. versionName must be strict SemVer and greater than the latest release's versionName.
-          if ! echo "$pr_name" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+          # 2. versionName must be X.Y.Z, optionally with a pre-release suffix, and greater
+          #    than the latest release's versionName.
+          if ! echo "$pr_name" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
             echo "versionName is not strict SemVer (X.Y.Z): $pr_name"
             echo "bumped=false" >> "$GITHUB_OUTPUT"
             echo "reason=name" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if [ -n "$latest_name" ]; then
-            highest=$(printf '%s\n%s\n' "$latest_name" "$pr_name" | sort -V | tail -n1)
-            if [ "$pr_name" = "$latest_name" ] || [ "$highest" != "$pr_name" ]; then
-              echo "versionName not bumped: $pr_name <= $latest_name"
-              echo "bumped=false" >> "$GITHUB_OUTPUT"
-              echo "reason=name" >> "$GITHUB_OUTPUT"
-              exit 0
+          # SemVer precedence, which `sort -V` cannot answer: it ranks
+          # `1.0.31-beta01` above `1.0.31`, while SemVer puts the stable release
+          # first. Promoting a pre-release to its own release would otherwise be
+          # blocked until a later version existed. The versionCode check above
+          # still has to pass first, so a stable release is only accepted when its
+          # versionCode is higher than the latest tag's.
+          semver_gt() {
+            local a="$1" b="$2"
+            local a_core="${a%%-*}" b_core="${b%%-*}"
+            local a_pre="" b_pre=""
+            case "$a" in *-*) a_pre="${a#*-}" ;; esac
+            case "$b" in *-*) b_pre="${b#*-}" ;; esac
+            if [ "$a_core" != "$b_core" ]; then
+              [ "$(printf '%s\n%s\n' "$a_core" "$b_core" | sort -V | tail -n1)" = "$a_core" ]
+              return
             fi
+            # Same core: the release without a pre-release suffix has precedence.
+            if [ -z "$a_pre" ] && [ -z "$b_pre" ]; then return 1; fi
+            if [ -z "$a_pre" ]; then return 0; fi
+            if [ -z "$b_pre" ]; then return 1; fi
+            local IFS='.'
+            local -a a_parts=($a_pre)
+            local -a b_parts=($b_pre)
+            unset IFS
+            local i=0 a_seg="" b_seg=""
+            while [ "$i" -lt "${#a_parts[@]}" ] || [ "$i" -lt "${#b_parts[@]}" ]; do
+              a_seg="${a_parts[$i]:-}"
+              b_seg="${b_parts[$i]:-}"
+              i=$((i + 1))
+              [ "$a_seg" = "$b_seg" ] && continue
+              # Fewer identifiers sorts lower when everything before it matched.
+              if [ -z "$a_seg" ]; then return 1; fi
+              if [ -z "$b_seg" ]; then return 0; fi
+              if [[ "$a_seg" =~ ^[0-9]+$ && "$b_seg" =~ ^[0-9]+$ ]]; then
+                [ "$a_seg" -gt "$b_seg" ]
+                return
+              fi
+              # A numeric identifier always sorts below an alphanumeric one.
+              if [[ "$a_seg" =~ ^[0-9]+$ ]]; then return 1; fi
+              if [[ "$b_seg" =~ ^[0-9]+$ ]]; then return 0; fi
+              [ "$a_seg" \> "$b_seg" ]
+              return
+            done
+            return 1
+          }
+
+          if [ -n "$latest_name" ] && ! semver_gt "$pr_name" "$latest_name"; then
+            echo "versionName not bumped: $pr_name <= $latest_name"
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            echo "reason=name" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
           # 3. No other open pull request into main may claim the same versionCode.
@@ -199,6 +243,14 @@ jobs:
             exit 0
           fi
 
+          # The same three words decide a pre-release here as in the release
+          # workflow, so the two never disagree about what a suffix means.
+          if echo "$pr_name" | grep -qiE '(^|[.-])(alpha|beta|rc)[0-9]*([.-]|$)'; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::versionName $pr_name is a pre-release (alpha, beta or rc)."
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
           echo "Version bump OK: versionCode $pr_code > ${latest_code:-none}, versionName $pr_name > ${latest_name:-none}"
           echo "bumped=true" >> "$GITHUB_OUTPUT"
 

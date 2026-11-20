@@ -88,6 +88,7 @@ internal fun AppRoot(
         allTags = allTags,
         autoBackupStatus = autoBackupStatus,
         importOutcome = importOutcome,
+        markdownCopy = viewModel.markdownCopy,
         homeSnackbarHostState = homeSnackbarHostState,
         snackbarHeight = snackbarHeight,
         drawerState = drawerState,

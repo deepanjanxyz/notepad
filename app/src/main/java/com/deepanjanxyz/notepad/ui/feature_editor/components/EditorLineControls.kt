@@ -9,9 +9,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.byValue
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -33,6 +34,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
+import com.deepanjanxyz.notepad.ui.components.StatefulBasicTextField
 import com.deepanjanxyz.notepad.ui.theme.AppColors
 
 // Width of the leading slot every line shares, so their words all start together.
@@ -78,9 +80,13 @@ internal fun RowScope.LineItemText(
     onTextChange: (segmentIndex: Int, text: String) -> Unit,
     onSplitSegment: (segmentIndex: Int) -> Unit
 ) {
-    BasicTextField(
+    StatefulBasicTextField(
         value = text,
-        onValueChange = { newText -> onTextChange(segmentIndex, newText.replace('\n', ' ')) },
+        onValueChange = { newText -> onTextChange(segmentIndex, newText) },
+        lineLimits = TextFieldLineLimits.SingleLine,
+        inputTransformation = InputTransformation.byValue { _, proposed ->
+            proposed.toString().replace('\n', ' ')
+        },
         textStyle = TextStyle(
             fontSize = LINE_FONT_SIZE,
             fontWeight = FontWeight.Normal,
@@ -89,12 +95,10 @@ internal fun RowScope.LineItemText(
             lineHeight = LINE_HEIGHT
         ),
         cursorBrush = SolidColor(amberAccent),
-        singleLine = true,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-        keyboardActions = KeyboardActions(
-            onNext = { onSplitSegment(segmentIndex) },
-            onDone = { onSplitSegment(segmentIndex) }
-        ),
+        onKeyboardAction = {
+            onSplitSegment(segmentIndex)
+        },
         modifier = Modifier
             .weight(1f)
             .padding(horizontal = LINE_TEXT_PADDING)

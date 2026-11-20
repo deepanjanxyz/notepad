@@ -34,7 +34,11 @@ fun findConfig(key: String): String? = sequenceOf(
 
 android {
     namespace = "com.deepanjanxyz.notepad"
-    compileSdk = 37
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 2
+        }
+    }
 
     defaultConfig {
         applicationId = "com.deepanjanxyz.notepad"
@@ -135,7 +139,7 @@ dependencies {
     implementation(project(":domain"))
     implementation(project(":features"))
 
-    implementation(platform("androidx.compose:compose-bom:2026.09.00"))
+    implementation(platform("androidx.compose:compose-bom:2026.11.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")

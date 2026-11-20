@@ -24,7 +24,7 @@ jobs:
       code_changed: ${{ steps.diff.outputs.code_changed }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
@@ -50,21 +50,23 @@ jobs:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
       - name: Set up JDK 25
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@v6.3.0
         with:
           distribution: 'temurin'
           java-version: '25'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v6.4.1
 
-      - name: Set up Android SDK (platform 37)
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
+      - name: Set up Android SDK tools and accept licenses
+        uses: android-actions/setup-android@v4.0.4
+        with:
+          packages: ''
 
       - name: Read the version from app/build.gradle.kts
         id: version
@@ -364,7 +366,11 @@ jobs:
 
       - name: Verify APK signatures
         run: |
-          build_tools="$ANDROID_HOME/build-tools/36.0.0"
+          apksigner=$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/build-tools" -mindepth 2 -maxdepth 2 -type f -name apksigner -print | sort -V | tail -n1)
+          if [ -z "$apksigner" ]; then
+            echo "🔴 apksigner was not installed by the Android Gradle Plugin."
+            exit 1
+          fi
           shopt -s nullglob
           apks=(app/build/outputs/apk/release/*.apk)
           if [ "${#apks[@]}" -eq 0 ]; then
@@ -373,7 +379,7 @@ jobs:
           fi
           for apk in "${apks[@]}"; do
             echo "Verifying $apk"
-            "$build_tools/apksigner" verify --verbose "$apk"
+            "$apksigner" verify --verbose "$apk"
           done
 
       - name: Append SHA-256 checksums

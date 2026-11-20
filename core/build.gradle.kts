@@ -6,7 +6,11 @@ plugins {
 
 android {
     namespace = "com.deepanjanxyz.notepad.core"
-    compileSdk = 37
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 2
+        }
+    }
 
     defaultConfig {
         minSdk = 24
@@ -24,7 +28,7 @@ android {
 }
 
 dependencies {
-    implementation(platform("androidx.compose:compose-bom:2026.09.00"))
+    implementation(platform("androidx.compose:compose-bom:2026.11.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")

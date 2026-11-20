@@ -9,7 +9,7 @@ single responsibility, so it is easy to see what runs, when, and why.
 |---|---|---|---|
 | [`ci.yml`](./ci.yml) | CI | `push` to `main`, plus manual | Runs the unit tests and a debug build on a push, then uploads the test reports, so a merged tree is verified after the merge. Pull request checks live in `universal-pr-check.yml`, so the same build and tests are not run twice. |
 | [`mirror.yml`](./mirror.yml) | Multi-Platform Smart Auto Mirroring | `push` of any branch or tag | Materializes every branch locally, then mirrors all branches and tags to GitLab and Codeberg as two separate jobs. It force-syncs only when a normal push is rejected as a divergence (non-fast-forward or an existing tag); any other failure (auth, network, hooks) is reported instead of force-pushing. The run stays green while either host accepts the push and turns red only when both fail, and any failure opens (or comments on) a `bug` issue naming the host that failed; once both hosts are syncing again it closes that issue, and it only ever touches the issue it opened itself. |
-| [`universal-pr-check.yml`](./universal-pr-check.yml) | Universal PR Check | `pull_request` (opened, synchronize, reopened) to `main` and `dev` | Runs the build, unit tests, lint, detekt and a secret scan as parallel jobs on JDK 21, then posts a single status-table comment on the PR and blocks the merge if any check fails. |
+| [`universal-pr-check.yml`](./universal-pr-check.yml) | Universal PR Check | `pull_request` (opened, synchronize, reopened) to `main` and `dev` | Runs the build, unit tests, lint, detekt and a secret scan as parallel jobs on JDK 25, then posts a single status-table comment on the PR and blocks the merge if any check fails. |
 | [`version-guard.yml`](./version-guard.yml) | Version Guard | `pull_request` (opened, ready_for_review, synchronize, reopened) to `main`, plus `workflow_dispatch` | Requires a version bump only when shipping files change (a deep diff check ignores docs, images, comments and whitespace-only edits); otherwise it posts one sticky comment asking for a bump. |
 | [`version-bump.yml`](./version-bump.yml) | Version Bump | `issue_comment` (created) | Turns an authorised `/bump-version` comment on a `main` pull request into a version bump on that branch, then re-fires the guard. Any other comment does nothing. |
 | [`auto-release.yml`](./auto-release.yml) | Auto Release | `push` to `main` | On a merge that changes a shipping file, publishes a GitHub release tagged `v<versionName>` with the signed, renamed APKs and traced release notes. |
@@ -69,9 +69,10 @@ does not run on plain `push`.
 | Secret scan | `gitleaks/gitleaks-action@v3` | Scans the checkout for hardcoded secrets. |
 
 **Environment.** Every job runs on `ubuntu-latest`, checks out with full history
-(`fetch-depth: 0`), sets up Temurin **JDK 21**, and configures Gradle caching via
-`gradle/actions/setup-gradle`. The JDK matches the project: every module compiles
-against `sourceCompatibility`/`targetCompatibility` `JavaVersion.VERSION_21`. The
+(`fetch-depth: 0`), sets up Temurin **JDK 25**, and configures Gradle caching via
+`gradle/actions/setup-gradle`. JDK 25 runs Gradle and the Android build; the
+project's Java source and bytecode compatibility remains explicitly Java 21
+(`JavaVersion.VERSION_21`) in each module. The
 Android SDK platform the project builds against (`compileSdk`) is installed
 before the Gradle build.
 

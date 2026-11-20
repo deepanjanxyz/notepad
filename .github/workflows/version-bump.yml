@@ -29,7 +29,7 @@ jobs:
     steps:
       - name: Authorize the command
         id: gate
-        uses: actions/github-script@v9
+        uses: actions/github-script@v9.0.0
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -79,13 +79,14 @@ jobs:
             }
 
             out('head_ref', pr.data.head.ref);
+            out('base_sha', pr.data.base.sha);
             out('pr_number', String(issue.number));
             out('proceed', 'true');
             out('reason', 'ok');
 
       - name: Checkout the pull request branch
         if: steps.gate.outputs.proceed == 'true'
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           ref: ${{ steps.gate.outputs.head_ref }}
           fetch-depth: 0
@@ -97,11 +98,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.issue.number }}
+          BASE_SHA: ${{ steps.gate.outputs.base_sha }}
         run: |
           set -euo pipefail
 
+          # Use the trusted base-branch helper, not a copy supplied by the PR.
+          git show "$BASE_SHA:.github/scripts/semver.py" > "$RUNNER_TEMP/semver.py"
+          semver="$RUNNER_TEMP/semver.py"
+
           # The same rules the version guard enforces: above the latest release.
-          latest_tag=$(git tag --list 'v*' --sort=-v:refname | head -n1 || true)
+          latest_tag=$(git tag --list 'v*' | python3 "$semver" max)
           latest_name=""
           latest_code=""
           if [ -n "$latest_tag" ]; then
@@ -158,9 +164,12 @@ jobs:
 
           base_name="$cur_name"
           if [ -n "$latest_name" ]; then
-            base_name=$(printf '%s\n%s\n' "$latest_name" "$cur_name" | sort -V | tail -n1)
+            base_name=$(printf '%s\n%s\n' "$latest_name" "$cur_name" | python3 "$semver" max)
           fi
-          IFS=. read -r major minor patch <<< "$base_name"
+          # A pre-release suffix is not part of the number that gets bumped.
+          base_core="${base_name%%-*}"
+          base_core="${base_core%%+*}"
+          IFS=. read -r major minor patch <<< "$base_core"
           if ! [[ "$major" =~ ^[0-9]+$ && "$minor" =~ ^[0-9]+$ && "$patch" =~ ^[0-9]+$ ]]; then
             echo "::error::versionName '$base_name' is not a strict X.Y.Z value."
             exit 1
@@ -236,7 +245,7 @@ jobs:
 
       - name: Report the outcome
         if: always()
-        uses: actions/github-script@v9
+        uses: actions/github-script@v9.0.0
         env:
           PROCEED: ${{ steps.gate.outputs.proceed }}
           REASON: ${{ steps.gate.outputs.reason }}

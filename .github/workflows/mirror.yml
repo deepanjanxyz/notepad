@@ -28,7 +28,7 @@ jobs:
 
     steps:
       - name: Checkout Repository with Full History
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -111,7 +111,7 @@ jobs:
 
       - name: Upload GitLab log
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: gitlab-mirror-log
           path: ${{ runner.temp }}/gitlab-mirror.log
@@ -127,7 +127,7 @@ jobs:
 
     steps:
       - name: Checkout Repository with Full History
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -208,7 +208,7 @@ jobs:
 
       - name: Upload Codeberg log
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: codeberg-mirror-log
           path: ${{ runner.temp }}/codeberg-mirror.log
@@ -228,7 +228,7 @@ jobs:
     steps:
       - name: Download mirror logs
         continue-on-error: true
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.2
         with:
           path: mirror-logs
           merge-multiple: true

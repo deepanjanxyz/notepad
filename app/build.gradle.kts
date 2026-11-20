@@ -34,14 +34,18 @@ fun findConfig(key: String): String? = sequenceOf(
 
 android {
     namespace = "com.deepanjanxyz.notepad"
-    compileSdk = 37
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 2
+        }
+    }
 
     defaultConfig {
         applicationId = "com.deepanjanxyz.notepad"
         minSdk = 24
         targetSdk = 37
-        versionCode = 30
-        versionName = "1.0.30"
+        versionCode = 31
+        versionName = "1.0.31-beta01"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -135,7 +139,7 @@ dependencies {
     implementation(project(":domain"))
     implementation(project(":features"))
 
-    implementation(platform("androidx.compose:compose-bom:2026.09.00"))
+    implementation(platform("androidx.compose:compose-bom:2026.11.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
@@ -144,11 +148,11 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.1")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.1")
     implementation("androidx.core:core-ktx:1.19.1")
     implementation("androidx.core:core-splashscreen:1.2.0")
     implementation("androidx.fragment:fragment-ktx:1.9.1")
-    implementation("androidx.biometric:biometric:1.4.0-beta01")
+    implementation("androidx.biometric:biometric:1.4.0-rc01")
 
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.12.0")

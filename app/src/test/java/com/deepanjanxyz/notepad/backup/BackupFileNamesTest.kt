@@ -147,4 +147,12 @@ class BackupFileNamesTest {
         assertTrue(BackupFileNames.previousName("elite-memo-backup.json").endsWith(".json"))
         assertFalse(BackupFileNames.isOurBackupName(BackupFileNames.partialName("notes.json")))
     }
+
+    @Test
+    fun testTheMarkdownFileIsNotACopyOfTheBackup() {
+        assertFalse(BackupFileNames.isNumberedCopy("elite-memo-backup (1).json", "elite-memo-notes.md"))
+        assertFalse(BackupFileNames.isOurBackupName("elite-memo-backup.json", "elite-memo-notes.md"))
+        assertTrue(BackupFileNames.isNumberedCopy("elite-memo-notes (1).md", "elite-memo-notes.md"))
+        assertTrue(BackupFileNames.isOurBackupName("elite-memo-notes (2).md", "elite-memo-notes.md"))
+    }
 }

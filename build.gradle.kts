@@ -15,10 +15,10 @@ buildscript {
 }
 
 plugins {
-    id("com.android.application") version "9.5.1" apply false
+    id("com.android.application") version "9.5.2" apply false
     id("com.android.library") version "9.5.1" apply false
     id("org.jetbrains.kotlin.plugin.compose") version "2.4.21" apply false
-    id("com.google.devtools.ksp") version "2.3.13" apply false
+    id("com.google.devtools.ksp") version "2.3.14" apply false
     id("androidx.room") version "2.8.5" apply false
     id("dev.detekt") version "2.0.0-alpha.6" apply false
 }
@@ -42,5 +42,13 @@ subprojects {
 
     tasks.withType<dev.detekt.gradle.Detekt>().configureEach {
         jvmTarget.set("21")
+    }
+
+    // Treat Kotlin compiler warnings as errors across every Android/Kotlin module.
+    // This does not promote Gradle, Android SDK, or third-party tool warnings.
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
+        compilerOptions {
+            allWarningsAsErrors.set(true)
+        }
     }
 }

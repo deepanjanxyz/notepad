@@ -47,6 +47,7 @@ The app is **local-first**: notes, labels and settings live in an on-device Room
 
 **Extras**
 - Home-screen widget: pin checklist notes and tick items off without opening the app.
+- Note shortcut widget: keep one note on the home screen; a single cell shows its title, and a larger one shows the note's text or a thumbnail of its drawing.
 - Share a note as plain text.
 - Back up and restore all notes to a JSON file in Downloads, with optional automatic backups.
 - Counts for active notes, pinned notes and words in Settings.
@@ -100,7 +101,7 @@ Planned work, roughly in order. Priorities can shift, and issues or pull request
 - [ ] **Drawing improvements** — custom colours, canvas zoom and pan, and stylus-pressure pen width where the device supports it.
 - [ ] **Encrypted backup** — a password-protected, encrypted backup file beside the JSON one, restorable on another device, with no cloud or server.
 - [ ] **Reading & editor customization** — font size, line spacing and a distraction-free reading view.
-- [ ] **Markdown export/import** — export and import notes as Markdown and share several notes at once, staying compatible with the current format.
+- [x] **Markdown export/import** — export and import notes as Markdown and share several notes at once, staying compatible with the current format.
 
 ## License
 

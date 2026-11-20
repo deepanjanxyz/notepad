@@ -12,7 +12,7 @@
     android:targetCellHeight="2"
     android:updatePeriodMillis="0"
     android:initialLayout="@layout/widget_note_shortcut"
-    android:previewLayout="@layout/widget_note_shortcut"
+    android:previewImage="@drawable/widget_note_shortcut_preview"
     android:description="@string/widget_note_shortcut_desc"
     android:configure="com.deepanjanxyz.notepad.widget.NoteShortcutConfigureActivity"
     android:resizeMode="horizontal|vertical"

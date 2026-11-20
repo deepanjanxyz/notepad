@@ -107,8 +107,8 @@ jobs:
       - name: Validate version
         run: |
           version="${{ steps.version.outputs.version }}"
-          if ! echo "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
-            echo "🔴 Release failed: versionName '$version' is not SemVer (X.Y.Z or X.Y.Z-suffix)."
+          if ! python3 .github/scripts/semver.py compare "$version" "$version" >/dev/null; then
+            echo "🔴 Release failed: versionName '$version' is not valid SemVer."
             exit 1
           fi
           code="${{ steps.version.outputs.version_code }}"
@@ -124,7 +124,7 @@ jobs:
           set -euo pipefail
           vn="${{ steps.version.outputs.version }}"
           vc="${{ steps.version.outputs.version_code }}"
-          latest_tag=$(git tag --list 'v*' | python3 .github/scripts/semver.py max || true)
+          latest_tag=$(git tag --list 'v*' | python3 .github/scripts/semver.py max)
           if [ -z "$latest_tag" ]; then
             echo "No previous release; nothing to compare against."
             exit 0
@@ -136,7 +136,12 @@ jobs:
             echo "🔴 Release failed: versionCode $vc is not newer than $latest_tag ($latest_code). Re-bump and open a new pull request."
             exit 1
           fi
-          if [ "$(python3 .github/scripts/semver.py compare "$vn" "$latest_name")" -le 0 ]; then
+          comparison=$(python3 .github/scripts/semver.py compare "$vn" "$latest_name")
+          if ! [[ "$comparison" =~ ^-?[0-9]+$ ]]; then
+            echo "🔴 Release failed: SemVer comparison returned an invalid result."
+            exit 1
+          fi
+          if [ "$comparison" -le 0 ]; then
             echo "🔴 Release failed: versionName $vn is not newer than $latest_tag ($latest_name). Re-bump and open a new pull request."
             exit 1
           fi

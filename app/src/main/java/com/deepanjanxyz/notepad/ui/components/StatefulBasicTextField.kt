@@ -4,9 +4,11 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.InputTransformation
 import androidx.compose.foundation.text.input.KeyboardActionHandler
+import androidx.compose.foundation.text.input.TextFieldDecorator
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -24,6 +26,7 @@ import kotlinx.coroutines.flow.collect
  * state-based BasicTextField API. External changes are synchronized without
  * resetting the selection when the text already matches.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun StatefulBasicTextField(
     value: String,
@@ -35,7 +38,7 @@ internal fun StatefulBasicTextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     inputTransformation: InputTransformation? = null,
     onKeyboardAction: KeyboardActionHandler? = null,
-    decorator: @Composable (innerTextField: @Composable () -> Unit) -> Unit = { innerTextField ->
+    decorator: TextFieldDecorator = TextFieldDecorator { innerTextField ->
         innerTextField()
     }
 ) {

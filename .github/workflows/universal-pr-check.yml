@@ -442,10 +442,14 @@ jobs:
             fi
           } >> report.md
 
+          delimiter="REPORT_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
+          while grep -Fxq "$delimiter" report.md; do
+            delimiter="${delimiter}_X"
+          done
           {
-            echo "body<<EOF"
+            echo "body<<$delimiter"
             cat report.md
-            echo "EOF"
+            echo "$delimiter"
           } >> "$GITHUB_OUTPUT"
 
       - name: Find existing report comment

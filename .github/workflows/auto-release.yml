@@ -138,7 +138,10 @@ jobs:
             echo "🔴 Release failed: versionCode $vc is not newer than $latest_tag ($latest_code). Re-bump and open a new pull request."
             exit 1
           fi
-          comparison=$(python3 .github/scripts/semver.py compare "$vn" "$latest_name")
+          if ! comparison=$(python3 .github/scripts/semver.py compare "$vn" "$latest_name"); then
+            echo "🔴 Release failed: SemVer comparison could not be completed."
+            exit 1
+          fi
           if ! [[ "$comparison" =~ ^-?[0-9]+$ ]]; then
             echo "🔴 Release failed: SemVer comparison returned an invalid result."
             exit 1

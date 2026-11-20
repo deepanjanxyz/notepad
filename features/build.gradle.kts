@@ -36,5 +36,4 @@ dependencies {
     implementation("androidx.fragment:fragment-ktx:1.9.1")
     implementation("androidx.biometric:biometric:1.4.0-rc01")
 
-    testImplementation("junit:junit:4.13.2")
 }

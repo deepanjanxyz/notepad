@@ -189,33 +189,24 @@ private class MarkdownNotesParser {
 
     private fun appendLine(line: String) {
         val open = fence
-        if (open != null) {
-            if (closesFence(line, open)) fence = null
-            if (title != null) body += line
-            return
+        when {
+            open != null -> {
+                if (closesFence(line, open)) fence = null
+                if (title != null) body += line
+            }
+            line == FENCE_CLOSURE_MARKER && title != null -> removeSyntheticFence()
+            line.startsWith(NOTE_HEADING) -> {
+                collect()
+                title = line.removePrefix(NOTE_HEADING).trim()
+            }
+            title == null -> Unit
+            line.trim() == NOTE_BREAK -> collect()
+            isMarkedAsContent(line) -> body += unescaped(line.removePrefix(ESCAPE))
+            else -> {
+                openingFence(line)?.let { fence = it }
+                body += unescaped(line)
+            }
         }
-
-        if (line == FENCE_CLOSURE_MARKER && title != null) {
-            removeSyntheticFence()
-            return
-        }
-        if (line.startsWith(NOTE_HEADING)) {
-            collect()
-            title = line.removePrefix(NOTE_HEADING).trim()
-            return
-        }
-        if (title == null) return
-        if (line.trim() == NOTE_BREAK) {
-            collect()
-            return
-        }
-        if (isMarkedAsContent(line)) {
-            body += unescaped(line.removePrefix(ESCAPE))
-            return
-        }
-
-        openingFence(line)?.let { fence = it }
-        body += unescaped(line)
     }
 
     private fun removeSyntheticFence() {

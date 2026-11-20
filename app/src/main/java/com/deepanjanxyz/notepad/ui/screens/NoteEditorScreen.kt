@@ -23,7 +23,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -35,7 +35,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -66,6 +67,7 @@ import com.deepanjanxyz.notepad.domain.model.parseNoteSegments
 import com.deepanjanxyz.notepad.domain.model.renumberNumberedSegments
 import com.deepanjanxyz.notepad.domain.model.serializeNoteSegments
 import com.deepanjanxyz.notepad.ui.components.ReminderDialog
+import com.deepanjanxyz.notepad.ui.components.StatefulBasicTextField
 import com.deepanjanxyz.notepad.ui.feature_editor.components.EditorLinesContent
 import com.deepanjanxyz.notepad.ui.feature_editor.model.EditorFormat
 import com.deepanjanxyz.notepad.ui.feature_editor.model.asSegment
@@ -353,8 +355,15 @@ fun NoteEditorScreen(
             .sorted()
     }
 
-    val labelsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val colorSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val modalSheetEnabledValues = remember { setOf(SheetValue.Hidden, SheetValue.Expanded) }
+    val labelsSheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = modalSheetEnabledValues
+    )
+    val colorSheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = modalSheetEnabledValues
+    )
 
     Scaffold(
         containerColor = darkBackground,
@@ -497,7 +506,7 @@ fun NoteEditorScreen(
                 }
 
                 // Title Field
-                BasicTextField(
+                StatefulBasicTextField(
                     value = title,
                     onValueChange = { title = it },
                     textStyle = TextStyle(
@@ -506,7 +515,7 @@ fun NoteEditorScreen(
                         color = textPrimary
                     ),
                     cursorBrush = SolidColor(amberAccent),
-                    decorationBox = { innerTextField ->
+                    decorator = { innerTextField ->
                         Box {
                             if (title.isEmpty()) {
                                 Text(
@@ -541,9 +550,10 @@ fun NoteEditorScreen(
                         onDeleteSegment = { index -> deleteSegment(index) }
                     )
                 } else {
-                    BasicTextField(
+                    StatefulBasicTextField(
                         value = content,
                         onValueChange = { content = it },
+                        lineLimits = TextFieldLineLimits.MultiLine(),
                         textStyle = TextStyle(
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Normal,
@@ -551,7 +561,7 @@ fun NoteEditorScreen(
                             lineHeight = 26.sp
                         ),
                         cursorBrush = SolidColor(amberAccent),
-                        decorationBox = { innerTextField ->
+                        decorator = { innerTextField ->
                             Box(modifier = Modifier.heightIn(min = 200.dp)) {
                                 if (content.isEmpty()) {
                                     Text(

@@ -94,7 +94,6 @@ internal fun RowScope.LineItemText(
             lineHeight = LINE_HEIGHT
         ),
         cursorBrush = SolidColor(amberAccent),
-        singleLine = true,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
         onKeyboardAction = {
             onSplitSegment(segmentIndex)

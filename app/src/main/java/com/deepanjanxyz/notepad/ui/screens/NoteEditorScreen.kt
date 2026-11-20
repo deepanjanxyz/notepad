@@ -561,7 +561,7 @@ fun NoteEditorScreen(
                             lineHeight = 26.sp
                         ),
                         cursorBrush = SolidColor(amberAccent),
-                        decorationBox = { innerTextField ->
+                        decorator = { innerTextField ->
                             Box(modifier = Modifier.heightIn(min = 200.dp)) {
                                 if (content.isEmpty()) {
                                     Text(

@@ -7,9 +7,8 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Icon
@@ -28,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.domain.model.FIRST_LIST_NUMBER
 import com.deepanjanxyz.notepad.domain.model.NoteSegment
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
+import com.deepanjanxyz.notepad.ui.components.StatefulBasicTextField
 import com.deepanjanxyz.notepad.ui.feature_editor.model.EditorFormat
 import com.deepanjanxyz.notepad.ui.theme.AppColors
 
@@ -297,9 +297,10 @@ private fun RowScope.NewLineField(
     textPlaceholder: Color,
     amberAccent: Color
 ) {
-    BasicTextField(
+    StatefulBasicTextField(
         value = newItemText,
         onValueChange = onNewItemTextChange,
+        lineLimits = TextFieldLineLimits.SingleLine,
         textStyle = TextStyle(
             fontSize = LINE_FONT_SIZE,
             fontWeight = FontWeight.Normal,
@@ -309,7 +310,7 @@ private fun RowScope.NewLineField(
         cursorBrush = SolidColor(amberAccent),
         singleLine = true,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { onAddItem() }),
+        onKeyboardAction = { onAddItem() },
         decorationBox = { innerTextField ->
             Box(modifier = Modifier.fillMaxWidth()) {
                 if (newItemText.isEmpty()) {

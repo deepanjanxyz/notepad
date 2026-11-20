@@ -2,6 +2,7 @@ package com.deepanjanxyz.notepad.ui.components
 
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.InputTransformation
 import androidx.compose.foundation.text.input.KeyboardActionHandler
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
@@ -32,6 +33,7 @@ internal fun StatefulBasicTextField(
     cursorBrush: Brush = SolidColor(Color.Black),
     lineLimits: TextFieldLineLimits = TextFieldLineLimits.Default,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    inputTransformation: InputTransformation? = null,
     onKeyboardAction: KeyboardActionHandler? = null,
     decorator: @Composable (innerTextField: @Composable () -> Unit) -> Unit = { innerTextField ->
         innerTextField()
@@ -57,6 +59,7 @@ internal fun StatefulBasicTextField(
         cursorBrush = cursorBrush,
         lineLimits = lineLimits,
         keyboardOptions = keyboardOptions,
+        inputTransformation = inputTransformation,
         onKeyboardAction = onKeyboardAction,
         decorator = decorator
     )

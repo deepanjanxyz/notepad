@@ -58,10 +58,10 @@ jobs:
       - name: Assemble debug and release
         run: |
           if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
-            ./gradlew assembleDebug assembleRelease --no-daemon --parallel
+            ./gradlew assembleDebug assembleRelease --no-daemon --parallel --warning-mode all
           else
             echo "Release signing secrets are unavailable (for example on a pull request from a fork); building the debug variant only."
-            ./gradlew assembleDebug --no-daemon --parallel
+            ./gradlew assembleDebug --no-daemon --parallel --warning-mode all
           fi
 
   unit-tests:
@@ -92,7 +92,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run unit tests
-        run: ./gradlew testDebugUnitTest --no-daemon --parallel
+        run: ./gradlew testDebugUnitTest --no-daemon --parallel --warning-mode all
 
   lint:
     name: Android lint
@@ -124,7 +124,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run lint
-        run: ./gradlew lintDebug --no-daemon
+        run: ./gradlew lintDebug --no-daemon --warning-mode all
 
       - name: Count lint warnings
         id: count
@@ -199,7 +199,7 @@ jobs:
 
       - name: Run detekt
         if: steps.detect.outputs.configured == 'true'
-        run: ./gradlew detekt --no-daemon
+        run: ./gradlew detekt --no-daemon --warning-mode all
 
       - name: Collect detekt findings
         if: always()
@@ -281,7 +281,7 @@ jobs:
         continue-on-error: true
         run: |
           cd base-src
-          ./gradlew lintDebug detekt --no-daemon --parallel
+          ./gradlew lintDebug detekt --no-daemon --parallel --warning-mode all
 
       - name: Collect baseline findings
         if: always()

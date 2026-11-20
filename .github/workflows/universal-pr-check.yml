@@ -26,21 +26,21 @@ jobs:
       KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
       - name: Set up JDK 25
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@v6.3.0
         with:
           distribution: 'temurin'
           java-version: '25'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v6.4.1
 
       - name: Set up Android SDK tools and accept licenses
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@v4.0.4
         with:
           packages: ''
 
@@ -70,21 +70,21 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
       - name: Set up JDK 25
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@v6.3.0
         with:
           distribution: 'temurin'
           java-version: '25'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v6.4.1
 
       - name: Set up Android SDK tools and accept licenses
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@v4.0.4
         with:
           packages: ''
 
@@ -102,21 +102,21 @@ jobs:
       warnings: ${{ steps.count.outputs.warnings }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
       - name: Set up JDK 25
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@v6.3.0
         with:
           distribution: 'temurin'
           java-version: '25'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v6.4.1
 
       - name: Set up Android SDK tools and accept licenses
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@v4.0.4
         with:
           packages: ''
 
@@ -152,7 +152,7 @@ jobs:
 
       - name: Upload lint findings
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: head-lint-findings
           path: head-lint-findings.json
@@ -167,21 +167,21 @@ jobs:
       configured: ${{ steps.detect.outputs.configured }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
       - name: Set up JDK 25
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@v6.3.0
         with:
           distribution: 'temurin'
           java-version: '25'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v6.4.1
 
       - name: Set up Android SDK tools and accept licenses
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@v4.0.4
         with:
           packages: ''
 
@@ -219,7 +219,7 @@ jobs:
 
       - name: Upload detekt findings
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: head-detekt-findings
           path: head-detekt-findings.json
@@ -232,12 +232,12 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
       - name: Run gitleaks
-        uses: gitleaks/gitleaks-action@v3
+        uses: gitleaks/gitleaks-action@v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -247,28 +247,28 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout PR head (for the analysis helper)
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
       - name: Checkout base revision
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           path: base-src
           fetch-depth: 0
 
       - name: Set up JDK 25
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@v6.3.0
         with:
           distribution: 'temurin'
           java-version: '25'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v6.4.1
 
       - name: Set up Android SDK tools and accept licenses
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@v4.0.4
         with:
           packages: ''
 
@@ -297,7 +297,7 @@ jobs:
 
       - name: Upload baseline findings
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: base-findings
           path: base-findings.json
@@ -312,12 +312,12 @@ jobs:
     if: always()
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
 
       - name: Download analysis findings
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.2
         with:
           pattern: '*-findings'
           path: findings
@@ -450,7 +450,7 @@ jobs:
 
       - name: Find existing report comment
         if: github.event.pull_request.head.repo.fork == false
-        uses: peter-evans/find-comment@v4
+        uses: peter-evans/find-comment@v4.0.0
         id: find
         with:
           issue-number: ${{ github.event.pull_request.number }}
@@ -459,7 +459,7 @@ jobs:
 
       - name: Post or update report comment
         if: github.event.pull_request.head.repo.fork == false
-        uses: peter-evans/create-or-update-comment@v5
+        uses: peter-evans/create-or-update-comment@v5.0.0
         with:
           issue-number: ${{ github.event.pull_request.number }}
           comment-id: ${{ steps.find.outputs.comment-id }}
@@ -468,7 +468,7 @@ jobs:
 
       - name: Add thumbs up reaction on full success
         if: github.event.pull_request.head.repo.fork == false && needs.build.result == 'success' && needs.unit-tests.result == 'success' && needs.lint.result == 'success' && needs.detekt.result == 'success' && needs.secrets-scan.result == 'success'
-        uses: actions/github-script@v9
+        uses: actions/github-script@v9.0.0
         with:
           script: |
             await github.rest.reactions.createForIssue({

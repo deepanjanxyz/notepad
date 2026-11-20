@@ -38,9 +38,7 @@ internal fun StatefulBasicTextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     inputTransformation: InputTransformation? = null,
     onKeyboardAction: KeyboardActionHandler? = null,
-    decorator: TextFieldDecorator = TextFieldDecorator { innerTextField ->
-        innerTextField()
-    }
+    decorator: TextFieldDecorator? = null
 ) {
     val state = rememberTextFieldState(initialText = value)
     val currentOnValueChange by rememberUpdatedState(onValueChange)

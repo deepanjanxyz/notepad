@@ -133,6 +133,13 @@ class MarkdownNotesTest {
     }
 
     @Test
+    fun aLiteralFenceClosureMarkerSurvivesMarkdownRoundTrip() {
+        val content = "<!-- elite-memo-pro-fence-closure -->"
+        val restored = parseMarkdownNotes(buildMarkdownNotes(listOf(Note(title = "Marker", content = content))))
+        assertEquals(content, restored.single().content)
+    }
+
+    @Test
     fun aBackslashInANoteIsKeptAsWritten() {
         val content = "C:\\Users\\olivia\\notes"
 

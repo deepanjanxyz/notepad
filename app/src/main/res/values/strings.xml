@@ -22,6 +22,7 @@
     <string name="widget_title">Tasks</string>
     <string name="widget_refresh">Refresh tasks</string>
     <string name="widget_empty">Pin a checklist note to see its tasks here.</string>
+    <string name="widget_tasks_desc">Your checklist note\'s tasks, ticked off from the home screen.</string>
     <string name="snackbar_countdown_dismiss">Dismiss</string>
     <string name="widget_note_shortcut_title">Note shortcut</string>
     <string name="widget_note_untitled">Untitled Note</string>

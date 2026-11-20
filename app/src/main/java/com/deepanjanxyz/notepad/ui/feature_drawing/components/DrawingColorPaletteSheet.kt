@@ -240,7 +240,7 @@ private fun ThicknessSliderRow(
     val sliderState = remember {
         SliderState(
             value = selectedThickness,
-            valueRange = THICKNESS_SLIDER_MIN_DP..THICKNESS_SLIDER_MAX_DP,
+            trackRange = THICKNESS_SLIDER_MIN_DP..THICKNESS_SLIDER_MAX_DP,
             steps = 25
         )
     }

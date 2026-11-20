@@ -6,6 +6,8 @@ Keep notes organized with labels, colors, and pins. Search note titles, text, an
 
 Set a reminder for a note to receive a notification at the scheduled time. Choose light, dark, or system appearance. An optional app lock can request biometric authentication or the device credential when the app opens.
 
-Pin checklist notes to your home screen with a widget and tick items off without opening the app. Share a note as plain text, and back up or restore all your notes to a JSON file in Downloads.
+Pin checklist notes to your home screen with a widget and tick items off without opening the app. Add a shortcut widget for any single note: one tap opens it, and a larger cell shows the note's text or a preview of its drawing, in the note's own colour.
+
+Share a note as plain text, or move notes in and out as Markdown: export one note, a selection, or every note as separate .md files in a ZIP, and import Markdown or ZIP files back. Back up or restore all your notes to a JSON file in Downloads.
 
 Notes and labels are stored in the app's local Room database.

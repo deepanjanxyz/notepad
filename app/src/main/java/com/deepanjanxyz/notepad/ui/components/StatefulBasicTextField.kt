@@ -53,6 +53,15 @@ internal fun StatefulBasicTextField(
         }
     }
 
+    val keyboardAction = onKeyboardAction?.let { actionHandler ->
+        KeyboardActionHandler { performDefaultAction ->
+            // snapshotFlow forwards edits asynchronously. Flush the current editor
+            // value before a Done handler can commit the draft from external state.
+            currentOnValueChange(state.text.toString())
+            actionHandler.onKeyboardAction(performDefaultAction)
+        }
+    }
+
     BasicTextField(
         state = state,
         modifier = modifier,
@@ -61,7 +70,7 @@ internal fun StatefulBasicTextField(
         lineLimits = lineLimits,
         keyboardOptions = keyboardOptions,
         inputTransformation = inputTransformation,
-        onKeyboardAction = onKeyboardAction,
+        onKeyboardAction = keyboardAction,
         decorator = decorator
     )
 }

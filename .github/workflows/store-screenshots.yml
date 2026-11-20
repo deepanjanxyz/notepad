@@ -39,15 +39,10 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Install Android SDK platform 37
-        run: |
-          SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-          SDKMGR="$SDK/cmdline-tools/latest/bin/sdkmanager"
-          test -x "$SDKMGR" || SDKMGR="$(command -v sdkmanager)"
-          yes | "$SDKMGR" --licenses > /dev/null || true
-          "$SDKMGR" --install "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
-          # AGP resolves compileSdk 37 as "android-37" while sdkmanager installs it as "android-37.0".
-          ln -sfn "$SDK/platforms/android-37.0" "$SDK/platforms/android-37"
+      - name: Set up Android SDK tools and accept licenses
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ''
 
       - name: Make gradlew executable
         run: chmod +x gradlew

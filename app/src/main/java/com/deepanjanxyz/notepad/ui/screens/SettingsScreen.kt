@@ -1,6 +1,7 @@
 package com.deepanjanxyz.notepad.ui.screens
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.SettingsBrightness
 import androidx.compose.material.icons.filled.Upload
@@ -134,6 +136,11 @@ fun SettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val versionName = getAppVersionName(context)
 
+    var showLanguageDialog by remember { mutableStateOf(false) }
+    var selectedLanguage by remember {
+        mutableStateOf(context.getSharedPreferences("app_preferences", Context.MODE_PRIVATE)
+            .getString("app_language", "en") ?: "en")
+    }
     var showRestoreDialog by remember { mutableStateOf(false) }
     var availableBackups by remember { mutableStateOf(listOf<DownloadsBackup.Entry>()) }
     // How many backup files are actually present, detected from the folder.
@@ -484,6 +491,61 @@ fun SettingsScreen(
                         }
                     }
                 }
+            }
+
+            // App language selector. English is the first/default option; Bengali is second.
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                modifier = Modifier.fillMaxWidth().clickable { showLanguageDialog = true }
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Language, contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.app_language), style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold)
+                        Text(
+                            when (selectedLanguage) { "bn" -> "বাংলা"; "hi" -> "हिन्दी"; else -> "English" },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Text(stringResource(R.string.language_change), color = MaterialTheme.colorScheme.primary)
+                }
+            }
+
+            if (showLanguageDialog) {
+                AlertDialog(
+                    onDismissRequest = { showLanguageDialog = false },
+                    title = { Text(stringResource(R.string.choose_language)) },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            listOf("en" to "English", "bn" to "বাংলা", "hi" to "हिन्दी").forEach { (tag, label) ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                        .clickable {
+                                            selectedLanguage = tag
+                                            context.getSharedPreferences("app_preferences", Context.MODE_PRIVATE)
+                                                .edit().putString("app_language", tag).apply()
+                                            showLanguageDialog = false
+                                            (context as? Activity)?.recreate()
+                                        }.padding(horizontal = 12.dp, vertical = 14.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(label, modifier = Modifier.weight(1f))
+                                    if (selectedLanguage == tag) Text("✓", color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = { TextButton(onClick = { showLanguageDialog = false }) { Text(stringResource(R.string.language_close)) } }
+                )
             }
 
             // Security Settings Card

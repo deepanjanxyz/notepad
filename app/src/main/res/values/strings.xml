@@ -39,4 +39,8 @@
     <string name="widget_note_drawing_desc">Drawing preview</string>
     <string name="widget_note_choose_search">Search notes…</string>
     <string name="widget_note_choose_linked">Currently linked</string>
+    <string name="app_language">App language</string>
+    <string name="choose_language">Choose language</string>
+    <string name="language_change">Change</string>
+    <string name="language_close">Close</string>
 </resources>

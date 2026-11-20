@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Redo
@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deepanjanxyz.notepad.domain.model.CanvasGridType
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
+import com.deepanjanxyz.notepad.ui.components.StatefulBasicTextField
 
 // Spoken name of the drawing's title field.
 private const val TITLE_CONTENT_DESCRIPTION = "Drawing title"
@@ -158,10 +159,10 @@ private fun DrawingTitleField(
                 )
             )
         }
-        BasicTextField(
+        StatefulBasicTextField(
             value = title,
             onValueChange = onTitleChange,
-            singleLine = true,
+            lineLimits = TextFieldLineLimits.SingleLine,
             textStyle = TextStyle(
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Medium,

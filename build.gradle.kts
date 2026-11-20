@@ -43,4 +43,12 @@ subprojects {
     tasks.withType<dev.detekt.gradle.Detekt>().configureEach {
         jvmTarget.set("21")
     }
+
+    // Treat Kotlin compiler warnings as errors across every Android/Kotlin module.
+    // This does not promote Gradle, Android SDK, or third-party tool warnings.
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
+        compilerOptions {
+            allWarningsAsErrors.set(true)
+        }
+    }
 }

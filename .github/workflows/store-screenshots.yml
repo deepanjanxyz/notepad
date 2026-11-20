@@ -14,24 +14,24 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           ref: main
 
       - name: Checkout screenshot scripts
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           ref: ci/screenshots
           path: .ci
 
       - name: Set up JDK 25
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@v6.3.0
         with:
           distribution: 'temurin'
           java-version: '25'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v6.4.1
 
       - name: Enable KVM
         run: |
@@ -40,7 +40,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: Set up Android SDK tools and accept licenses
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@v4.0.4
         with:
           packages: ''
 
@@ -51,7 +51,7 @@ jobs:
         run: ./gradlew assembleDebug --no-daemon
 
       - name: Capture screenshots on emulator
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: 34
           target: google_apis
@@ -63,7 +63,7 @@ jobs:
 
       - name: Upload screenshots
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: screenshots
           path: screenshots/
@@ -71,7 +71,7 @@ jobs:
 
       - name: Upload notes and logs
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: notes-and-logs
           path: notes-and-logs/

@@ -103,6 +103,36 @@ class MarkdownNotesTest {
     }
 
     @Test
+    fun unfinishedFencedCodeDoesNotAbsorbTheNextNoteOrChangeOnImport() {
+        val first = Note(title = "Code", content = "~~~kotlin\nval value = 1")
+        val second = Note(title = "Next", content = "second note")
+
+        val restored = parseMarkdownNotes(buildMarkdownNotes(listOf(first, second)))
+
+        assertEquals(listOf("Code", "Next"), restored.map { it.title })
+        assertEquals(listOf(first.content, second.content), restored.map { it.content })
+    }
+
+    @Test
+    fun headingsAndSeparatorsInsideFencedCodeRemainLiteral() {
+        val content = "~~~\n## literal heading\n---\nC:\\Users\\me\n~~~"
+
+        val restored = parseMarkdownNotes(buildMarkdownNotes(listOf(Note(title = "Code", content = content))))
+
+        assertEquals(content, restored.single().content)
+    }
+
+    @Test
+    fun aFourSpaceIndentedFenceDoesNotCloseAnOpenFence() {
+        val text = "## Code\n\n~~~\ninside\n    ~~~\n## still inside\n~~~\n"
+
+        val restored = parseMarkdownNotes(text)
+
+        assertEquals(1, restored.size)
+        assertEquals("~~~\ninside\n    ~~~\n## still inside\n~~~", restored.single().content)
+    }
+
+    @Test
     fun aBackslashInANoteIsKeptAsWritten() {
         val content = "C:\\Users\\olivia\\notes"
 

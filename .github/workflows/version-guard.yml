@@ -106,7 +106,7 @@ jobs:
             exit 0
           fi
 
-          latest_tag=$(git tag --list 'v*' --sort=-v:refname | head -n1 || true)
+          latest_tag=$(git tag --list 'v*' | python3 .github/scripts/semver.py max)
           latest_name=""
           latest_code=""
           if [ -n "$latest_tag" ]; then
@@ -144,8 +144,8 @@ jobs:
 
           # 2. versionName must be X.Y.Z, optionally with a pre-release suffix, and greater
           #    than the latest release's versionName.
-          if ! echo "$pr_name" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
-            echo "versionName is not strict SemVer (X.Y.Z): $pr_name"
+          if ! python3 .github/scripts/semver.py compare "$pr_name" "$pr_name" >/dev/null; then
+            echo "versionName is not valid SemVer: $pr_name"
             echo "bumped=false" >> "$GITHUB_OUTPUT"
             echo "reason=name" >> "$GITHUB_OUTPUT"
             exit 0
@@ -156,51 +156,18 @@ jobs:
           # blocked until a later version existed. The versionCode check above
           # still has to pass first, so a stable release is only accepted when its
           # versionCode is higher than the latest tag's.
-          semver_gt() {
-            local a="$1" b="$2"
-            local a_core="${a%%-*}" b_core="${b%%-*}"
-            local a_pre="" b_pre=""
-            case "$a" in *-*) a_pre="${a#*-}" ;; esac
-            case "$b" in *-*) b_pre="${b#*-}" ;; esac
-            if [ "$a_core" != "$b_core" ]; then
-              [ "$(printf '%s\n%s\n' "$a_core" "$b_core" | sort -V | tail -n1)" = "$a_core" ]
-              return
+          if [ -n "$latest_name" ]; then
+            comparison=$(python3 .github/scripts/semver.py compare "$pr_name" "$latest_name")
+            if ! [[ "$comparison" =~ ^-?[0-9]+$ ]]; then
+              echo "::error::SemVer comparison returned an invalid result."
+              exit 1
             fi
-            # Same core: the release without a pre-release suffix has precedence.
-            if [ -z "$a_pre" ] && [ -z "$b_pre" ]; then return 1; fi
-            if [ -z "$a_pre" ]; then return 0; fi
-            if [ -z "$b_pre" ]; then return 1; fi
-            local IFS='.'
-            local -a a_parts=($a_pre)
-            local -a b_parts=($b_pre)
-            unset IFS
-            local i=0 a_seg="" b_seg=""
-            while [ "$i" -lt "${#a_parts[@]}" ] || [ "$i" -lt "${#b_parts[@]}" ]; do
-              a_seg="${a_parts[$i]:-}"
-              b_seg="${b_parts[$i]:-}"
-              i=$((i + 1))
-              [ "$a_seg" = "$b_seg" ] && continue
-              # Fewer identifiers sorts lower when everything before it matched.
-              if [ -z "$a_seg" ]; then return 1; fi
-              if [ -z "$b_seg" ]; then return 0; fi
-              if [[ "$a_seg" =~ ^[0-9]+$ && "$b_seg" =~ ^[0-9]+$ ]]; then
-                [ "$a_seg" -gt "$b_seg" ]
-                return
-              fi
-              # A numeric identifier always sorts below an alphanumeric one.
-              if [[ "$a_seg" =~ ^[0-9]+$ ]]; then return 1; fi
-              if [[ "$b_seg" =~ ^[0-9]+$ ]]; then return 0; fi
-              [ "$a_seg" \> "$b_seg" ]
-              return
-            done
-            return 1
-          }
-
-          if [ -n "$latest_name" ] && ! semver_gt "$pr_name" "$latest_name"; then
-            echo "versionName not bumped: $pr_name <= $latest_name"
-            echo "bumped=false" >> "$GITHUB_OUTPUT"
-            echo "reason=name" >> "$GITHUB_OUTPUT"
-            exit 0
+            if [ "$comparison" -le 0 ]; then
+              echo "versionName not bumped: $pr_name <= $latest_name"
+              echo "bumped=false" >> "$GITHUB_OUTPUT"
+              echo "reason=name" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
           fi
 
           # 3. No other open pull request into main may claim the same versionCode.

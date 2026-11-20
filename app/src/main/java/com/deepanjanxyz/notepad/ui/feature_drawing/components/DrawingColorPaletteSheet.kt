@@ -18,8 +18,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -234,6 +237,17 @@ private fun ThicknessSliderRow(
     selectedThickness: Float,
     onThicknessSelected: (Float) -> Unit
 ) {
+    val sliderState = remember {
+        SliderState(
+            value = selectedThickness,
+            valueRange = THICKNESS_SLIDER_MIN_DP..THICKNESS_SLIDER_MAX_DP,
+            steps = 25
+        )
+    }
+    LaunchedEffect(selectedThickness) {
+        sliderState.value = selectedThickness
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -247,10 +261,11 @@ private fun ThicknessSliderRow(
             modifier = Modifier.width(32.dp)
         )
         Slider(
-            value = selectedThickness,
-            onValueChange = { onThicknessSelected(it.roundToInt().toFloat()) },
-            valueRange = THICKNESS_SLIDER_MIN_DP..THICKNESS_SLIDER_MAX_DP,
-            steps = 25,
+            state = sliderState,
+            onValueChange = {
+                sliderState.value = it
+                onThicknessSelected(it.roundToInt().toFloat())
+            },
             colors = SliderDefaults.colors(
                 thumbColor = AppColors.Accent,
                 activeTrackColor = AppColors.Accent,

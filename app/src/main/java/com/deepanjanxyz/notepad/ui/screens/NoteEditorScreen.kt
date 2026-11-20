@@ -515,7 +515,7 @@ fun NoteEditorScreen(
                         color = textPrimary
                     ),
                     cursorBrush = SolidColor(amberAccent),
-                    decorationBox = { innerTextField ->
+                    decorator = { innerTextField ->
                         Box {
                             if (title.isEmpty()) {
                                 Text(

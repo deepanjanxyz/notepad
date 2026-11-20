@@ -162,6 +162,7 @@ jobs:
           fi
           # A pre-release suffix is not part of the number that gets bumped.
           base_core="${base_name%%-*}"
+          base_core="${base_core%%+*}"
           IFS=. read -r major minor patch <<< "$base_core"
           if ! [[ "$major" =~ ^[0-9]+$ && "$minor" =~ ^[0-9]+$ && "$patch" =~ ^[0-9]+$ ]]; then
             echo "::error::versionName '$base_name' is not a strict X.Y.Z value."

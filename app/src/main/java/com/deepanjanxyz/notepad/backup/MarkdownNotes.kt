@@ -153,7 +153,9 @@ private fun isFenceClosingLine(line: String): Boolean {
 
 /** True when [line] would be read as the separator or a note heading. */
 private fun isStructural(line: String): Boolean =
-    line.trim() == NOTE_BREAK || line.trimStart().startsWith(NOTE_HEADING)
+    line.trim() == NOTE_BREAK ||
+        line.trimStart().startsWith(NOTE_HEADING) ||
+        line == FENCE_CLOSURE_MARKER
 
 /** True when [line] carries the mark that says it is a line of the note. */
 private fun isMarkedAsContent(line: String): Boolean =
@@ -167,52 +169,67 @@ private fun isMarkedAsContent(line: String): Boolean =
  * with "## " headings. Every note comes back with a title and text only; the
  * fields the file does not carry keep their defaults.
  */
-fun parseMarkdownNotes(text: String): List<Note> {
-    val notes = mutableListOf<Note>()
-    var title: String? = null
-    var body = mutableListOf<String>()
+fun parseMarkdownNotes(text: String): List<Note> = MarkdownNotesParser().parse(text)
 
-    fun collect() {
+/**
+ * Stateful line parser kept separate from the public entry point so each
+ * structural decision stays small and independently auditable.
+ */
+private class MarkdownNotesParser {
+    private val notes = mutableListOf<Note>()
+    private var title: String? = null
+    private val body = mutableListOf<String>()
+    private var fence: Fence? = null
+
+    fun parse(text: String): List<Note> {
+        text.replace("\r\n", "\n").split("\n").forEach(::appendLine)
+        collect()
+        return notes
+    }
+
+    private fun appendLine(line: String) {
+        val open = fence
+        if (open != null) {
+            if (closesFence(line, open)) fence = null
+            if (title != null) body += line
+            return
+        }
+
+        if (line == FENCE_CLOSURE_MARKER && title != null) {
+            removeSyntheticFence()
+            return
+        }
+        if (line.startsWith(NOTE_HEADING)) {
+            collect()
+            title = line.removePrefix(NOTE_HEADING).trim()
+            return
+        }
+        if (title == null) return
+        if (line.trim() == NOTE_BREAK) {
+            collect()
+            return
+        }
+        if (isMarkedAsContent(line)) {
+            body += unescaped(line.removePrefix(ESCAPE))
+            return
+        }
+
+        openingFence(line)?.let { fence = it }
+        body += unescaped(line)
+    }
+
+    private fun removeSyntheticFence() {
+        if (body.lastOrNull()?.let(::isFenceClosingLine) == true) {
+            body.removeAt(body.lastIndex)
+        }
+    }
+
+    private fun collect() {
         val heading = title ?: return
         val content = body.dropWhile { it.isBlank() }.joinToString("\n").trimEnd()
         val note = Note(title = heading, content = content)
         if (note.isBackupWorthy()) notes += note
         title = null
-        body = mutableListOf()
+        body.clear()
     }
-
-    var fence: Fence? = null
-
-    text.replace("\r\n", "\n").split("\n").forEach { line ->
-        val open = fence
-        when {
-            // Inside a fenced block nothing is structure and nothing is escaped:
-            // the export wrote those lines literally, so they are read back the
-            // same way, a separator or a note heading among them included.
-            open != null -> {
-                if (closesFence(line, open)) fence = null
-                title?.let { body += line }
-            }
-            line == FENCE_CLOSURE_MARKER && title != null -> {
-                if (body.lastOrNull()?.let(::isFenceClosingLine) == true) {
-                    body.removeAt(body.lastIndex)
-                }
-            }
-            line.startsWith(NOTE_HEADING) -> {
-                collect()
-                title = line.removePrefix(NOTE_HEADING).trim()
-            }
-            // Still inside the file's header: nothing to attach this line to yet.
-            title == null -> Unit
-            line.trim() == NOTE_BREAK -> collect()
-            // A line the export marked is a line of the note, whatever it looks like.
-            isMarkedAsContent(line) -> body += unescaped(line.removePrefix(ESCAPE))
-            else -> {
-                openingFence(line)?.let { opened -> fence = opened }
-                body += unescaped(line)
-            }
-        }
-    }
-    collect()
-    return notes
 }

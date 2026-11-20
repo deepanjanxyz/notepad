@@ -101,9 +101,7 @@ jobs:
           set -euo pipefail
 
           # The same rules the version guard enforces: above the latest release.
-          latest_tag=$(git tag --list 'v*' \
-            | sed -E 's/^(v[0-9]+\.[0-9]+\.[0-9]+)-/\1~/' \
-            | sort -V | tail -n1 | sed 's/~/-/' || true)
+          latest_tag=$(git tag --list 'v*' | python3 .github/scripts/semver.py max || true)
           latest_name=""
           latest_code=""
           if [ -n "$latest_tag" ]; then
@@ -160,7 +158,7 @@ jobs:
 
           base_name="$cur_name"
           if [ -n "$latest_name" ]; then
-            base_name=$(printf '%s\n%s\n' "$latest_name" "$cur_name" | sort -V | tail -n1)
+            base_name=$(printf '%s\n%s\n' "$latest_name" "$cur_name" | python3 .github/scripts/semver.py max)
           fi
           # A pre-release suffix is not part of the number that gets bumped.
           base_core="${base_name%%-*}"

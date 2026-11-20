@@ -28,6 +28,13 @@ def key(value):
     return major, minor, patch, 0, tuple(identifiers)
 
 
+def validate(value):
+    """Validate an unprefixed versionName (Git tags may carry a leading v)."""
+    if VERSION.fullmatch(value) is None:
+        raise ValueError(f"invalid SemVer versionName: {value}")
+    key(value)  # Also validates numeric prerelease identifiers.
+
+
 def compare(left, right):
     a, b = key(left), key(right)
     if a[:3] != b[:3]:
@@ -48,7 +55,9 @@ if len(sys.argv) == 2 and sys.argv[1] == "max":
     versions = [line.strip() for line in sys.stdin if line.strip()]
     if versions:
         print(max(versions, key=key))
+elif len(sys.argv) == 3 and sys.argv[1] == "validate":
+    validate(sys.argv[2])
 elif len(sys.argv) == 4 and sys.argv[1] == "compare":
     print(compare(sys.argv[2], sys.argv[3]))
 else:
-    raise SystemExit("usage: semver.py max | semver.py compare LEFT RIGHT")
+    raise SystemExit("usage: semver.py max | semver.py validate VERSION | semver.py compare LEFT RIGHT")

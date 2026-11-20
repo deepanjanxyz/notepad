@@ -27,6 +27,7 @@ private const val NOTE_HEADING = "## "
 /** A line of its own between two notes, and the mark that keeps it out of a body. */
 private const val NOTE_BREAK = "---"
 private const val ESCAPE = "\\"
+private const val FENCE_CLOSURE_MARKER = "<!-- elite-memo-pro-fence-closure -->"
 
 /** The shortest run of a fence character that CommonMark reads as a fence. */
 private const val FENCE_MIN = 3
@@ -77,7 +78,12 @@ private fun markdownSection(note: Note): String {
     // A note that ends inside a fence gets the fence closed here. Left open, the
     // block would run past the end of the note and swallow the next note's heading
     // when the file is read back, merging two notes into one.
-    fence?.let { open -> lines += open.marker.toString().repeat(open.length) }
+    fence?.let { open ->
+        lines += open.marker.toString().repeat(open.length)
+        // The importer removes this marker and synthetic fence so reimport
+        // preserves the original note content.
+        lines += FENCE_CLOSURE_MARKER
+    }
     val body = lines.joinToString("\n").trim('\n').trimEnd()
     return if (body.isEmpty()) NOTE_HEADING + title else NOTE_HEADING + title + "\n\n" + body
 }
@@ -134,6 +140,17 @@ private fun escaped(line: String): String {
 /** Puts back the backslashes [escaped] doubled. */
 private fun unescaped(line: String): String = line.replace(ESCAPE + ESCAPE, ESCAPE)
 
+/** True when [line] is a standalone closing fence, regardless of marker. */
+private fun isFenceClosingLine(line: String): Boolean {
+    val trimmed = line.trim()
+    val indent = line.length - line.trimStart().length
+    val marker = trimmed.firstOrNull()
+    return indent <= FENCE_INDENT_MAX &&
+        (marker == '`' || marker == '~') &&
+        trimmed.length >= FENCE_MIN &&
+        trimmed.all { it == marker }
+}
+
 /** True when [line] would be read as the separator or a note heading. */
 private fun isStructural(line: String): Boolean =
     line.trim() == NOTE_BREAK || line.trimStart().startsWith(NOTE_HEADING)
@@ -175,6 +192,11 @@ fun parseMarkdownNotes(text: String): List<Note> {
             open != null -> {
                 if (closesFence(line, open)) fence = null
                 title?.let { body += line }
+            }
+            line == FENCE_CLOSURE_MARKER && title != null -> {
+                if (body.lastOrNull()?.let(::isFenceClosingLine) == true) {
+                    body.removeAt(body.lastIndex)
+                }
             }
             line.startsWith(NOTE_HEADING) -> {
                 collect()

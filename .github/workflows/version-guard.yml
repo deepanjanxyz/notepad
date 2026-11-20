@@ -144,7 +144,7 @@ jobs:
 
           # 2. versionName must be X.Y.Z, optionally with a pre-release suffix, and greater
           #    than the latest release's versionName.
-          if ! python3 .github/scripts/semver.py compare "$pr_name" "$pr_name" >/dev/null; then
+          if ! python3 .github/scripts/semver.py validate "$pr_name"; then
             echo "versionName is not valid SemVer: $pr_name"
             echo "bumped=false" >> "$GITHUB_OUTPUT"
             echo "reason=name" >> "$GITHUB_OUTPUT"

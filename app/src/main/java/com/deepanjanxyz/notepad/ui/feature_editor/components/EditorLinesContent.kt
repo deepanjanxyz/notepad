@@ -308,10 +308,9 @@ private fun RowScope.NewLineField(
             lineHeight = LINE_HEIGHT
         ),
         cursorBrush = SolidColor(amberAccent),
-        singleLine = true,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
         onKeyboardAction = { onAddItem() },
-        decorationBox = { innerTextField ->
+        decorator = { innerTextField ->
             Box(modifier = Modifier.fillMaxWidth()) {
                 if (newItemText.isEmpty()) {
                     Text(

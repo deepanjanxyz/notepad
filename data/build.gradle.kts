@@ -5,6 +5,8 @@ plugins {
 }
 
 android {
+    // Pin SDK Build Tools across local, CI, and F-Droid builds.
+    buildToolsVersion = "36.0.0"
     namespace = "com.deepanjanxyz.notepad.data"
     compileSdk {
         version = release(37) {

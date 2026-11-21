@@ -42,7 +42,10 @@ jobs:
       - name: Set up Android SDK tools and accept licenses
         uses: android-actions/setup-android@v4.0.4
         with:
-          packages: ''
+          packages: |
+            platform-tools
+            platforms;android-37-ext2
+            build-tools;36.0.0
 
       - name: Decode release keystore
         run: |
@@ -86,7 +89,10 @@ jobs:
       - name: Set up Android SDK tools and accept licenses
         uses: android-actions/setup-android@v4.0.4
         with:
-          packages: ''
+          packages: |
+            platform-tools
+            platforms;android-37-ext2
+            build-tools;36.0.0
 
       - name: Make gradlew executable
         run: chmod +x gradlew
@@ -118,7 +124,10 @@ jobs:
       - name: Set up Android SDK tools and accept licenses
         uses: android-actions/setup-android@v4.0.4
         with:
-          packages: ''
+          packages: |
+            platform-tools
+            platforms;android-37-ext2
+            build-tools;36.0.0
 
       - name: Make gradlew executable
         run: chmod +x gradlew
@@ -183,7 +192,10 @@ jobs:
       - name: Set up Android SDK tools and accept licenses
         uses: android-actions/setup-android@v4.0.4
         with:
-          packages: ''
+          packages: |
+            platform-tools
+            platforms;android-37-ext2
+            build-tools;36.0.0
 
       - name: Make gradlew executable
         run: chmod +x gradlew
@@ -270,7 +282,10 @@ jobs:
       - name: Set up Android SDK tools and accept licenses
         uses: android-actions/setup-android@v4.0.4
         with:
-          packages: ''
+          packages: |
+            platform-tools
+            platforms;android-37-ext2
+            build-tools;36.0.0
 
       - name: Make gradlew executable
         run: chmod +x base-src/gradlew

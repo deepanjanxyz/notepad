@@ -32,6 +32,14 @@ tasks.register<Delete>("clean") {
 // configuration and baseline under config/detekt/. The version tracks the project
 // toolchain (Kotlin 2.4, AGP 9, Gradle 9), which detekt 2.0.0-alpha.6 is built against.
 subprojects {
+    // F-Droid documents AGP ArtProfile tasks as a source of non-deterministic
+    // baseline.prof output. Apply this to every Android module, not just :app.
+    tasks.configureEach {
+        if (name.contains("ArtProfile")) {
+            enabled = false
+        }
+    }
+
     apply(plugin = "dev.detekt")
 
     configure<dev.detekt.gradle.extensions.DetektExtension> {

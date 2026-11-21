@@ -77,6 +77,7 @@ android {
             isDebuggable = false
             isMinifyEnabled = true
             isShrinkResources = true
+            vcsInfo.include = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -130,13 +131,6 @@ android {
     dependenciesInfo {
         includeInApk = false
         includeInBundle = false
-    }
-}
-
-// F-Droid documents AGP ArtProfile tasks as a source of non-deterministic baseline.prof output.
-tasks.configureEach {
-    if (name.contains("ArtProfile")) {
-        enabled = false
     }
 }
 

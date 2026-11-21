@@ -133,6 +133,13 @@ android {
     }
 }
 
+// F-Droid documents AGP ArtProfile tasks as a source of non-deterministic baseline.prof output.
+tasks.configureEach {
+    if (name.contains("ArtProfile")) {
+        enabled = false
+    }
+}
+
 dependencies {
     implementation(project(":core"))
     implementation(project(":data"))

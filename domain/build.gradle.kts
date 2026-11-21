@@ -13,8 +13,11 @@ java {
     targetCompatibility = JavaVersion.VERSION_21
 }
 
+kotlin {
+    jvmToolchain(25)
+}
+
 tasks.withType<KotlinCompile>().configureEach {
-    kotlinJavaToolchain.toolchain.use(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) })
     compilerOptions.jvmTarget.set(JvmTarget.JVM_21)
 }
 

@@ -68,7 +68,7 @@ jobs:
         with:
           packages: |
             platform-tools
-            platforms;android-37-ext2
+            platforms;android-37.2
             build-tools;36.0.0
 
       - name: Read the version from app/build.gradle.kts

@@ -267,3 +267,8 @@ on `push` or `pull_request`.
 - The app is always checked out from `main`; the scripts come from the
   `ci/screenshots` branch. Re-running the workflow regenerates every screenshot.
 - No repository secrets are required, and a run takes roughly 20 minutes.
+
+
+## Reproducible APK toolchain
+
+All release and CI workflows use JDK 25, Android SDK Platform 37 Extension 2, and Build Tools 36.0.0. The app modules pin Build Tools 36.0.0. Use the checked-in Gradle Wrapper and keep dependency resolution and signing inputs identical when comparing APK hashes. A different signing key or signing operation changes the APK bytes even when the unsigned payload is identical.

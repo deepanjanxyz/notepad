@@ -4,6 +4,8 @@
     "config:recommended"
   ],
   "separateMajorMinor": false,
+  "dependencyDashboard": false,
+  "dependencyDashboardApproval": false,
   "packageRules": [
     {
       "description": "Disable patch, pin, digest, rollback, lock-file and other non-major/minor updates",
@@ -27,8 +29,7 @@
         "minor"
       ],
       "groupName": "All major and minor dependency updates",
-      "groupSlug": "major-minor-dependencies",
-      "separateMajorMinor": false
+      "groupSlug": "major-minor-dependencies"
     }
   ]
 }

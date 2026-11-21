@@ -2,5 +2,33 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "separateMajorMinor": false,
+  "packageRules": [
+    {
+      "description": "Disable patch, pin, digest, rollback, lock-file and other non-major/minor updates",
+      "matchUpdateTypes": [
+        "patch",
+        "pin",
+        "pinDigest",
+        "digest",
+        "lockFileMaintenance",
+        "lockfileUpdate",
+        "rollback",
+        "bump",
+        "replacement"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Group all major and minor dependency updates into one pull request",
+      "matchUpdateTypes": [
+        "major",
+        "minor"
+      ],
+      "groupName": "All major and minor dependency updates",
+      "groupSlug": "major-minor-dependencies",
+      "separateMajorMinor": false
+    }
   ]
 }

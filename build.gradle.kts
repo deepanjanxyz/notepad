@@ -16,7 +16,7 @@ buildscript {
 
 plugins {
     id("com.android.application") version "9.5.2" apply false
-    id("com.android.library") version "9.5.1" apply false
+    id("com.android.library") version "9.5.2" apply false
     id("org.jetbrains.kotlin.plugin.compose") version "2.4.21" apply false
     id("com.google.devtools.ksp") version "2.3.14" apply false
     id("androidx.room") version "2.8.5" apply false
@@ -32,6 +32,14 @@ tasks.register<Delete>("clean") {
 // configuration and baseline under config/detekt/. The version tracks the project
 // toolchain (Kotlin 2.4, AGP 9, Gradle 9), which detekt 2.0.0-alpha.6 is built against.
 subprojects {
+    // F-Droid documents AGP ArtProfile tasks as a source of non-deterministic
+    // baseline.prof output. Apply this to every Android module, not just :app.
+    tasks.configureEach {
+        if (name.contains("ArtProfile")) {
+            enabled = false
+        }
+    }
+
     apply(plugin = "dev.detekt")
 
     configure<dev.detekt.gradle.extensions.DetektExtension> {

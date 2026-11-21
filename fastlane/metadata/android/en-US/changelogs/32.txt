@@ -1,0 +1,6 @@
+Widget previews in launcher picker
+
+- Add visual previews for Note shortcut and Tasks widgets in the launcher picker.
+- Add a description for the Tasks widget when adding it to the home screen.
+
+Thank you for using Elite Memo Pro!

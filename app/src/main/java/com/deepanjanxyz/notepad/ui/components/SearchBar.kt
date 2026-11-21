@@ -75,7 +75,7 @@ fun FloatingSearchBar(
             // Distinct Search Icon
             Icon(
                 imageVector = Icons.Default.Search,
-                contentDescription = "Search",
+                contentDescription = stringResource(R.string.search_accessibility),
                 tint = if (query.isNotEmpty()) {
                     MaterialTheme.colorScheme.primary
                 } else {
@@ -91,7 +91,7 @@ fun FloatingSearchBar(
             SearchInputField(query = query, onQueryChange = onQueryChange)
 
             // Trailing Icon: Layout View Switcher button (Grid / Staggered Grid vs Single Column List)
-            ActionTooltip(if (isGridLayout) "Switch to Single Column List" else "Switch to Grid View") {
+            ActionTooltip(stringResource(if (isGridLayout) R.string.switch_to_list else R.string.switch_to_grid)) {
                 IconButton(
                     onClick = onToggleLayout,
                     modifier = Modifier.testTag("layout_toggle_button")
@@ -99,9 +99,9 @@ fun FloatingSearchBar(
                     Icon(
                         imageVector = if (isGridLayout) Icons.AutoMirrored.Filled.ViewList else Icons.Default.GridView,
                         contentDescription = if (isGridLayout) {
-                            "Switch to Single Column List"
+                            stringResource(R.string.switch_to_list)
                         } else {
-                            "Switch to Grid View"
+                            stringResource(R.string.switch_to_grid)
                         },
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -120,7 +120,7 @@ private fun SearchLeadingButton(
 ) {
     val focusManager = LocalFocusManager.current
     if (query.isNotEmpty()) {
-        ActionTooltip("Clear search") {
+        ActionTooltip(stringResource(R.string.clear_search)) {
             IconButton(
                 onClick = {
                     onQueryChange("")
@@ -130,20 +130,20 @@ private fun SearchLeadingButton(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Clear search",
+                    contentDescription = stringResource(R.string.clear_search),
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }
         }
     } else {
-        ActionTooltip("Open navigation menu") {
+        ActionTooltip(stringResource(R.string.open_navigation_menu)) {
             IconButton(
                 onClick = onOpenDrawer,
                 modifier = Modifier.testTag("drawer_menu_button")
             ) {
                 Icon(
                     imageVector = Icons.Default.Menu,
-                    contentDescription = "Open navigation menu",
+                    contentDescription = stringResource(R.string.open_navigation_menu),
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }

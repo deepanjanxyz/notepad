@@ -11,11 +11,11 @@ import com.deepanjanxyz.notepad.domain.model.containsNumberedLine
  * line-by-line editor and say which kind of line a new item gets; a note may
  * still hold all three kinds at once, and the editor shows each as what it is.
  */
-enum class EditorFormat(val label: String, val testTag: String) {
-    PlainText("Plain text", "format_plain_text"),
-    Checklist("Checklist", "format_checklist"),
-    BulletedList("Bulleted list", "format_bulleted_list"),
-    NumberedList("Numbered list", "format_numbered_list");
+enum class EditorFormat(val labelRes: Int, val testTag: String) {
+    PlainText(com.deepanjanxyz.notepad.R.string.editor_plain_text, "format_plain_text"),
+    Checklist(com.deepanjanxyz.notepad.R.string.editor_format_checklist, "format_checklist"),
+    BulletedList(com.deepanjanxyz.notepad.R.string.editor_bulleted_list, "format_bulleted_list"),
+    NumberedList(com.deepanjanxyz.notepad.R.string.editor_numbered_list, "format_numbered_list");
 
     /** True for the formats that edit the body line by line. */
     val isLinesMode: Boolean

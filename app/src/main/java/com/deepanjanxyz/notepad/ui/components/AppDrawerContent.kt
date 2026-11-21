@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -82,7 +83,7 @@ fun AppDrawerContent(
             DrawerHeader()
 
             DrawerNavItem(
-                "Notes",
+                stringResource(R.string.drawer_notes),
                 if (onNotes) Icons.Filled.Description else Icons.Outlined.Description,
                 onNotes, "drawer_nav_notes", onSelectNotes
             )
@@ -92,13 +93,13 @@ fun AppDrawerContent(
             )
 
             DrawerNavItem(
-                "Archive",
+                stringResource(R.string.drawer_archive),
                 if (currentScreen is Screen.Archive) Icons.Filled.Archive else Icons.Outlined.Archive,
                 currentScreen is Screen.Archive, "drawer_nav_archive", onSelectArchive
             )
 
             DrawerNavItem(
-                "Trash",
+                stringResource(R.string.drawer_trash),
                 if (currentScreen is Screen.Trash) Icons.Filled.Delete else Icons.Outlined.Delete,
                 currentScreen is Screen.Trash, "drawer_nav_trash", onSelectTrash
             )
@@ -108,7 +109,7 @@ fun AppDrawerContent(
             DrawerDivider(horizontalPadding = 16.dp, alpha = 0.5f, verticalPadding = 8.dp)
 
             DrawerNavItem(
-                "Settings",
+                stringResource(R.string.drawer_settings),
                 if (currentScreen is Screen.Settings) Icons.Filled.Settings else Icons.Outlined.Settings,
                 currentScreen is Screen.Settings, "drawer_nav_settings", onSelectSettings
             )
@@ -152,7 +153,7 @@ private fun DrawerHeader() {
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "Smart Notes & Organization",
+                text = stringResource(R.string.drawer_subtitle),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -184,7 +185,7 @@ private fun DrawerLabelsSection(
             .padding(start = 28.dp, end = 16.dp, top = 4.dp, bottom = 4.dp)
     ) {
         Text(
-            text = "Labels",
+            text = stringResource(R.string.drawer_labels),
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
@@ -196,7 +197,7 @@ private fun DrawerLabelsSection(
             modifier = Modifier.testTag("drawer_edit_labels_header_button")
         ) {
             Text(
-                text = "Edit",
+                text = stringResource(R.string.drawer_edit),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -269,12 +270,12 @@ private fun DrawerLabelItem(label: String, isSelected: Boolean, onClick: () -> U
 private fun DrawerCreateLabelItem(onOpenEditLabels: () -> Unit) {
     NavigationDrawerItem(
         label = {
-            Text("+ Create new label / Edit Labels", style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.drawer_create_edit_labels), style = MaterialTheme.typography.bodyMedium)
         },
         icon = {
             Icon(
                 imageVector = Icons.Default.Add,
-                contentDescription = "Create or edit labels",
+                contentDescription = stringResource(R.string.drawer_create_edit_labels),
                 modifier = Modifier.size(20.dp)
             )
         },
@@ -314,13 +315,13 @@ private fun DrawerGitHubFooter() {
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_github),
-                contentDescription = "GitHub",
+                contentDescription = stringResource(R.string.drawer_github),
                 tint = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(14.dp))
             Text(
-                text = "Source on GitHub",
+                text = stringResource(R.string.drawer_github),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,

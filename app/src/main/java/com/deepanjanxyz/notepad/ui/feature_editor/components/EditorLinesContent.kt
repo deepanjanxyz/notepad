@@ -1,5 +1,7 @@
 package com.deepanjanxyz.notepad.ui.feature_editor.components
 
+import com.deepanjanxyz.notepad.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -247,7 +249,7 @@ private fun NewLineRow(
             textPlaceholder = textPlaceholder,
             amberAccent = amberAccent
         )
-        ActionTooltip("Add line") {
+        ActionTooltip(stringResource(R.string.editor_add_line)) {
             IconButton(
                 onClick = onAddItem,
                 modifier = Modifier
@@ -256,7 +258,7 @@ private fun NewLineRow(
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Add line",
+                    contentDescription = stringResource(R.string.editor_add_line),
                     tint = amberAccent,
                     modifier = Modifier.size(ADD_ICON_SIZE)
                 )

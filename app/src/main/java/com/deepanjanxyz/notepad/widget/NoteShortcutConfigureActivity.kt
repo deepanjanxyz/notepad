@@ -86,8 +86,8 @@ class NoteShortcutConfigureActivity : FragmentActivity() {
 
     private fun showBiometricPrompt() {
         val promptBuilder = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Unlock Elite Memo Pro")
-            .setSubtitle("Confirm your biometric or device credentials")
+            .setTitle(getString(R.string.biometric_title))
+            .setSubtitle(getString(R.string.biometric_subtitle))
         // BIOMETRIC_STRONG with DEVICE_CREDENTIAL throws on API 28-29; BIOMETRIC_WEAK
         // is the combination those versions accept, and it reads the same to the user.
         promptBuilder.setAllowedAuthenticators(

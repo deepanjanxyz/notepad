@@ -1,5 +1,7 @@
 package com.deepanjanxyz.notepad.ui.feature_drawing.components
 
+import com.deepanjanxyz.notepad.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -74,7 +76,7 @@ fun DrawingTopBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         DrawingTopBarIcon(
-            tooltip = "Back",
+            tooltip = stringResource(R.string.editor_back),
             icon = Icons.AutoMirrored.Filled.ArrowBack,
             tint = enabledTint,
             testTag = "drawing_back_button",
@@ -90,7 +92,7 @@ fun DrawingTopBar(
         )
 
         DrawingTopBarIcon(
-            tooltip = "Undo",
+            tooltip = stringResource(R.string.drawing_undo),
             icon = Icons.AutoMirrored.Filled.Undo,
             tint = if (canUndo) enabledTint else disabledTint,
             testTag = "drawing_undo_button",
@@ -99,7 +101,7 @@ fun DrawingTopBar(
         )
 
         DrawingTopBarIcon(
-            tooltip = "Redo",
+            tooltip = stringResource(R.string.drawing_redo),
             icon = Icons.AutoMirrored.Filled.Redo,
             tint = if (canRedo) enabledTint else disabledTint,
             testTag = "drawing_redo_button",
@@ -151,7 +153,7 @@ private fun DrawingTitleField(
     Box(modifier = modifier) {
         if (title.isEmpty()) {
             Text(
-                text = "Title",
+                text = stringResource(R.string.drawing_title_hint),
                 style = TextStyle(
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Medium,
@@ -189,7 +191,7 @@ private fun DrawingOverflowMenu(
 
     Box {
         DrawingTopBarIcon(
-            tooltip = "More options",
+            tooltip = stringResource(R.string.drawing_more),
             icon = Icons.Default.MoreVert,
             tint = MaterialTheme.colorScheme.onSurface,
             testTag = "drawing_more_button",
@@ -202,7 +204,7 @@ private fun DrawingOverflowMenu(
             shape = RoundedCornerShape(16.dp)
         ) {
             DropdownMenuItem(
-                text = { Text("Canvas Background & Grid") },
+                text = { Text(stringResource(R.string.drawing_bg_grid)) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.ColorLens,
@@ -218,7 +220,7 @@ private fun DrawingOverflowMenu(
             )
 
             DropdownMenuItem(
-                text = { Text("Clear canvas") },
+                text = { Text(stringResource(R.string.drawing_clear_canvas)) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.DeleteOutline,
@@ -246,14 +248,14 @@ private fun DrawingOverflowMenu(
     }
 }
 
-/** The "Background grid" heading and the grid choices under it. */
+/** The stringResource(R.string.drawing_background_grid) heading and the grid choices under it. */
 @Composable
 private fun GridTypeMenuItems(
     currentGridType: CanvasGridType,
     onGridTypeSelected: (CanvasGridType) -> Unit
 ) {
     Text(
-        text = "Background grid",
+        text = stringResource(R.string.drawing_background_grid),
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
@@ -263,10 +265,10 @@ private fun GridTypeMenuItems(
         DropdownMenuItem(
             text = {
                 val label = when (gridType) {
-                    CanvasGridType.NONE -> "Blank"
-                    CanvasGridType.RULED -> "Ruled"
-                    CanvasGridType.GRID -> "Grid"
-                    CanvasGridType.DOTS -> "Dots"
+                    CanvasGridType.NONE -> stringResource(R.string.drawing_blank)
+                    CanvasGridType.RULED -> stringResource(R.string.drawing_ruled)
+                    CanvasGridType.GRID -> stringResource(R.string.drawing_grid)
+                    CanvasGridType.DOTS -> stringResource(R.string.drawing_dots)
                 }
                 Text(label)
             },
@@ -274,7 +276,7 @@ private fun GridTypeMenuItems(
                 if (currentGridType == gridType) {
                     Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Selected",
+                        contentDescription = stringResource(R.string.editor_selected),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }

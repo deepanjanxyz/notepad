@@ -1,5 +1,7 @@
 package com.deepanjanxyz.notepad.ui.feature_editor.components
 
+import com.deepanjanxyz.notepad.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -78,7 +80,7 @@ fun EditorLabelsSheet(
                 .padding(bottom = 24.dp)
         ) {
             Text(
-                text = "SELECT LABELS",
+                text = stringResource(R.string.labels_select),
                 style = TextStyle(
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
@@ -203,7 +205,7 @@ private fun CreateLabelField(
         OutlinedTextField(
             value = newLabelInput,
             onValueChange = { onInputChange(it.take(MAX_LABEL_LENGTH)) },
-            placeholder = { Text("Create new label", color = textPlaceholder) },
+            placeholder = { Text(stringResource(R.string.labels_create_hint), color = textPlaceholder) },
             isError = isDuplicate,
             supportingText = {
                 LabelSupportingText(newLabelInput = newLabelInput, isDuplicate = isDuplicate)
@@ -221,7 +223,7 @@ private fun CreateLabelField(
             keyboardActions = KeyboardActions(onDone = { createIfValid() }),
             trailingIcon = {
                 if (newLabelInput.isNotBlank()) {
-                    ActionTooltip("Create label") {
+                    ActionTooltip(stringResource(R.string.editor_create_label)) {
                         IconButton(
                             onClick = createIfValid,
                             enabled = !isDuplicate,
@@ -229,7 +231,7 @@ private fun CreateLabelField(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
-                                contentDescription = "Create label",
+                                contentDescription = stringResource(R.string.editor_create_label),
                                 tint = if (!isDuplicate) amberAccent else AppColors.TextDim
                             )
                         }
@@ -252,7 +254,7 @@ private fun LabelSupportingText(newLabelInput: String, isDuplicate: Boolean) {
     ) {
         if (isDuplicate) {
             Text(
-                text = "Label already exists",
+                text = stringResource(R.string.labels_duplicate),
                 color = AppColors.Danger,
                 style = TextStyle(fontSize = 12.sp)
             )

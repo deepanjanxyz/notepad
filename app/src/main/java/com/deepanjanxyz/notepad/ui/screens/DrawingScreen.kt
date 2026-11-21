@@ -1,5 +1,7 @@
 package com.deepanjanxyz.notepad.ui.screens
 
+import com.deepanjanxyz.notepad.R
+import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -536,13 +538,13 @@ private fun ClearCanvasConfirmDialog(
         containerColor = AppColors.DialogSurface,
         title = {
             Text(
-                text = "Clear canvas?",
+                text = stringResource(R.string.drawing_clear_confirm_title),
                 style = TextStyle(color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
             )
         },
         text = {
             Text(
-                text = "This removes every stroke on the canvas.",
+                text = stringResource(R.string.drawing_clear_confirm_body),
                 style = TextStyle(color = AppColors.TextHint, fontSize = 14.sp)
             )
         },
@@ -551,7 +553,7 @@ private fun ClearCanvasConfirmDialog(
                 onClick = onConfirm,
                 modifier = Modifier.testTag("clear_canvas_confirm_button")
             ) {
-                Text("Clear", color = AppColors.Danger, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.drawing_clear), color = AppColors.Danger, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
@@ -559,7 +561,7 @@ private fun ClearCanvasConfirmDialog(
                 onClick = onDismiss,
                 modifier = Modifier.testTag("clear_canvas_cancel_button")
             ) {
-                Text("Cancel", color = AppColors.TextIdle)
+                Text(stringResource(R.string.labels_cancel), color = AppColors.TextIdle)
             }
         }
     )

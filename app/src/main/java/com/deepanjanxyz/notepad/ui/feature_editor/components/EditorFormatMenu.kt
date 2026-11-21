@@ -1,5 +1,6 @@
 package com.deepanjanxyz.notepad.ui.feature_editor.components
 
+import com.deepanjanxyz.notepad.R
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -31,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
@@ -76,7 +78,7 @@ fun EditorFormatMenu(
 ) {
     var isExpanded by remember { mutableStateOf(false) }
     Box(modifier = modifier) {
-        ActionTooltip("Note format") {
+        ActionTooltip(stringResource(R.string.editor_format)) {
             IconButton(
                 onClick = { isExpanded = true },
                 modifier = Modifier.testTag("editor_format_button")
@@ -90,7 +92,7 @@ fun EditorFormatMenu(
                 ) { format ->
                     Icon(
                         imageVector = format.icon,
-                        contentDescription = "Note format",
+                        contentDescription = stringResource(R.string.editor_format),
                         tint = if (format.isLinesMode) {
                             AppColors.AccentAmber
                         } else {
@@ -157,7 +159,7 @@ private fun FormatMenuItem(
         },
         text = {
             Text(
-                text = format.label,
+                text = stringResource(format.labelRes),
                 color = labelColour,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
             )
@@ -170,7 +172,7 @@ private fun FormatMenuItem(
             ) {
                 Icon(
                     imageVector = Icons.Default.Check,
-                    contentDescription = "Selected format",
+                    contentDescription = stringResource(R.string.editor_selected_format),
                     tint = AppColors.AccentGreen
                 )
             }

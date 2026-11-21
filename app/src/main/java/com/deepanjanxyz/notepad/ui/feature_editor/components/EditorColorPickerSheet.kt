@@ -1,5 +1,7 @@
 package com.deepanjanxyz.notepad.ui.feature_editor.components
 
+import com.deepanjanxyz.notepad.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -70,7 +72,7 @@ fun EditorColorPickerSheet(
                 .padding(bottom = 24.dp)
         ) {
             Text(
-                text = "CHOOSE COLOR",
+                text = stringResource(R.string.editor_choose_color),
                 style = TextStyle(
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
@@ -120,7 +122,7 @@ private fun ColorOptionRow(
                 if (isSelected) {
                     Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Selected",
+                        contentDescription = stringResource(R.string.editor_selected),
                         tint = AppColors.AccentAmber,
                         modifier = Modifier.size(22.dp)
                     )

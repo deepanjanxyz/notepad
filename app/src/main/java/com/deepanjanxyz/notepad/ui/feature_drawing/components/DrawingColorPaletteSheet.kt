@@ -1,5 +1,7 @@
 package com.deepanjanxyz.notepad.ui.feature_drawing.components
 
+import com.deepanjanxyz.notepad.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -57,12 +59,13 @@ fun ColorCircleItem(
     onSelect: () -> Unit
 ) {
     val size = if (isSelected) 36.dp else 26.dp
+    val colorDescription = stringResource(R.string.drawing_color, color.toString(HEX_RADIX))
     Box(
         modifier = Modifier
             .size(40.dp)
             .clickable(onClick = onSelect)
             .semantics {
-                contentDescription = "Colour ${color.toString(HEX_RADIX)}"
+                contentDescription = colorDescription
                 selected = isSelected
             }
             .testTag("color_item_${color.toString(HEX_RADIX)}"),
@@ -136,11 +139,12 @@ fun DrawingColorPaletteSheet(
 }
 
 /** The name shown for the tool whose colours are being picked. */
+@Composable
 private fun toolTitleOf(activeTool: DrawingTool): String = when (activeTool) {
-    DrawingTool.PEN -> "Pencil / Pen"
-    DrawingTool.MARKER -> "Marker"
-    DrawingTool.HIGHLIGHTER -> "Highlighter"
-    else -> "Brush"
+    DrawingTool.PEN -> stringResource(R.string.drawing_pencil_pen)
+    DrawingTool.MARKER -> stringResource(R.string.drawing_marker)
+    DrawingTool.HIGHLIGHTER -> stringResource(R.string.drawing_highlighter)
+    else -> stringResource(R.string.drawing_brush)
 }
 
 /** The tool's name, its current size, and a preview of the stroke. */
@@ -256,7 +260,7 @@ private fun ThicknessSliderRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
-            text = "Size",
+            text = stringResource(R.string.drawing_size),
             style = TextStyle(fontSize = 12.sp, color = AppColors.TextFaint),
             modifier = Modifier.width(32.dp)
         )
@@ -309,6 +313,7 @@ private fun ThicknessPresetDot(
     isSelected: Boolean,
     onThicknessSelected: (Float) -> Unit
 ) {
+    val strokeDescription = stringResource(R.string.drawing_stroke_size, thick.toInt())
     val circleDp = when (thick) {
         3f -> 5.dp
         6f -> 8.dp
@@ -325,7 +330,7 @@ private fun ThicknessPresetDot(
             .clip(CircleShape)
             .clickable { onThicknessSelected(thick) }
             .semantics {
-                contentDescription = "Stroke size ${thick.toInt()}"
+                contentDescription = strokeDescription
                 selected = isSelected
             }
             .testTag("thickness_option_${thick.toInt()}"),

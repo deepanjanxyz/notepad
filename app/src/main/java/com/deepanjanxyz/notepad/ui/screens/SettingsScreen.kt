@@ -319,14 +319,14 @@ fun SettingsScreen(
                     )
                 },
                 navigationIcon = {
-                    ActionTooltip("Back") {
+                    ActionTooltip(stringResource(R.string.settings_back)) {
                         IconButton(
                             onClick = onNavigateBack,
                             modifier = Modifier.testTag("settings_back_button")
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back"
+                                contentDescription = stringResource(R.string.settings_back)
                             )
                         }
                     }
@@ -370,7 +370,7 @@ fun SettingsScreen(
                         }
                         Spacer(modifier = Modifier.size(10.dp))
                         Text(
-                            text = "Workspace Statistics",
+                            text = stringResource(R.string.workspace_statistics),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -391,7 +391,7 @@ fun SettingsScreen(
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = "Total Notes",
+                                text = stringResource(R.string.total_notes),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -405,7 +405,7 @@ fun SettingsScreen(
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = "Pinned",
+                                text = stringResource(R.string.pinned),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -419,7 +419,7 @@ fun SettingsScreen(
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = "Words",
+                                text = stringResource(R.string.words),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -464,9 +464,9 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         listOf(
-                            Triple("system", "System", Icons.Default.SettingsBrightness),
-                            Triple("light", "Light", Icons.Default.LightMode),
-                            Triple("dark", "Dark", Icons.Default.DarkMode)
+                            Triple("system", stringResource(R.string.theme_system), Icons.Default.SettingsBrightness),
+                            Triple("light", stringResource(R.string.theme_light), Icons.Default.LightMode),
+                            Triple("dark", stringResource(R.string.theme_dark), Icons.Default.DarkMode)
                         ).forEach { (mode, label, icon) ->
                             val isSelected = uiState.themeMode == mode
                             FilterChip(
@@ -620,7 +620,7 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.size(12.dp))
                         Text(
-                            text = "Backup & Restore",
+                            text = stringResource(R.string.backup_restore),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -629,9 +629,10 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "Backups are saved to " + DownloadsBackup.locationLabel() +
-                            " and stay there even if you clear the app's data, " +
-                                "so you can restore your notes afterwards.",
+                        text = stringResource(
+                            R.string.backup_location_desc,
+                            DownloadsBackup.locationLabel()
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -640,7 +641,7 @@ fun SettingsScreen(
 
                     // The real state of the file on disk, never a claimed save.
                     Text(
-                        text = backupStatusText(backupInfo, autoBackupStatus, backupFileCount),
+                        text = backupStatusText(context, backupInfo, autoBackupStatus, backupFileCount),
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium,
                         color = if (backupInfo == null) {
@@ -654,9 +655,7 @@ fun SettingsScreen(
                     if (offerFolder) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "A backup from an earlier installation is already there. " +
-                                "Allow access to the backup folder so it can be replaced instead of " +
-                                "copied beside.",
+                            text = stringResource(R.string.settings_earlier_backup),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -672,7 +671,7 @@ fun SettingsScreen(
                                 .fillMaxWidth()
                                 .testTag("backup_folder_button")
                         ) {
-                            Text("Allow access to the backup folder")
+                            Text(stringResource(R.string.settings_allow_backup_folder))
                         }
                     }
 
@@ -686,12 +685,12 @@ fun SettingsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Auto backup",
+                                text = stringResource(R.string.auto_backup),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = "Save every change to Downloads automatically.",
+                                text = stringResource(R.string.auto_backup_desc),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -728,7 +727,7 @@ fun SettingsScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Back up now")
+                            Text(stringResource(R.string.backup_now))
                         }
 
                         OutlinedButton(
@@ -753,7 +752,7 @@ fun SettingsScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Restore")
+                            Text(stringResource(R.string.restore))
                         }
                     }
 
@@ -762,7 +761,7 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "Markdown",
+                        text = stringResource(R.string.settings_markdown),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -777,9 +776,7 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Import a .md file back into notes, in case the " +
-                                "JSON backup is gone. To export, select notes on the " +
-                                "home screen and tap Export.",
+                            text = stringResource(R.string.settings_markdown_import_desc),
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -802,7 +799,7 @@ fun SettingsScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Import .md or .zip",
+                                text = stringResource(R.string.import_markdown_zip),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -845,8 +842,7 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Crafted with Kotlin Coroutines, Jetpack Compose Material 3, " +
-                            "and Room local persistence.",
+                        text = stringResource(R.string.about_technology),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -856,13 +852,13 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     GitHubLinkRow(
-                        label = "View Source on GitHub",
+                        label = stringResource(R.string.view_source_github),
                         testTag = "github_source_row",
                         url = "https://github.com/deepanjanxyz/notepad"
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     GitHubLinkRow(
-                        label = "Report an Issue",
+                        label = stringResource(R.string.report_issue),
                         testTag = "github_issue_row",
                         url = "https://github.com/deepanjanxyz/notepad/issues"
                     )
@@ -874,11 +870,11 @@ fun SettingsScreen(
     if (showRestoreDialog) {
         AlertDialog(
             onDismissRequest = { showRestoreDialog = false },
-            title = { Text("Restore notes") },
+            title = { Text(stringResource(R.string.settings_restore_notes)) },
             text = {
                 Column {
                     if (availableBackups.isEmpty()) {
-                        Text("No backups found in " + DownloadsBackup.locationLabel() + ".")
+                        Text(stringResource(R.string.settings_no_backups, DownloadsBackup.locationLabel()))
                         if (!folderGranted) {
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
@@ -901,7 +897,7 @@ fun SettingsScreen(
                                     .fillMaxWidth()
                                     .testTag("restore_folder_button")
                             ) {
-                                Text("Allow access to the backup folder")
+                                Text(stringResource(R.string.settings_allow_backup_folder))
                             }
                         }
                     } else {
@@ -934,12 +930,12 @@ fun SettingsScreen(
                     },
                     modifier = Modifier.testTag("browse_backup_button")
                 ) {
-                    Text("Choose file")
+                    Text(stringResource(R.string.settings_choose_file))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showRestoreDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.labels_cancel))
                 }
             }
         )
@@ -963,7 +959,7 @@ private fun GitHubLinkRow(label: String, testTag: String, url: String) {
     ) {
         Icon(
             painter = painterResource(R.drawable.ic_github),
-            contentDescription = "GitHub",
+            contentDescription = stringResource(R.string.drawer_github),
             tint = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.size(24.dp)
         )
@@ -992,17 +988,18 @@ private fun getAppVersionName(context: Context): String =
 
 /** Describes the backup on disk, or the last failed attempt. */
 private fun backupStatusText(
+    context: Context,
     info: DownloadsBackup.Info?,
     status: AutoBackupStatus?,
     fileCount: Int
 ): String = when {
-    status?.error != null -> "Last backup failed: ${status.error}"
-    info == null -> "No backup saved yet"
+    status?.error != null -> context.getString(R.string.backup_failed, status.error)
+    info == null -> context.getString(R.string.backup_none_status)
     else -> {
         val stamp = SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault())
             .format(Date(info.lastModified))
-        val count = if (fileCount > 1) " \u00b7 $fileCount files" else ""
+        val count = if (fileCount > 1) context.getString(R.string.backup_files_count, fileCount) else ""
         val where = if (info.name != DownloadsBackup.FILE_NAME) " \u00b7 ${info.name}" else ""
-        "Last backup: $stamp$count$where"
+        context.getString(R.string.backup_last_saved, stamp, count, where)
     }
 }

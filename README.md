@@ -110,3 +110,8 @@ Released under the **MIT License**. See [LICENSE](LICENSE).
 ---
 
 <p align="center"><sub>Built with Kotlin and Jetpack Compose. Contributions are welcome — see <a href="CONTRIBUTING.md">CONTRIBUTING.md</a> and the <a href="CODE_OF_CONDUCT.md">Code of Conduct</a>.</sub></p>
+
+
+## Reproducible APK builds
+
+Use the repository Gradle Wrapper, JDK 25, Android SDK Platform 37 Extension 2, and Android SDK Build Tools 36.0.0 for local and server builds. The Android modules pin Build Tools 36.0.0 and CI installs the same SDK packages. Java bytecode remains targeted at Java 21 for Android compatibility. Byte-for-byte APK equality additionally requires identical dependency artifacts and repository state, build variant and signing configuration, resource/packaging inputs, and compatible build environment; matching JDK and SDK versions alone does not guarantee identical APK hashes. Compare unsigned APKs when checking source/build reproducibility, then verify signing separately.

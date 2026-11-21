@@ -6,11 +6,15 @@ plugins {
 }
 
 java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
+    }
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
 }
 
 tasks.withType<KotlinCompile>().configureEach {
+    kotlinJavaToolchain.toolchain.use(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) })
     compilerOptions.jvmTarget.set(JvmTarget.JVM_21)
 }
 

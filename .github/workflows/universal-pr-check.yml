@@ -449,7 +449,7 @@ jobs:
           {
             echo "body<<$delimiter"
             cat report.md
-            echo "$delimiter"
+            printf '\n%s\n' "$delimiter"
           } >> "$GITHUB_OUTPUT"
 
       - name: Find existing report comment

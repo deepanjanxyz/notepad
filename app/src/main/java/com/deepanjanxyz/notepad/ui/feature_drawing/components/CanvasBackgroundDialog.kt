@@ -1,5 +1,7 @@
 package com.deepanjanxyz.notepad.ui.feature_drawing.components
 
+import com.deepanjanxyz.notepad.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -38,14 +40,6 @@ import com.deepanjanxyz.notepad.ui.theme.AppColors
 // Base of the hexadecimal colour written into the swatch test tag.
 private const val HEX_RADIX = 16
 
-val CanvasBackgroundOptions = listOf(
-    AppColors.OPAQUE_WHITE to "Pure White",
-    0xFFFDFBF7L to "Warm Ivory",
-    0xFFF0F4F8L to "Soft Slate",
-    0xFF1E1E22L to "Dark Charcoal",
-    0xFF121214L to "Midnight Black"
-)
-
 @Composable
 fun CanvasBackgroundDialog(
     selectedColor: Long,
@@ -54,26 +48,33 @@ fun CanvasBackgroundDialog(
     onGridSelected: (CanvasGridType) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val canvasBackgroundOptions = listOf(
+        AppColors.OPAQUE_WHITE to stringResource(R.string.canvas_pure_white),
+        0xFFFDFBF7L to stringResource(R.string.canvas_warm_ivory),
+        0xFFF0F4F8L to stringResource(R.string.canvas_soft_slate),
+        0xFF1E1E22L to stringResource(R.string.canvas_dark_charcoal),
+        0xFF121214L to stringResource(R.string.canvas_midnight_black)
+    )
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = AppColors.DialogSurface,
         title = {
             Text(
-                text = "Canvas Background & Grid",
+                text = stringResource(R.string.drawing_bg_grid),
                 style = TextStyle(color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
             )
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(
-                    text = "Background Color",
+                    text = stringResource(R.string.canvas_bg_color),
                     style = TextStyle(color = AppColors.TextHint, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    CanvasBackgroundOptions.forEach { (colorVal, name) ->
+                    canvasBackgroundOptions.forEach { (colorVal, name) ->
                         BackgroundOptionCircle(
                             colorVal = colorVal,
                             name = name,
@@ -85,7 +86,7 @@ fun CanvasBackgroundDialog(
 
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Grid Pattern",
+                    text = stringResource(R.string.canvas_grid_pattern),
                     style = TextStyle(color = AppColors.TextHint, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 )
                 GridPatternRow(selectedGrid = selectedGrid, onGridSelected = onGridSelected)
@@ -93,7 +94,7 @@ fun CanvasBackgroundDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Done", color = AppColors.Accent, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.drawing_done), color = AppColors.Accent, fontWeight = FontWeight.Bold)
             }
         }
     )
@@ -153,10 +154,10 @@ private fun GridPatternRow(
             ) {
                 Text(
                     text = when (grid) {
-                        CanvasGridType.NONE -> "Blank"
-                        CanvasGridType.RULED -> "Ruled"
-                        CanvasGridType.GRID -> "Grid"
-                        CanvasGridType.DOTS -> "Dots"
+                        CanvasGridType.NONE -> stringResource(R.string.drawing_blank)
+                        CanvasGridType.RULED -> stringResource(R.string.drawing_ruled)
+                        CanvasGridType.GRID -> stringResource(R.string.drawing_grid)
+                        CanvasGridType.DOTS -> stringResource(R.string.drawing_dots)
                     },
                     style = TextStyle(
                         fontSize = 12.sp,

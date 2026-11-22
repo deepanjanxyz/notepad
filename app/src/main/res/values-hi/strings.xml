@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">एलीट मेमो प्रो</string>
+    <string name="search_hint">नोट, शीर्षक और विचार खोजें…</string>
+    <string name="menu_search">खोजें</string>
+    <string name="action_save">सहेजें</string>
+    <string name="add_note">नया नोट</string>
+    <string name="note_title_hint">शीर्षक</string>
+    <string name="note_content_hint">यहाँ अपने विचार लिखें…</string>
+    <string name="empty_notes_title">अभी कोई नोट नहीं है</string>
+    <string name="empty_notes_subtitle">अपना पहला नोट लिखने के लिए नीचे + दबाएँ</string>
+    <string name="search_no_results">कोई मिलता-जुलता नोट नहीं मिला</string>
+    <string name="search_no_results_subtitle">किसी दूसरे शब्द से खोजें</string>
+    <string name="settings_title">सेटिंग्स</string>
+    <string name="theme_setting">दिखावट</string>
+    <string name="security_setting">सुरक्षा और गोपनीयता</string>
+    <string name="biometric_lock">बायोमेट्रिक / ऐप लॉक</string>
+    <string name="biometric_lock_desc">नोट खोलने के लिए बायोमेट्रिक या डिवाइस क्रेडेंशियल आवश्यक करें</string>
+    <string name="app_info">एलीट मेमो प्रो के बारे में</string>
+    <string name="version_label">संस्करण %1$s (Kotlin और Compose M3)</string>
+    <string name="delete_confirmation_title">नोट हटाएँ</string>
+    <string name="delete_confirmation_msg">क्या आप चुने गए नोट हटाना चाहते हैं? इसे वापस नहीं किया जा सकता।</string>
+    <string name="widget_title">कार्य</string>
+    <string name="widget_refresh">कार्य रीफ़्रेश करें</string>
+    <string name="widget_empty">यहाँ कार्य देखने के लिए चेकलिस्ट नोट पिन करें।</string>
+    <string name="widget_tasks_desc">आपकी चेकलिस्ट के कार्य, होम स्क्रीन से पूरे किए गए।</string>
+    <string name="snackbar_countdown_dismiss">खारिज करें</string>
+    <string name="widget_note_shortcut_title">नोट शॉर्टकट</string>
+    <string name="widget_note_untitled">बिना शीर्षक का नोट</string>
+    <string name="widget_note_empty">इस नोट को खोलने के लिए टैप करें।</string>
+    <string name="widget_note_missing">नोट अब उपलब्ध नहीं है। दूसरा चुनने के लिए टैप करें।</string>
+    <string name="widget_link_failed">इस नोट को विजेट से लिंक नहीं किया जा सका। फिर कोशिश करें।</string>
+    <string name="widget_note_choose_title">एक नोट चुनें</string>
+    <string name="widget_note_choose_subtitle">यह शॉर्टकट आपके चुने हुए नोट को खोलेगा।</string>
+    <string name="widget_note_choose_empty">अभी कोई नोट नहीं है। पहले नोट लिखें, फिर शॉर्टकट जोड़ें।</string>
+    <string name="widget_note_choose_no_results">इस खोज से कोई नोट मेल नहीं खाता।</string>
+    <string name="widget_note_choose_drawing">ड्रॉइंग</string>
+    <string name="widget_note_choose_cancel">रद्द करें</string>
+    <string name="widget_note_shortcut_desc">होम स्क्रीन से एक टैप में नोट खोलें।</string>
+    <string name="widget_note_drawing_desc">ड्रॉइंग प्रीव्यू</string>
+    <string name="widget_note_choose_search">नोट खोजें…</string>
+    <string name="widget_note_choose_linked">वर्तमान में लिंक किया गया</string>
+    <string name="app_language">ऐप की भाषा</string>
+    <string name="choose_language">भाषा चुनें</string>
+    <string name="language_change">बदलें</string>
+    <string name="language_close">बंद करें</string>
+    <string name="filter_all">सभी</string>
+    <string name="drawer_subtitle">स्मार्ट नोट्स और व्यवस्थित रखने की सुविधा</string>
+    <string name="drawer_notes">नोट्स</string>
+    <string name="drawer_labels">लेबल</string>
+    <string name="drawer_edit">संपादित करें</string>
+    <string name="drawer_create_edit_labels">+ नया लेबल बनाएँ / लेबल संपादित करें</string>
+    <string name="drawer_archive">आर्काइव</string>
+    <string name="drawer_trash">ट्रैश</string>
+    <string name="drawer_settings">सेटिंग्स</string>
+    <string name="drawer_github">GitHub पर सोर्स कोड</string>
+    <string name="create_note_title">नोट बनाएँ</string>
+    <string name="create_text_note">टेक्स्ट नोट</string>
+    <string name="create_text_note_desc">सामान्य टेक्स्ट, चेकलिस्ट और लेबल</string>
+    <string name="create_checklist">चेकलिस्ट</string>
+    <string name="create_checklist_desc">कामों और सूचियों के लिए टिक करने योग्य आइटम</string>
+    <string name="create_drawing_note">ड्रॉइंग नोट</string>
+    <string name="create_drawing_note_desc">हाथ से स्केच और डूडल बनाने का कैनवस</string>
+    <string name="workspace_statistics">वर्कस्पेस के आँकड़े</string>
+    <string name="total_notes">कुल नोट्स</string>
+    <string name="pinned">पिन किए गए</string>
+    <string name="words">शब्द</string>
+    <string name="theme_system">सिस्टम</string>
+    <string name="theme_light">हल्का</string>
+    <string name="theme_dark">गहरा</string>
+    <string name="backup_restore">बैकअप और पुनर्स्थापना</string>
+    <string name="backup_restore_desc">बैकअप से अपने नोट सुरक्षित रखें और कभी भी वापस पाएँ।</string>
+    <string name="backup_location_desc">बैकअप %1$s में सहेजे जाते हैं और ऐप का डेटा मिटाने पर भी वहीं रहते हैं, ताकि आप बाद में नोट वापस पा सकें।</string>
+    <string name="backup_none">अभी कोई बैकअप सहेजा नहीं गया</string>
+    <string name="auto_backup">ऑटो बैकअप</string>
+    <string name="auto_backup_desc">हर बदलाव को अपने आप Downloads में सहेजें।</string>
+    <string name="backup_now">अभी बैकअप लें</string>
+    <string name="restore">पुनर्स्थापित करें</string>
+    <string name="markdown_desc">Markdown नोट या ZIP संग्रह आयात करें।</string>
+    <string name="import_markdown_zip">.md या .zip आयात करें</string>
+    <string name="about_technology">Kotlin Coroutines, Jetpack Compose Material 3 और Room स्थानीय संग्रहण के साथ बनाया गया।</string>
+    <string name="view_source_github">GitHub पर सोर्स देखें</string>
+    <string name="report_issue">समस्या की रिपोर्ट करें</string>
+    <string name="open_navigation_menu">नेविगेशन मेनू खोलें</string>
+    <string name="switch_to_list">एक कॉलम वाली सूची पर जाएँ</string>
+    <string name="switch_to_grid">ग्रिड दृश्य पर जाएँ</string>
+    <string name="search_accessibility">खोजें</string>
+    <string name="clear_search">खोज साफ़ करें</string>
+    <string name="sort_notes">नोट्स क्रमबद्ध करें</string>
+    <string name="selected_color_filter">चुना हुआ रंग फ़िल्टर</string>
+    <string name="editor_back">वापस</string><string name="editor_pin">नोट पिन करें</string><string name="editor_unpin">नोट अनपिन करें</string>
+    <string name="editor_add_reminder">रिमाइंडर जोड़ें</string><string name="editor_edit_reminder">रिमाइंडर संपादित करें</string>
+    <string name="editor_color_palette">रंग पैलेट</string><string name="editor_drawing">ड्रॉइंग</string>
+    <string name="editor_share_note">नोट साझा करें</string><string name="editor_archive_note">नोट आर्काइव करें</string>
+    <string name="editor_save_close">सहेजें और बंद करें</string><string name="editor_format">नोट का प्रारूप</string>
+    <string name="editor_plain_text">सादा टेक्स्ट</string><string name="editor_bulleted_list">बुलेट सूची</string><string name="editor_numbered_list">क्रमांकित सूची</string>
+    <string name="editor_add_label">लेबल जोड़ें</string><string name="editor_remove_reminder">रिमाइंडर हटाएँ</string>
+    <string name="editor_add_line">पंक्ति जोड़ें</string><string name="editor_remove_line">पंक्ति हटाएँ</string>
+    <string name="editor_completed">पूरा हुआ</string><string name="editor_selected_format">चुना हुआ प्रारूप</string>
+    <string name="editor_choose_color">रंग चुनें</string><string name="editor_selected">चुना गया</string>
+    <string name="editor_checklist_item">चेकलिस्ट आइटम</string><string name="editor_list_item">सूची आइटम</string>
+    <string name="labels_edit_title">लेबल संपादित करें</string><string name="labels_create_hint">नया लेबल बनाएँ</string>
+    <string name="labels_add">लेबल जोड़ें</string><string name="labels_duplicate">यह लेबल पहले से मौजूद है</string>
+    <string name="labels_limit">अक्षर सीमा पूरी हो गई</string><string name="labels_rename">लेबल का नाम बदलें</string>
+    <string name="labels_name">लेबल का नाम</string><string name="labels_cancel">रद्द करें</string>
+    <string name="labels_done">हो गया</string><string name="labels_empty">अभी कोई लेबल नहीं है। ऊपर एक बनाएँ!</string>
+    <string name="labels_options">लेबल विकल्प</string><string name="labels_rename_action">नाम बदलें</string>
+    <string name="labels_delete">हटाएँ</string><string name="labels_select">लेबल चुनें</string>
+    <string name="drawing_title_hint">शीर्षक</string><string name="drawing_back">वापस</string>
+    <string name="drawing_undo">पूर्ववत करें</string><string name="drawing_redo">फिर से करें</string>
+    <string name="drawing_more">और विकल्प</string><string name="drawing_bg_grid">कैनवस की पृष्ठभूमि और ग्रिड</string>
+    <string name="drawing_clear_canvas">कैनवस साफ़ करें</string><string name="drawing_background_grid">पृष्ठभूमि ग्रिड</string>
+    <string name="drawing_blank">खाली</string><string name="drawing_ruled">रेखांकित</string><string name="drawing_grid">ग्रिड</string><string name="drawing_dots">बिंदु</string>
+    <string name="drawing_canvas_description">ड्रॉइंग कैनवस</string><string name="drawing_select">चुनें</string>
+    <string name="drawing_eraser">इरेज़र</string><string name="drawing_pen">पेन</string><string name="drawing_marker">मार्कर</string>
+    <string name="drawing_highlighter">हाइलाइटर</string><string name="drawing_brush">ब्रश</string>
+    <string name="drawing_size">आकार</string><string name="drawing_precision">सटीकता (केवल स्पर्श)</string>
+    <string name="drawing_stroke">स्ट्रोक (पूरी रेखा)</string><string name="drawing_clear_all">सब साफ़ करें</string>
+    <string name="drawing_color">रंग %1$s</string><string name="drawing_stroke_size">स्ट्रोक का आकार %1$d</string>
+    <string name="drawing_clear_confirm_title">कैनवस साफ़ करें?</string><string name="drawing_clear_confirm_body">इससे कैनवस के सभी स्ट्रोक हट जाएँगे।</string>
+    <string name="drawing_clear">साफ़ करें</string><string name="drawing_done">हो गया</string>
+    <string name="canvas_bg_dialog">कैनवस की पृष्ठभूमि और ग्रिड</string><string name="canvas_bg_color">पृष्ठभूमि का रंग</string><string name="canvas_grid_pattern">ग्रिड पैटर्न</string>
+    <string name="canvas_pure_white">सफ़ेद</string><string name="canvas_warm_ivory">गर्म आइवरी</string><string name="canvas_soft_slate">हल्का स्लेट</string><string name="canvas_dark_charcoal">गहरा चारकोल</string><string name="canvas_midnight_black">मिडनाइट ब्लैक</string>
+    <string name="archive_empty_title">कोई आर्काइव नोट नहीं</string><string name="archive_empty_body">आर्काइव किए गए नोट यहाँ सुरक्षित रखे जाएँगे।</string>
+    <string name="archive_unarchive_selected">चुने हुए नोट आर्काइव से निकालें</string><string name="archive_move_trash">चुने हुए नोट ट्रैश में भेजें</string>
+    <string name="archive_restore">पुनर्स्थापित करें</string><string name="archive_open_drawer">ड्रॉअर खोलें</string>
+    <string name="archive_note_trashed">नोट ट्रैश में भेजा गया</string><string name="archive_notes_trashed">%1$d नोट ट्रैश में भेजे गए</string>
+    <string name="undo">पूर्ववत करें</string><string name="trash_empty_title">ट्रैश खाली है</string>
+    <string name="trash_empty_body">हटाए गए नोट यहाँ दिखेंगे, जहाँ से आप उन्हें वापस पा सकते हैं।</string>
+    <string name="trash_expiry">ट्रैश के नोट 30 दिन बाद अपने आप स्थायी रूप से हट जाते हैं। इससे पहले आप उन्हें वापस पा सकते हैं या खुद हटा सकते हैं।</string>
+    <string name="trash_title">ट्रैश और रीसायकलर</string><string name="trash_empty_action">ट्रैश खाली करें</string>
+    <string name="trash_empty_confirm_title">ट्रैश खाली करें?</string><string name="trash_empty_confirm_body">ट्रैश के सभी आइटम स्थायी रूप से हट जाएँगे। यह कार्रवाई वापस नहीं की जा सकती।</string>
+    <string name="trash_delete_confirm_title">स्थायी रूप से हटाएँ?</string><string name="trash_delete_selected_body">चुने हुए नोट आपके डिवाइस से स्थायी रूप से हटा दिए जाएँगे।</string>
+    <string name="trash_delete_single_body">यह नोट आपके डिवाइस से स्थायी रूप से हटा दिया जाएगा। यह कार्रवाई वापस नहीं की जा सकती।</string>
+    <string name="trash_delete_permanently">स्थायी रूप से हटाएँ</string><string name="trash_cancel">रद्द करें</string>
+    <string name="trash_restore_selected">चुने हुए नोट वापस पाएँ</string><string name="trash_permanently_delete_selected">चुने हुए नोट स्थायी रूप से हटाएँ</string>
+    <string name="trash_select_all">सभी चुनें</string><string name="trash_clear_selection">चयन हटाएँ</string>
+    <string name="trash_open_drawer">नेविगेशन मेनू खोलें</string>
+    <string name="backup_failed">पिछला बैकअप विफल हुआ: %1$s</string><string name="backup_none_status">अभी कोई बैकअप सहेजा नहीं गया</string>
+    <string name="backup_last_saved">पिछला बैकअप: %1$s%2$s%3$s</string>
+    <string name="backup_files_count"> · %1$d फ़ाइलें</string>
+    <string name="selection_count">%1$d चुने गए</string>
+    <string name="archive_note_trashed_count">%1$d नोट ट्रैश में भेजे गए</string>
+    <string name="app_unlock_title">एलीट मेमो प्रो लॉक है</string><string name="app_unlock_body">अपने निजी नोट देखने के लिए पुष्टि करें</string><string name="app_unlock_biometric">बायोमेट्रिक्स से अनलॉक करें</string>
+    <string name="biometric_title">एलीट मेमो प्रो अनलॉक करें</string><string name="biometric_subtitle">अपने बायोमेट्रिक या डिवाइस क्रेडेंशियल की पुष्टि करें</string>
+    <string name="drawing_selection_count">%1$d चुने गए</string><string name="drawing_recolor_selected">चुने हुए रंग बदलें</string><string name="drawing_duplicate_selected">चुनी हुई चीज़ों की प्रतिलिपि बनाएँ</string><string name="drawing_delete_selected">चुनी हुई चीज़ें हटाएँ</string><string name="drawing_deselect">चयन हटाएँ</string>
+    <string name="editor_note_label">नोट</string><string name="editor_create_label">लेबल बनाएँ</string>
+    <string name="note_card_pinned">पिन किया गया नोट</string><string name="note_card_restore">पुनर्स्थापित करें</string><string name="note_card_delete_forever">हमेशा के लिए हटाएँ</string><string name="note_card_unarchive">आर्काइव से निकालें</string><string name="note_card_edit_drawing">ड्रॉइंग संपादित करें</string><string name="note_card_delete_drawing">ड्रॉइंग हटाएँ</string>
+    <string name="settings_back">वापस</string><string name="settings_markdown">Markdown</string><string name="settings_restore_notes">नोट पुनर्स्थापित करें</string><string name="settings_choose_file">फ़ाइल चुनें</string><string name="settings_allow_backup_folder">बैकअप फ़ोल्डर की अनुमति दें</string>
+    <string name="settings_no_backups">%1$s में कोई बैकअप नहीं मिला।</string>
+    <string name="settings_earlier_backup">वहाँ पिछले इंस्टॉलेशन का बैकअप मौजूद है। उसकी दूसरी कॉपी बनाने के बजाय उसे बदलने के लिए बैकअप फ़ोल्डर की अनुमति दें।</string>
+    <string name="settings_markdown_import_desc">JSON बैकअप न होने पर .md फ़ाइल से नोट आयात करें। निर्यात के लिए होम स्क्रीन पर नोट चुनें और Export दबाएँ।</string>
+    <string name="widget_untitled">बिना शीर्षक का नोट</string>
+    <string name="editor_format_checklist">चेकलिस्ट</string><string name="drawing_pencil_pen">पेंसिल / पेन</string>
+</resources>

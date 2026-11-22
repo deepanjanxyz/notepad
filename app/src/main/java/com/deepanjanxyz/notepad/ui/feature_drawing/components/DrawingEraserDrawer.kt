@@ -1,5 +1,7 @@
 package com.deepanjanxyz.notepad.ui.feature_drawing.components
 
+import com.deepanjanxyz.notepad.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -92,12 +94,12 @@ private fun EraserModeRow(currentMode: EraserMode, onModeSelected: (EraserMode) 
         verticalAlignment = Alignment.CenterVertically
     ) {
         EraserModeChip(
-            label = "Precision (Touch only)",
+            label = stringResource(R.string.drawing_precision),
             isSelected = currentMode == EraserMode.SEGMENT,
             onClick = { onModeSelected(EraserMode.SEGMENT) }
         )
         EraserModeChip(
-            label = "Stroke (Whole line)",
+            label = stringResource(R.string.drawing_stroke),
             isSelected = currentMode == EraserMode.STROKE,
             onClick = { onModeSelected(EraserMode.STROKE) }
         )
@@ -143,7 +145,7 @@ private fun EraserSizeRow(currentRadiusPx: Float, onRadiusChanged: (Float) -> Un
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "Size:",
+            text = stringResource(R.string.drawing_size) + ":",
             style = TextStyle(fontSize = 12.sp, color = AppColors.TextLabel)
         )
         listOf(
@@ -193,7 +195,7 @@ private fun ClearCanvasButton(onClearCanvas: () -> Unit) {
             .testTag("eraser_clear_all_button")
     ) {
         Text(
-            text = "Clear All",
+            text = stringResource(R.string.drawing_clear_all),
             style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AppColors.Danger),
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
         )

@@ -1,5 +1,7 @@
 package com.deepanjanxyz.notepad.ui.screens
 
+import com.deepanjanxyz.notepad.R
+import androidx.compose.ui.res.stringResource
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
@@ -484,7 +486,7 @@ fun NoteEditorScreen(
                             )
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Remove reminder",
+                                contentDescription = stringResource(R.string.editor_remove_reminder),
                                 tint = if (isPast) {
                                     MaterialTheme.colorScheme.outline
                                 } else {
@@ -519,7 +521,7 @@ fun NoteEditorScreen(
                         Box {
                             if (title.isEmpty()) {
                                 Text(
-                                    text = "Title",
+                                    text = stringResource(R.string.note_title_hint),
                                     style = TextStyle(
                                         fontSize = 24.sp,
                                         fontWeight = FontWeight.Bold,
@@ -565,7 +567,7 @@ fun NoteEditorScreen(
                             Box(modifier = Modifier.heightIn(min = 200.dp)) {
                                 if (content.isEmpty()) {
                                     Text(
-                                        text = "Note",
+                                        text = stringResource(R.string.editor_note_label),
                                         style = TextStyle(
                                             fontSize = 18.sp,
                                             fontWeight = FontWeight.Normal,
@@ -611,13 +613,13 @@ fun NoteEditorScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
-                                contentDescription = "Add label",
+                                contentDescription = stringResource(R.string.editor_add_label),
                                 tint = labelPillContent,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Add label",
+                                text = stringResource(R.string.editor_add_label),
                                 style = TextStyle(
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,

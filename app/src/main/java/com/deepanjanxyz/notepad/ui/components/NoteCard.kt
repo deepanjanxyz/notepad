@@ -1,5 +1,6 @@
 package com.deepanjanxyz.notepad.ui.components
 
+import com.deepanjanxyz.notepad.R
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -43,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -266,7 +268,7 @@ private fun NoteCardHeaderRow(
             ) {
                 Icon(
                     imageVector = Icons.Filled.PushPin,
-                    contentDescription = "Pinned note",
+                    contentDescription = stringResource(R.string.note_card_pinned),
                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier
                         .padding(4.dp)
@@ -335,7 +337,7 @@ private fun NoteDrawingThumbnail(drawingData: DrawingData) {
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "Drawing",
+                    text = stringResource(R.string.editor_drawing),
                     style = TextStyle(
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
@@ -522,7 +524,7 @@ private fun NoteCardActions(
         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             if (onRestore != null) {
                 TooltipIconButton(
-                    tooltip = "Restore",
+                    tooltip = stringResource(R.string.note_card_restore),
                     icon = Icons.Default.RestoreFromTrash,
                     tint = MaterialTheme.colorScheme.primary,
                     onClick = onRestore
@@ -530,7 +532,7 @@ private fun NoteCardActions(
             }
             if (onDeleteForever != null) {
                 TooltipIconButton(
-                    tooltip = "Delete forever",
+                    tooltip = stringResource(R.string.note_card_delete_forever),
                     icon = Icons.Default.DeleteForever,
                     tint = MaterialTheme.colorScheme.error,
                     onClick = onDeleteForever
@@ -539,7 +541,7 @@ private fun NoteCardActions(
         }
     } else if (isInArchive && onUnarchive != null) {
         TooltipIconButton(
-            tooltip = "Unarchive",
+            tooltip = stringResource(R.string.note_card_unarchive),
             icon = Icons.Default.Unarchive,
             tint = MaterialTheme.colorScheme.primary,
             onClick = onUnarchive

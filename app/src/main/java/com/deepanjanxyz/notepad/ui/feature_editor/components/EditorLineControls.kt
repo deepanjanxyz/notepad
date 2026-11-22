@@ -1,5 +1,7 @@
 package com.deepanjanxyz.notepad.ui.feature_editor.components
 
+import com.deepanjanxyz.notepad.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -148,7 +150,7 @@ private fun TaskCheckboxMark(isChecked: Boolean, amberAccent: Color) {
         if (isChecked) {
             Icon(
                 imageVector = Icons.Default.Check,
-                contentDescription = "Completed",
+                contentDescription = stringResource(R.string.editor_completed),
                 tint = AppColors.TextOnAmber,
                 modifier = Modifier.size(CHECKBOX_TICK_SIZE)
             )
@@ -205,7 +207,7 @@ internal fun RemoveLineButton(
     segmentIndex: Int,
     onDeleteSegment: (segmentIndex: Int) -> Unit
 ) {
-    ActionTooltip("Remove line") {
+    ActionTooltip(stringResource(R.string.editor_remove_line)) {
         IconButton(
             onClick = { onDeleteSegment(segmentIndex) },
             modifier = Modifier
@@ -214,7 +216,7 @@ internal fun RemoveLineButton(
         ) {
             Icon(
                 imageVector = Icons.Default.Close,
-                contentDescription = "Remove line",
+                contentDescription = stringResource(R.string.editor_remove_line),
                 tint = AppColors.TextPlaceholder,
                 modifier = Modifier.size(REMOVE_ICON_SIZE)
             )

@@ -1,5 +1,6 @@
 package com.deepanjanxyz.notepad.ui.feature_editor.components
 
+import com.deepanjanxyz.notepad.R
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -29,6 +30,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.domain.model.DrawingSerializer
 import com.deepanjanxyz.notepad.ui.theme.AppColors
@@ -149,12 +151,12 @@ private fun BoxScope.DrawingPreviewControls(onClick: () -> Unit, onDelete: () ->
     ) {
         PreviewControlButton(
             icon = Icons.Default.Edit,
-            contentDescription = "Edit drawing",
+            contentDescription = stringResource(R.string.note_card_edit_drawing),
             onClick = onClick
         )
         PreviewControlButton(
             icon = Icons.Default.Close,
-            contentDescription = "Delete drawing",
+            contentDescription = stringResource(R.string.note_card_delete_drawing),
             onClick = onDelete
         )
     }

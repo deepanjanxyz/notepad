@@ -1,5 +1,7 @@
 package com.deepanjanxyz.notepad.ui.screens
 
+import com.deepanjanxyz.notepad.R
+import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -144,9 +146,9 @@ private fun TrashDialogs(
 ) {
     when (dialog) {
         TrashDialog.EmptyTrash -> TrashConfirmDialog(
-            title = "Empty Trash?",
-            text = "All items in trash will be permanently deleted. This action cannot be reversed.",
-            confirmLabel = "Empty Trash",
+            title = stringResource(R.string.trash_empty_confirm_title),
+            text = stringResource(R.string.trash_empty_confirm_body),
+            confirmLabel = stringResource(R.string.trash_empty_action),
             confirmTag = "confirm_empty_trash_button",
             onConfirm = {
                 onDismiss()
@@ -156,9 +158,9 @@ private fun TrashDialogs(
         )
 
         TrashDialog.DeleteSelected -> TrashConfirmDialog(
-            title = "Permanently Delete?",
-            text = "Selected note(s) will be permanently deleted from your device.",
-            confirmLabel = "Delete Permanently",
+            title = stringResource(R.string.trash_delete_confirm_title),
+            text = stringResource(R.string.trash_delete_selected_body),
+            confirmLabel = stringResource(R.string.trash_delete_permanently),
             confirmTag = "confirm_permanent_delete_button",
             onConfirm = {
                 onDismiss()
@@ -168,9 +170,9 @@ private fun TrashDialogs(
         )
 
         is TrashDialog.DeleteForever -> TrashConfirmDialog(
-            title = "Permanently Delete?",
-            text = "This note will be permanently deleted from your device. This action cannot be reversed.",
-            confirmLabel = "Delete Permanently",
+            title = stringResource(R.string.trash_delete_confirm_title),
+            text = stringResource(R.string.trash_delete_single_body),
+            confirmLabel = stringResource(R.string.trash_delete_permanently),
             confirmTag = "confirm_delete_note_forever_button",
             onConfirm = {
                 onDismiss()
@@ -208,7 +210,7 @@ private fun TrashConfirmDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.labels_cancel))
             }
         }
     )
@@ -324,41 +326,41 @@ private fun TrashSelectionTopBar(
 ) {
     TopAppBar(
         title = {
-            Text("$selectedCount Selected")
+            Text(stringResource(R.string.selection_count, selectedCount))
         },
         navigationIcon = {
-            ActionTooltip("Clear selection") {
+            ActionTooltip(stringResource(R.string.trash_clear_selection)) {
                 IconButton(onClick = onClearSelection) {
-                    Icon(Icons.Default.Close, contentDescription = "Clear selection")
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.trash_clear_selection))
                 }
             }
         },
         actions = {
-            ActionTooltip("Select all") {
+            ActionTooltip(stringResource(R.string.trash_select_all)) {
                 IconButton(onClick = onSelectAll) {
-                    Icon(Icons.Default.SelectAll, contentDescription = "Select all")
+                    Icon(Icons.Default.SelectAll, contentDescription = stringResource(R.string.trash_select_all))
                 }
             }
-            ActionTooltip("Restore selected") {
+            ActionTooltip(stringResource(R.string.trash_restore_selected)) {
                 IconButton(
                     onClick = onRestoreSelected,
                     modifier = Modifier.testTag("restore_selected_button")
                 ) {
                     Icon(
                         Icons.Default.RestoreFromTrash,
-                        contentDescription = "Restore selected",
+                        contentDescription = stringResource(R.string.trash_restore_selected),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
             }
-            ActionTooltip("Permanently delete selected") {
+            ActionTooltip(stringResource(R.string.trash_permanently_delete_selected)) {
                 IconButton(
                     onClick = onDeleteSelected,
                     modifier = Modifier.testTag("delete_selected_trash_button")
                 ) {
                     Icon(
                         Icons.Default.DeleteForever,
-                        contentDescription = "Permanently delete selected",
+                        contentDescription = stringResource(R.string.trash_permanently_delete_selected),
                         tint = MaterialTheme.colorScheme.error
                     )
                 }
@@ -379,14 +381,14 @@ private fun TrashDefaultTopBar(
 ) {
     TopAppBar(
         navigationIcon = {
-            ActionTooltip("Open navigation menu") {
+            ActionTooltip(stringResource(R.string.trash_open_drawer)) {
                 IconButton(
                     onClick = onOpenDrawer,
                     modifier = Modifier.testTag("trash_drawer_button")
                 ) {
                     Icon(
                         imageVector = Icons.Default.Menu,
-                        contentDescription = "Open navigation menu"
+                        contentDescription = stringResource(R.string.trash_open_drawer)
                     )
                 }
             }
@@ -394,7 +396,7 @@ private fun TrashDefaultTopBar(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "Trash & Recycler",
+                    text = stringResource(R.string.trash_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -418,7 +420,7 @@ private fun TrashDefaultTopBar(
                     onClick = onEmptyTrash,
                     modifier = Modifier.testTag("empty_trash_button")
                 ) {
-                    Text("Empty Trash", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.trash_empty_action), color = MaterialTheme.colorScheme.error)
                 }
             }
         },
@@ -487,13 +489,13 @@ private fun EmptyTrashState() {
             }
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Trash is empty",
+                text = stringResource(R.string.trash_empty_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Deleted notes will appear here so you can restore them.",
+                text = stringResource(R.string.trash_empty_body),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center

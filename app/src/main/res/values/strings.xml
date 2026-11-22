@@ -39,4 +39,116 @@
     <string name="widget_note_drawing_desc">Drawing preview</string>
     <string name="widget_note_choose_search">Search notes…</string>
     <string name="widget_note_choose_linked">Currently linked</string>
+    <string name="app_language">App language</string>
+    <string name="choose_language">Choose language</string>
+    <string name="language_change">Change</string>
+    <string name="language_close">Close</string>
+    <string name="filter_all">All</string>
+    <string name="drawer_subtitle">Smart Notes &amp; Organization</string>
+    <string name="drawer_notes">Notes</string>
+    <string name="drawer_labels">Labels</string>
+    <string name="drawer_edit">Edit</string>
+    <string name="drawer_create_edit_labels">+ Create new label / Edit Labels</string>
+    <string name="drawer_archive">Archive</string>
+    <string name="drawer_trash">Trash</string>
+    <string name="drawer_settings">Settings</string>
+    <string name="drawer_github">Source on GitHub</string>
+    <string name="create_note_title">Create Note</string>
+    <string name="create_text_note">Text Note</string>
+    <string name="create_text_note_desc">Standard text, checklist, and labels</string>
+    <string name="create_checklist">Checklist</string>
+    <string name="create_checklist_desc">Tick-off items for to-dos and lists</string>
+    <string name="create_drawing_note">Drawing Note</string>
+    <string name="create_drawing_note_desc">Free-hand sketch and doodle canvas</string>
+    <string name="workspace_statistics">Workspace Statistics</string>
+    <string name="total_notes">Total Notes</string>
+    <string name="pinned">Pinned</string>
+    <string name="words">Words</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="backup_restore">Backup &amp; Restore</string>
+    <string name="backup_restore_desc">Keep your notes safe with backups and restore them anytime.</string>
+    <string name="backup_location_desc">Backups are saved to %1$s and stay there even if you clear the app data, so you can restore your notes afterwards.</string>
+    <string name="backup_none">No backup saved yet</string>
+    <string name="auto_backup">Auto backup</string>
+    <string name="auto_backup_desc">Save every change to Downloads automatically.</string>
+    <string name="backup_now">Back up now</string>
+    <string name="restore">Restore</string>
+    <string name="markdown_desc">Import Markdown notes or a ZIP archive.</string>
+    <string name="import_markdown_zip">Import .md or .zip</string>
+    <string name="about_technology">Crafted with Kotlin Coroutines, Jetpack Compose Material 3, and Room local persistence.</string>
+    <string name="view_source_github">View Source on GitHub</string>
+    <string name="report_issue">Report an Issue</string>
+    <string name="open_navigation_menu">Open navigation menu</string>
+    <string name="switch_to_list">Switch to Single Column List</string>
+    <string name="switch_to_grid">Switch to Grid View</string>
+    <string name="search_accessibility">Search</string>
+    <string name="clear_search">Clear search</string>
+    <string name="sort_notes">Sort notes</string>
+    <string name="selected_color_filter">Selected color filter</string>
+    <string name="editor_back">Back</string><string name="editor_pin">Pin Note</string><string name="editor_unpin">Unpin Note</string>
+    <string name="editor_add_reminder">Add reminder</string><string name="editor_edit_reminder">Edit reminder</string>
+    <string name="editor_color_palette">Color palette</string><string name="editor_drawing">Drawing</string>
+    <string name="editor_share_note">Share Note</string><string name="editor_archive_note">Archive Note</string>
+    <string name="editor_save_close">Save and Close</string><string name="editor_format">Note format</string>
+    <string name="editor_plain_text">Plain text</string><string name="editor_bulleted_list">Bulleted list</string><string name="editor_numbered_list">Numbered list</string>
+    <string name="editor_add_label">Add label</string><string name="editor_remove_reminder">Remove reminder</string>
+    <string name="editor_add_line">Add line</string><string name="editor_remove_line">Remove line</string>
+    <string name="editor_completed">Completed</string><string name="editor_selected_format">Selected format</string>
+    <string name="editor_choose_color">CHOOSE COLOR</string><string name="editor_selected">Selected</string>
+    <string name="editor_checklist_item">Checklist item</string><string name="editor_list_item">List item</string>
+    <string name="labels_edit_title">Edit Labels</string><string name="labels_create_hint">Create new label</string>
+    <string name="labels_add">Add label</string><string name="labels_duplicate">Label already exists</string>
+    <string name="labels_limit">Character limit reached</string><string name="labels_rename">Rename Label</string>
+    <string name="labels_name">Label Name</string><string name="labels_cancel">Cancel</string>
+    <string name="labels_done">Done</string><string name="labels_empty">No labels yet. Create one above!</string>
+    <string name="labels_options">Label options</string><string name="labels_rename_action">Rename</string>
+    <string name="labels_delete">Delete</string><string name="labels_select">SELECT LABELS</string>
+    <string name="drawing_title_hint">Title</string><string name="drawing_back">Back</string>
+    <string name="drawing_undo">Undo</string><string name="drawing_redo">Redo</string>
+    <string name="drawing_more">More options</string><string name="drawing_bg_grid">Canvas Background &amp; Grid</string>
+    <string name="drawing_clear_canvas">Clear canvas</string><string name="drawing_background_grid">Background grid</string>
+    <string name="drawing_blank">Blank</string><string name="drawing_ruled">Ruled</string><string name="drawing_grid">Grid</string><string name="drawing_dots">Dots</string>
+    <string name="drawing_canvas_description">Drawing canvas</string><string name="drawing_select">Select</string>
+    <string name="drawing_eraser">Eraser</string><string name="drawing_pen">Pen</string><string name="drawing_marker">Marker</string>
+    <string name="drawing_highlighter">Highlighter</string><string name="drawing_brush">Brush</string>
+    <string name="drawing_size">Size</string><string name="drawing_precision">Precision (Touch only)</string>
+    <string name="drawing_stroke">Stroke (Whole line)</string><string name="drawing_clear_all">Clear All</string>
+    <string name="drawing_color">Colour %1$s</string><string name="drawing_stroke_size">Stroke size %1$d</string>
+    <string name="drawing_clear_confirm_title">Clear canvas?</string><string name="drawing_clear_confirm_body">This removes every stroke on the canvas.</string>
+    <string name="drawing_clear">Clear</string><string name="drawing_done">Done</string>
+    <string name="canvas_bg_dialog">Canvas Background &amp; Grid</string><string name="canvas_bg_color">Background Color</string><string name="canvas_grid_pattern">Grid Pattern</string>
+    <string name="canvas_pure_white">Pure White</string><string name="canvas_warm_ivory">Warm Ivory</string><string name="canvas_soft_slate">Soft Slate</string><string name="canvas_dark_charcoal">Dark Charcoal</string><string name="canvas_midnight_black">Midnight Black</string>
+    <string name="archive_empty_title">No archived notes</string><string name="archive_empty_body">Notes you archive will be stored here safely.</string>
+    <string name="archive_unarchive_selected">Unarchive selected</string><string name="archive_move_trash">Move selected to trash</string>
+    <string name="archive_restore">Restore</string><string name="archive_open_drawer">Open drawer</string>
+    <string name="archive_note_trashed">Note moved to trash</string><string name="archive_notes_trashed">%1$d notes moved to trash</string>
+    <string name="undo">Undo</string><string name="trash_empty_title">Trash is empty</string>
+    <string name="trash_empty_body">Deleted notes will appear here so you can restore them.</string>
+    <string name="trash_expiry">Notes in trash are automatically permanently deleted after 30 days. You can restore or delete them manually before then.</string>
+    <string name="trash_title">Trash &amp; Recycler</string><string name="trash_empty_action">Empty Trash</string>
+    <string name="trash_empty_confirm_title">Empty Trash?</string><string name="trash_empty_confirm_body">All items in trash will be permanently deleted. This action cannot be reversed.</string>
+    <string name="trash_delete_confirm_title">Permanently Delete?</string><string name="trash_delete_selected_body">Selected note(s) will be permanently deleted from your device.</string>
+    <string name="trash_delete_single_body">This note will be permanently deleted from your device. This action cannot be reversed.</string>
+    <string name="trash_delete_permanently">Delete Permanently</string><string name="trash_cancel">Cancel</string>
+    <string name="trash_restore_selected">Restore selected</string><string name="trash_permanently_delete_selected">Permanently delete selected</string>
+    <string name="trash_select_all">Select all</string><string name="trash_clear_selection">Clear selection</string>
+    <string name="trash_open_drawer">Open navigation menu</string>
+    <string name="backup_failed">Last backup failed: %1$s</string><string name="backup_none_status">No backup saved yet</string>
+    <string name="backup_last_saved">Last backup: %1$s%2$s%3$s</string>
+    <string name="backup_files_count"> · %1$d files</string>
+    <string name="selection_count">%1$d Selected</string>
+    <string name="archive_note_trashed_count">%1$d notes moved to trash</string>
+    <string name="app_unlock_title">Elite Memo Pro is Locked</string><string name="app_unlock_body">Authenticate to access your personal notes</string><string name="app_unlock_biometric">Unlock with Biometrics</string>
+    <string name="biometric_title">Unlock Elite Memo Pro</string><string name="biometric_subtitle">Confirm your biometric or device credentials</string>
+    <string name="drawing_selection_count">%1$d selected</string><string name="drawing_recolor_selected">Recolor selected</string><string name="drawing_duplicate_selected">Duplicate selected</string><string name="drawing_delete_selected">Delete selected</string><string name="drawing_deselect">Deselect</string>
+    <string name="editor_note_label">Note</string><string name="editor_create_label">Create label</string>
+    <string name="note_card_pinned">Pinned note</string><string name="note_card_restore">Restore</string><string name="note_card_delete_forever">Delete forever</string><string name="note_card_unarchive">Unarchive</string><string name="note_card_edit_drawing">Edit drawing</string><string name="note_card_delete_drawing">Delete drawing</string>
+    <string name="settings_back">Back</string><string name="settings_markdown">Markdown</string><string name="settings_restore_notes">Restore notes</string><string name="settings_choose_file">Choose file</string><string name="settings_allow_backup_folder">Allow access to the backup folder</string>
+    <string name="settings_no_backups">No backups found in %1$s.</string>
+    <string name="settings_earlier_backup">A backup from an earlier installation is already there. Allow access to the backup folder so it can be replaced instead of copied beside.</string>
+    <string name="settings_markdown_import_desc">Import a .md file back into notes, in case the JSON backup is gone. To export, select notes on the home screen and tap Export.</string>
+    <string name="widget_untitled">Untitled Note</string>
+    <string name="editor_format_checklist">Checklist</string><string name="drawing_pencil_pen">Pencil / Pen</string>
 </resources>

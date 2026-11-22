@@ -1,5 +1,7 @@
 package com.deepanjanxyz.notepad.ui.components
 
+import com.deepanjanxyz.notepad.R
+import androidx.compose.ui.res.stringResource
 import android.view.HapticFeedbackConstants
 import android.view.View
 import androidx.compose.foundation.layout.Arrangement
@@ -151,7 +153,7 @@ private fun EditLabelsDialogBody(
                     .padding(20.dp)
             ) {
                 Text(
-                    text = "Edit Labels",
+                    text = stringResource(R.string.labels_edit_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -226,7 +228,7 @@ private fun NewLabelField(
             }
             onInputChange(raw.take(MAX_LABEL_LENGTH))
         },
-        placeholder = { Text("Create new label") },
+        placeholder = { Text(stringResource(R.string.labels_create_hint)) },
         isError = isDuplicate || limitFlash,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
         keyboardActions = KeyboardActions(onDone = { addIfValid() }),
@@ -253,7 +255,7 @@ private fun NewLabelField(
  */
 @Composable
 private fun NewLabelAddButton(canAdd: Boolean, onClick: () -> Unit) {
-    ActionTooltip("Add label") {
+    ActionTooltip(stringResource(R.string.labels_add)) {
         // A fixed 48dp box gives the button a hit area of its own, so a tap that
         // lands beside the icon cannot reach the field or the list behind it.
         Box(
@@ -266,7 +268,7 @@ private fun NewLabelAddButton(canAdd: Boolean, onClick: () -> Unit) {
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Add label",
+                    contentDescription = stringResource(R.string.labels_add),
                     tint = if (canAdd) {
                         MaterialTheme.colorScheme.primary
                     } else {
@@ -288,12 +290,12 @@ private fun LabelFieldSupportingText(length: Int, isDuplicate: Boolean) {
     ) {
         when {
             isDuplicate -> Text(
-                text = "Label already exists",
+                text = stringResource(R.string.labels_duplicate),
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.labelSmall
             )
             atLimit -> Text(
-                text = "Character limit reached",
+                text = stringResource(R.string.labels_limit),
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Medium
@@ -331,7 +333,7 @@ private fun RenameLabelDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Rename Label") },
+        title = { Text(stringResource(R.string.labels_rename)) },
         text = {
             Column {
                 OutlinedTextField(
@@ -342,7 +344,7 @@ private fun RenameLabelDialog(
                         }
                         onInputChange(raw.take(MAX_LABEL_LENGTH))
                     },
-                    label = { Text("Label Name") },
+                    label = { Text(stringResource(R.string.labels_name)) },
                     isError = isDuplicate,
                     supportingText = {
                         LabelFieldSupportingText(
@@ -368,12 +370,12 @@ private fun RenameLabelDialog(
                 enabled = renameInputText.isNotBlank() && !isDuplicate,
                 modifier = Modifier.testTag("confirm_rename_label_button")
             ) {
-                Text("Save")
+                Text(stringResource(R.string.action_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.labels_cancel))
             }
         }
     )
@@ -394,7 +396,7 @@ private fun LabelList(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "No labels yet. Create one above!",
+                text = stringResource(R.string.labels_empty),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -429,7 +431,7 @@ private fun EditLabelsDoneRow(onDismiss: () -> Unit) {
             modifier = Modifier.testTag("done_edit_labels_button")
         ) {
             Text(
-                text = "Done",
+                text = stringResource(R.string.drawing_done),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -491,7 +493,7 @@ private fun LabelOverflowMenu(
     var menuExpanded by remember { mutableStateOf(false) }
 
     Box {
-        ActionTooltip("Label options") {
+        ActionTooltip(stringResource(R.string.labels_options)) {
             IconButton(
                 onClick = { menuExpanded = true },
                 modifier = Modifier
@@ -500,7 +502,7 @@ private fun LabelOverflowMenu(
             ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
-                    contentDescription = "Label options",
+                    contentDescription = stringResource(R.string.labels_options),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp)
                 )
@@ -513,7 +515,7 @@ private fun LabelOverflowMenu(
             shape = RoundedCornerShape(16.dp)
         ) {
             DropdownMenuItem(
-                text = { Text("Rename") },
+                text = { Text(stringResource(R.string.labels_rename_action)) },
                 leadingIcon = {
                     Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
                 },
@@ -525,7 +527,7 @@ private fun LabelOverflowMenu(
             )
 
             DropdownMenuItem(
-                text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                text = { Text(stringResource(R.string.labels_delete), color = MaterialTheme.colorScheme.error) },
                 leadingIcon = {
                     Icon(
                         Icons.Default.Delete,

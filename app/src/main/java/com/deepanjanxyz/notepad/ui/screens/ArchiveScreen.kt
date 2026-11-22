@@ -1,5 +1,7 @@
 package com.deepanjanxyz.notepad.ui.screens
 
+import com.deepanjanxyz.notepad.R
+import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -75,10 +77,16 @@ fun ArchiveScreen(
     onNoteClick: (Note) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val undoLabel = stringResource(R.string.undo)
     var selectedNoteIds by remember { mutableStateOf(setOf<Long>()) }
     val isSelectionMode = selectedNoteIds.isNotEmpty()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val trashMessage = if (selectedNoteIds.size == 1) {
+        stringResource(R.string.archive_note_trashed)
+    } else {
+        stringResource(R.string.archive_note_trashed_count, selectedNoteIds.size)
+    }
 
     fun toggleSelection(id: Long) {
         selectedNoteIds = if (id in selectedNoteIds) selectedNoteIds - id else selectedNoteIds + id
@@ -110,7 +118,13 @@ fun ArchiveScreen(
             val idsToMoveToTrash = selectedNoteIds.toList()
             onMoveSelectedToTrash(idsToMoveToTrash)
             selectedNoteIds = emptySet()
-            showMovedToTrashSnackbar(scope, snackbarHostState, idsToMoveToTrash.size, onUndoMoveToTrash)
+            showMovedToTrashSnackbar(
+                scope,
+                snackbarHostState,
+                trashMessage,
+                undoLabel,
+                onUndoMoveToTrash
+            )
         },
         onNoteClick = onNoteClick,
         onClearSelection = { selectedNoteIds = emptySet() },
@@ -124,13 +138,14 @@ fun ArchiveScreen(
 private fun showMovedToTrashSnackbar(
     scope: CoroutineScope,
     snackbarHostState: SnackbarHostState,
-    count: Int,
+    message: String,
+    undoLabel: String,
     onUndo: () -> Unit
 ) {
     scope.launch {
         val result = snackbarHostState.showSnackbar(
-            message = if (count == 1) "Note moved to trash" else "$count notes moved to trash",
-            actionLabel = "Undo",
+            message = message,
+            actionLabel = undoLabel,
             duration = SnackbarDuration.Short
         )
         if (result == SnackbarResult.ActionPerformed) {
@@ -240,41 +255,41 @@ private fun ArchiveSelectionTopBar(
 ) {
     TopAppBar(
         title = {
-            Text("$selectedCount Selected")
+            Text(stringResource(R.string.selection_count, selectedCount))
         },
         navigationIcon = {
-            ActionTooltip("Clear selection") {
+            ActionTooltip(stringResource(R.string.trash_clear_selection)) {
                 IconButton(onClick = onClearSelection) {
-                    Icon(Icons.Default.Close, contentDescription = "Clear selection")
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.trash_clear_selection))
                 }
             }
         },
         actions = {
-            ActionTooltip("Select all") {
+            ActionTooltip(stringResource(R.string.trash_select_all)) {
                 IconButton(onClick = onSelectAll) {
-                    Icon(Icons.Default.SelectAll, contentDescription = "Select all")
+                    Icon(Icons.Default.SelectAll, contentDescription = stringResource(R.string.trash_select_all))
                 }
             }
-            ActionTooltip("Unarchive selected") {
+            ActionTooltip(stringResource(R.string.archive_unarchive_selected)) {
                 IconButton(
                     onClick = onUnarchiveSelected,
                     modifier = Modifier.testTag("unarchive_selected_button")
                 ) {
                     Icon(
                         Icons.Default.Unarchive,
-                        contentDescription = "Unarchive selected",
+                        contentDescription = stringResource(R.string.archive_unarchive_selected),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
             }
-            ActionTooltip("Move selected to trash") {
+            ActionTooltip(stringResource(R.string.archive_move_trash)) {
                 IconButton(
                     onClick = onMoveSelectedToTrash,
                     modifier = Modifier.testTag("delete_selected_archive_button")
                 ) {
                     Icon(
                         Icons.Default.Delete,
-                        contentDescription = "Move selected to trash",
+                        contentDescription = stringResource(R.string.archive_move_trash),
                         tint = MaterialTheme.colorScheme.error
                     )
                 }
@@ -312,12 +327,12 @@ private fun ArchiveDefaultTopBar(archiveCount: Int, onOpenDrawer: () -> Unit) {
             }
         },
         navigationIcon = {
-            ActionTooltip("Open drawer") {
+            ActionTooltip(stringResource(R.string.archive_open_drawer)) {
                 IconButton(
                     onClick = onOpenDrawer,
                     modifier = Modifier.testTag("archive_drawer_menu_button")
                 ) {
-                    Icon(Icons.Default.Menu, contentDescription = "Open drawer")
+                    Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.archive_open_drawer))
                 }
             }
         },
@@ -353,13 +368,13 @@ private fun EmptyArchiveState() {
             }
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "No archived notes",
+                text = stringResource(R.string.archive_empty_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Notes you archive will be stored here safely.",
+                text = stringResource(R.string.archive_empty_body),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center

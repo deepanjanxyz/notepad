@@ -6,7 +6,6 @@ import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.content.Intent
 import android.content.Context
-import android.content.res.Configuration
 import java.util.Locale
 import android.os.Bundle
 import android.view.View
@@ -67,15 +66,9 @@ internal const val EXIT_BACK_WINDOW_MS = 2000L
 class MainActivity : FragmentActivity() {
 
     override fun attachBaseContext(newBase: Context) {
-        val language = newBase.getSharedPreferences("app_preferences", Context.MODE_PRIVATE)
-            .getString("app_language", "en") ?: "en"
-        val locale = Locale.forLanguageTag(language)
+        val locale = newBase.savedAppLocale()
         Locale.setDefault(locale)
-        val configuration = Configuration(newBase.resources.configuration).apply {
-            setLocale(locale)
-            setLayoutDirection(locale)
-        }
-        super.attachBaseContext(newBase.createConfigurationContext(configuration))
+        super.attachBaseContext(newBase.withAppLocale(locale))
     }
 
 

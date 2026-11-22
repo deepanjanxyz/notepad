@@ -5,6 +5,8 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.content.Intent
+import android.content.Context
+import java.util.Locale
 import android.os.Bundle
 import android.view.View
 import android.view.animation.DecelerateInterpolator
@@ -43,6 +45,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -61,6 +64,13 @@ private const val SPLASH_ANIMATION_DURATION_MS = 300L
 internal const val EXIT_BACK_WINDOW_MS = 2000L
 
 class MainActivity : FragmentActivity() {
+
+    override fun attachBaseContext(newBase: Context) {
+        val locale = newBase.savedAppLocale()
+        Locale.setDefault(locale)
+        super.attachBaseContext(newBase.withAppLocale(locale))
+    }
+
 
     private val viewModel: NotesViewModel by viewModels()
 
@@ -146,8 +156,8 @@ class MainActivity : FragmentActivity() {
 
     private fun showBiometricPrompt() {
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Unlock Elite Memo Pro")
-            .setSubtitle("Confirm your biometric or device credentials")
+            .setTitle(getString(R.string.biometric_title))
+            .setSubtitle(getString(R.string.biometric_subtitle))
             .setAllowedAuthenticators(
                 BiometricManager.Authenticators.BIOMETRIC_STRONG or
                         BiometricManager.Authenticators.DEVICE_CREDENTIAL
@@ -212,7 +222,7 @@ fun LockScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "Elite Memo Pro is Locked",
+                text = stringResource(R.string.app_unlock_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -221,7 +231,7 @@ fun LockScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Authenticate to access your personal notes",
+                text = stringResource(R.string.app_unlock_body),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -238,7 +248,7 @@ fun LockScreen(
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.size(8.dp))
-                Text("Unlock with Biometrics")
+                Text(stringResource(R.string.app_unlock_biometric))
             }
         }
     }

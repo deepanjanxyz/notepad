@@ -1,5 +1,7 @@
 package com.deepanjanxyz.notepad.ui.feature_drawing.components
 
+import com.deepanjanxyz.notepad.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -242,19 +244,31 @@ private fun ToolRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceAround
     ) {
-        ToolDockButton(DrawingTool.SELECT, activeTool, "tool_select", "Select", onToolClick) {
+        ToolDockButton(
+            DrawingTool.SELECT, activeTool, "tool_select", stringResource(R.string.drawing_select), onToolClick
+        ) {
             SelectionToolIcon(isSelected = activeTool == DrawingTool.SELECT)
         }
-        ToolDockButton(DrawingTool.ERASER, activeTool, "tool_eraser", "Eraser", onToolClick) {
+        ToolDockButton(
+            DrawingTool.ERASER, activeTool, "tool_eraser", stringResource(R.string.drawing_eraser), onToolClick
+        ) {
             EraserToolIcon(isSelected = activeTool == DrawingTool.ERASER)
         }
-        ToolDockButton(DrawingTool.PEN, activeTool, "tool_pen", "Pen", onToolClick) {
+        ToolDockButton(DrawingTool.PEN, activeTool, "tool_pen", stringResource(R.string.drawing_pen), onToolClick) {
             PenToolIcon(tipColor = Color(penColor), isSelected = activeTool == DrawingTool.PEN)
         }
-        ToolDockButton(DrawingTool.MARKER, activeTool, "tool_marker", "Marker", onToolClick) {
+        ToolDockButton(
+            DrawingTool.MARKER, activeTool, "tool_marker", stringResource(R.string.drawing_marker), onToolClick
+        ) {
             MarkerToolIcon(tipColor = Color(markerColor), isSelected = activeTool == DrawingTool.MARKER)
         }
-        ToolDockButton(DrawingTool.HIGHLIGHTER, activeTool, "tool_highlighter", "Highlighter", onToolClick) {
+        ToolDockButton(
+            DrawingTool.HIGHLIGHTER,
+            activeTool,
+            "tool_highlighter",
+            stringResource(R.string.drawing_highlighter),
+            onToolClick
+        ) {
             HighlighterToolIcon(tipColor = Color(highlighterColor), isSelected = activeTool == DrawingTool.HIGHLIGHTER)
         }
     }

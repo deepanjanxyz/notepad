@@ -1,0 +1,10 @@
+Bengali, Hindi and safer backups
+
+- Add Bengali and Hindi translations, switchable in Settings.
+- Add note shortcuts with text previews and drawing thumbnails, plus widget previews in the picker.
+- Import Markdown or ZIP; export one note, selected notes, or .md files in a ZIP.
+- Improve JSON backup handling, Downloads storage and recovery.
+- Batch large archive, trash, restore and delete operations.
+- Animate snackbar countdowns and theme scrolling.
+
+Thank you for using Elite Memo Pro!

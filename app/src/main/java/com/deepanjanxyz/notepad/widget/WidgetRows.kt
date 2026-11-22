@@ -15,6 +15,7 @@ import com.deepanjanxyz.notepad.domain.model.isChecklistLine
 import com.deepanjanxyz.notepad.domain.model.isChecklistLineChecked
 import com.deepanjanxyz.notepad.domain.repository.NoteRepository
 import com.deepanjanxyz.notepad.ui.theme.NoteColorOptions
+import com.deepanjanxyz.notepad.withAppLocale
 
 /** One checklist line of a note, remembering the line it came from. */
 internal data class WidgetTask(val lineIndex: Int, val text: String, val isChecked: Boolean)
@@ -28,7 +29,6 @@ internal sealed interface WidgetRow {
     data class Item(val note: Note, val task: WidgetTask) : WidgetRow
 }
 
-private const val UNTITLED_NOTE = "Untitled Note"
 
 /**
  * The checklist lines of a note, each remembering the line it came from.
@@ -82,7 +82,10 @@ internal fun buildRowViews(context: Context, row: WidgetRow): RemoteViews {
         is WidgetRow.Group -> {
             views.setViewVisibility(R.id.widget_row_header, View.VISIBLE)
             views.setViewVisibility(R.id.widget_row_task, View.GONE)
-            views.setTextViewText(R.id.widget_group_title, row.note.title.ifBlank { UNTITLED_NOTE })
+            views.setTextViewText(
+                R.id.widget_group_title,
+                row.note.title.ifBlank { context.withAppLocale().getString(R.string.widget_untitled) }
+            )
             views.setInt(R.id.widget_group_dot, "setColorFilter", noteAccentColor(context, row.note.colorIndex))
             views.setOnClickFillInIntent(R.id.widget_row_root, Intent())
         }

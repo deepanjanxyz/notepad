@@ -525,7 +525,7 @@ fun HomeScreen(
                             },
                             label = {
                                 Text(
-                                    text = "All",
+                                    text = stringResource(R.string.filter_all),
                                     fontWeight = if (isAllSelected) FontWeight.Bold else FontWeight.Medium
                                 )
                             },
@@ -803,7 +803,7 @@ fun HomeScreen(
                     .padding(start = 20.dp, end = 20.dp, bottom = 32.dp, top = 4.dp)
             ) {
                 Text(
-                    text = "Create Note",
+                    text = stringResource(R.string.create_note_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -843,13 +843,13 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
                             Text(
-                                text = "Text Note",
+                                text = stringResource(R.string.create_text_note),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Standard text, checklist, and labels",
+                                text = stringResource(R.string.create_text_note_desc),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -892,13 +892,13 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
                             Text(
-                                text = "Checklist",
+                                text = stringResource(R.string.create_checklist),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Tick-off items for to-dos and lists",
+                                text = stringResource(R.string.create_checklist_desc),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -941,13 +941,13 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
                             Text(
-                                text = "Drawing Note",
+                                text = stringResource(R.string.create_drawing_note),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Free-hand sketch and doodle canvas",
+                                text = stringResource(R.string.create_drawing_note_desc),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

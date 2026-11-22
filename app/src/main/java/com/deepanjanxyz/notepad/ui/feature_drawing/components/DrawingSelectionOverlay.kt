@@ -1,5 +1,7 @@
 package com.deepanjanxyz.notepad.ui.feature_drawing.components
 
+import com.deepanjanxyz.notepad.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -175,39 +177,39 @@ private fun SelectionActions(
     onClearSelection: () -> Unit
 ) {
     Text(
-        text = "$selectedCount selected",
+        text = stringResource(R.string.drawing_selection_count, selectedCount),
         style = TextStyle(color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
     )
     SelectionAction(
-        tooltip = "Select all",
+        tooltip = stringResource(R.string.trash_select_all),
         icon = Icons.Default.SelectAll,
         tint = AppColors.TextIdle,
         testTag = "drawing_select_all_button",
         onClick = onSelectAll
     )
     SelectionAction(
-        tooltip = "Recolor selected",
+        tooltip = stringResource(R.string.drawing_recolor_selected),
         icon = Icons.Default.Palette,
         tint = AppColors.Accent,
         testTag = "drawing_recolor_selected_button",
         onClick = onToggleRecolor
     )
     SelectionAction(
-        tooltip = "Duplicate selected",
+        tooltip = stringResource(R.string.drawing_duplicate_selected),
         icon = Icons.Default.ContentCopy,
         tint = AppColors.Accent,
         testTag = "drawing_duplicate_selected_button",
         onClick = onDuplicate
     )
     SelectionAction(
-        tooltip = "Delete selected",
+        tooltip = stringResource(R.string.drawing_delete_selected),
         icon = Icons.Default.Delete,
         tint = AppColors.Danger,
         testTag = "drawing_delete_selected_button",
         onClick = onDelete
     )
     SelectionAction(
-        tooltip = "Deselect",
+        tooltip = stringResource(R.string.drawing_deselect),
         icon = Icons.Default.Close,
         tint = AppColors.TextMuted,
         testTag = "drawing_deselect_button",

@@ -1,5 +1,7 @@
 package com.deepanjanxyz.notepad.ui.feature_editor.components
 
+import com.deepanjanxyz.notepad.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -66,7 +68,7 @@ fun EditorTopBar(
     ) {
         // Back Button
         TopBarAction(
-            "Back", Icons.AutoMirrored.Filled.ArrowBack,
+            stringResource(R.string.editor_back), Icons.AutoMirrored.Filled.ArrowBack,
             textPrimary, "editor_back_button", onNavigateBack
         )
 
@@ -115,13 +117,14 @@ private fun EditorActionsRow(
     ) {
         // Pin / Unpin
         TopBarAction(
-            if (isPinned) "Unpin Note" else "Pin Note",
+            if (isPinned) stringResource(R.string.editor_unpin) else stringResource(R.string.editor_pin),
             if (isPinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
             if (isPinned) amberAccent else textPrimary, "toggle_pin_button", onTogglePin
         )
         // Reminder Button
         TopBarAction(
-            if (hasReminder) "Edit reminder" else "Add reminder",
+            if (hasReminder) stringResource(R.string.editor_edit_reminder)
+            else stringResource(R.string.editor_add_reminder),
             if (hasReminder) Icons.Filled.NotificationsActive else Icons.Outlined.Notifications,
             if (hasReminder) amberAccent else textPrimary, "toggle_reminder_button", onOpenReminder
         )
@@ -132,18 +135,26 @@ private fun EditorActionsRow(
         )
         // Color Tint Palette
         TopBarAction(
-            "Color palette", Icons.Default.Palette,
+            stringResource(R.string.editor_color_palette), Icons.Default.Palette,
             if (hasColor) amberAccent else textPrimary, "toggle_color_picker_button", onOpenColorPicker
         )
         // Drawing Action
         TopBarAction(
-            "Drawing", Icons.Filled.Brush,
+            stringResource(R.string.editor_drawing), Icons.Filled.Brush,
             if (hasDrawing) amberAccent else textPrimary, "open_drawing_button", onOpenDrawing
         )
         // Share Action
-        TopBarAction("Share Note", Icons.Default.Share, textPrimary, "share_note_button", onShare)
+        TopBarAction(
+            stringResource(R.string.editor_share_note), Icons.Default.Share, textPrimary, "share_note_button", onShare
+        )
         // Archive Action
-        TopBarAction("Archive Note", Icons.Default.Archive, textPrimary, "archive_note_button", onArchive)
+        TopBarAction(
+            stringResource(R.string.editor_archive_note),
+            Icons.Default.Archive,
+            textPrimary,
+            "archive_note_button",
+            onArchive
+        )
 
         Spacer(modifier = Modifier.width(4.dp))
 
@@ -166,7 +177,7 @@ private fun EditorSaveButton(amberAccent: Color, onSaveAndClose: () -> Unit) {
     ) {
         Icon(
             imageVector = Icons.Default.Check,
-            contentDescription = "Save and Close",
+            contentDescription = stringResource(R.string.editor_save_close),
             tint = amberAccent,
             modifier = Modifier.size(22.dp)
         )

@@ -1,6 +1,7 @@
 package com.deepanjanxyz.notepad.widget
 
 import android.appwidget.AppWidgetManager
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -24,6 +25,7 @@ import androidx.core.content.ContextCompat
 import com.deepanjanxyz.notepad.LockScreen
 import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.ui.theme.EliteMemoTheme
+import com.deepanjanxyz.notepad.withAppLocale
 import kotlinx.coroutines.launch
 
 /**
@@ -35,6 +37,10 @@ import kotlinx.coroutines.launch
  * both sets and replaces a link.
  */
 class NoteShortcutConfigureActivity : FragmentActivity() {
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(newBase.withAppLocale())
+    }
 
     private val viewModel: NoteShortcutConfigViewModel by viewModels()
 
@@ -86,8 +92,8 @@ class NoteShortcutConfigureActivity : FragmentActivity() {
 
     private fun showBiometricPrompt() {
         val promptBuilder = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Unlock Elite Memo Pro")
-            .setSubtitle("Confirm your biometric or device credentials")
+            .setTitle(getString(R.string.biometric_title))
+            .setSubtitle(getString(R.string.biometric_subtitle))
         // BIOMETRIC_STRONG with DEVICE_CREDENTIAL throws on API 28-29; BIOMETRIC_WEAK
         // is the combination those versions accept, and it reads the same to the user.
         promptBuilder.setAllowedAuthenticators(

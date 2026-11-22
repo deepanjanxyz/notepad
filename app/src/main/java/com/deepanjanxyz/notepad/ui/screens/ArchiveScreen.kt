@@ -52,7 +52,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -78,12 +77,16 @@ fun ArchiveScreen(
     onNoteClick: (Note) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     val undoLabel = stringResource(R.string.undo)
     var selectedNoteIds by remember { mutableStateOf(setOf<Long>()) }
     val isSelectionMode = selectedNoteIds.isNotEmpty()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val trashMessage = if (selectedNoteIds.size == 1) {
+        stringResource(R.string.archive_note_trashed)
+    } else {
+        stringResource(R.string.archive_note_trashed_count, selectedNoteIds.size)
+    }
 
     fun toggleSelection(id: Long) {
         selectedNoteIds = if (id in selectedNoteIds) selectedNoteIds - id else selectedNoteIds + id
@@ -115,11 +118,6 @@ fun ArchiveScreen(
             val idsToMoveToTrash = selectedNoteIds.toList()
             onMoveSelectedToTrash(idsToMoveToTrash)
             selectedNoteIds = emptySet()
-            val trashMessage = if (idsToMoveToTrash.size == 1) {
-                context.getString(R.string.archive_note_trashed)
-            } else {
-                context.getString(R.string.archive_note_trashed_count, idsToMoveToTrash.size)
-            }
             showMovedToTrashSnackbar(
                 scope,
                 snackbarHostState,

@@ -81,7 +81,10 @@ internal fun buildRowViews(context: Context, row: WidgetRow): RemoteViews {
         is WidgetRow.Group -> {
             views.setViewVisibility(R.id.widget_row_header, View.VISIBLE)
             views.setViewVisibility(R.id.widget_row_task, View.GONE)
-            views.setTextViewText(R.id.widget_group_title, row.note.title.ifBlank { context.getString(R.string.widget_untitled) })
+            views.setTextViewText(
+                R.id.widget_group_title,
+                row.note.title.ifBlank { context.getString(R.string.widget_untitled) }
+            )
             views.setInt(R.id.widget_group_dot, "setColorFilter", noteAccentColor(context, row.note.colorIndex))
             views.setOnClickFillInIntent(R.id.widget_row_root, Intent())
         }

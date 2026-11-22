@@ -123,7 +123,8 @@ private fun EditorActionsRow(
         )
         // Reminder Button
         TopBarAction(
-            if (hasReminder) stringResource(R.string.editor_edit_reminder) else stringResource(R.string.editor_add_reminder),
+            if (hasReminder) stringResource(R.string.editor_edit_reminder)
+            else stringResource(R.string.editor_add_reminder),
             if (hasReminder) Icons.Filled.NotificationsActive else Icons.Outlined.Notifications,
             if (hasReminder) amberAccent else textPrimary, "toggle_reminder_button", onOpenReminder
         )
@@ -143,9 +144,17 @@ private fun EditorActionsRow(
             if (hasDrawing) amberAccent else textPrimary, "open_drawing_button", onOpenDrawing
         )
         // Share Action
-        TopBarAction(stringResource(R.string.editor_share_note), Icons.Default.Share, textPrimary, "share_note_button", onShare)
+        TopBarAction(
+            stringResource(R.string.editor_share_note), Icons.Default.Share, textPrimary, "share_note_button", onShare
+        )
         // Archive Action
-        TopBarAction(stringResource(R.string.editor_archive_note), Icons.Default.Archive, textPrimary, "archive_note_button", onArchive)
+        TopBarAction(
+            stringResource(R.string.editor_archive_note),
+            Icons.Default.Archive,
+            textPrimary,
+            "archive_note_button",
+            onArchive
+        )
 
         Spacer(modifier = Modifier.width(4.dp))
 

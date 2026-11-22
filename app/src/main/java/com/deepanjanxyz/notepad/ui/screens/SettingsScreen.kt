@@ -544,7 +544,11 @@ fun SettingsScreen(
                             }
                         }
                     },
-                    confirmButton = { TextButton(onClick = { showLanguageDialog = false }) { Text(stringResource(R.string.language_close)) } }
+                    confirmButton = {
+                        TextButton(onClick = { showLanguageDialog = false }) {
+                            Text(stringResource(R.string.language_close))
+                        }
+                    }
                 )
             }
 

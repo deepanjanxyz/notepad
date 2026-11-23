@@ -1,6 +1,5 @@
 name: Auto Release
 
-
 on:
   push:
     branches: [main]
@@ -11,6 +10,10 @@ concurrency:
 
 permissions:
   contents: read
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
 
 jobs:
   guard:
@@ -27,6 +30,7 @@ jobs:
         uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Deep-check whether a shipping file changed
         id: diff
@@ -40,19 +44,24 @@ jobs:
           BEFORE_SHA: ${{ github.event.before }}
           AFTER_SHA: ${{ github.sha }}
         run: bash .github/scripts/shipping-changed.sh
+
   release:
     name: Release on merge to main
     needs: guard
     if: needs.guard.outputs.code_changed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    environment: release
     permissions:
       contents: write
+    env:
+      KEYSTORE_PATH: app/keystore.jks
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up JDK 25
         uses: actions/setup-java@v6.3.0
@@ -71,10 +80,8 @@ jobs:
       - name: Read the version from app/build.gradle.kts
         id: version
         run: |
-          set -euo pipefail
-
-          app_name=$(grep -oE 'rootProject.name[[:space:]]*=[[:space:]]*"[^"]*"' settings.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
-          if [ -z "$app_name" ]; then
+          app_name=$(grep -oE 'rootProject.name[[:space:]]*=[[:space:]]*"[^"]*"' settings.gradle.kts | grep -oE '"[^"]*"' | tr -d '"' || true)
+          if [ -z "$app_name" ] || [[ "$app_name" == */* ]]; then
             echo "🔴 Release failed: app name could not be resolved."
             exit 1
           fi
@@ -82,50 +89,54 @@ jobs:
           # The version guard on pull requests guarantees that every merge into
           # main already carries a bumped versionCode/versionName, so the
           # committed values are the single source of truth for the release.
-          vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | sed -E 's/.*"(.*)"/\1/' | head -n1)
-          vc=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+' | head -n1)
+          vn=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]*"' app/build.gradle.kts | sed -E 's/.*"(.*)"/\1/' | head -n1 || true)
+          vc=$(grep -oE 'versionCode[[:space:]]*=[[:space:]]*[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+' | head -n1 || true)
 
           if [ -z "$vn" ] || [ -z "$vc" ]; then
             echo "🔴 Release failed: could not read versionName/versionCode from app/build.gradle.kts."
             exit 1
           fi
+          if ! [[ "$vn" =~ ^[0-9A-Za-z.+_-]{1,64}$ ]]; then
+            echo "🔴 Release failed: versionName contains unsafe characters."
+            exit 1
+          fi
 
           echo "Releasing v$vn ($vc) from commit $(git rev-parse HEAD)"
-          # Only these three words make a release a pre-release. Any other suffix,
-          # "stable" or "released" for instance, is a normal release: nothing else is
-          # guessed from the text.
-          # Build metadata does not affect SemVer precedence or prerelease status.
+          # Only these three words make a release a pre-release. Build metadata
+          # does not affect SemVer precedence or prerelease status.
           release_version="${vn%%+*}"
           if echo "$release_version" | grep -qiE '(^|[.-])(alpha|beta|rc)[0-9]*([.-]|$)'; then
-            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            prerelease=true
           else
-            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            prerelease=false
           fi
           {
             echo "app_name=$app_name"
             echo "version=$vn"
             echo "version_code=$vc"
+            echo "prerelease=$prerelease"
           } >> "$GITHUB_OUTPUT"
+
       - name: Validate version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
         run: |
-          version="${{ steps.version.outputs.version }}"
-          if ! python3 .github/scripts/semver.py validate "$version"; then
-            echo "🔴 Release failed: versionName '$version' is not valid SemVer."
+          if ! python3 .github/scripts/semver.py validate "$VERSION"; then
+            echo "🔴 Release failed: versionName '$VERSION' is not valid SemVer."
             exit 1
           fi
-          code="${{ steps.version.outputs.version_code }}"
-          if ! echo "$code" | grep -qE '^[1-9][0-9]*$'; then
-            echo "🔴 Release failed: versionCode '$code' is missing or not a positive integer."
+          if ! [[ "$VERSION_CODE" =~ ^[1-9][0-9]*$ ]]; then
+            echo "🔴 Release failed: versionCode '$VERSION_CODE' is missing or not a positive integer."
             exit 1
           fi
 
       - name: Ensure the version is newer than the latest release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
         run: |
-          set -euo pipefail
-          vn="${{ steps.version.outputs.version }}"
-          vc="${{ steps.version.outputs.version_code }}"
           latest_tag=$(git tag --list 'v*' | python3 .github/scripts/semver.py max)
           if [ -z "$latest_tag" ]; then
             echo "No previous release; nothing to compare against."
@@ -134,11 +145,11 @@ jobs:
           latest_name="${latest_tag#v}"
           latest_code=$(gh release view "$latest_tag" --json assets --jq '.assets[].name' 2>/dev/null \
             | sed -nE 's/.*-([0-9]+)-[^-]+\.apk$/\1/p' | sort -n | tail -n1 || true)
-          if [ -n "$latest_code" ] && [ "$vc" -le "$latest_code" ]; then
-            echo "🔴 Release failed: versionCode $vc is not newer than $latest_tag ($latest_code). Re-bump and open a new pull request."
+          if [ -n "$latest_code" ] && [ "$VERSION_CODE" -le "$latest_code" ]; then
+            echo "🔴 Release failed: versionCode $VERSION_CODE is not newer than $latest_tag ($latest_code). Re-bump and open a new pull request."
             exit 1
           fi
-          if ! comparison=$(python3 .github/scripts/semver.py compare "$vn" "$latest_name"); then
+          if ! comparison=$(python3 .github/scripts/semver.py compare "$VERSION" "$latest_name"); then
             echo "🔴 Release failed: SemVer comparison could not be completed."
             exit 1
           fi
@@ -147,14 +158,23 @@ jobs:
             exit 1
           fi
           if [ "$comparison" -le 0 ]; then
-            echo "🔴 Release failed: versionName $vn is not newer than $latest_tag ($latest_name). Re-bump and open a new pull request."
+            echo "🔴 Release failed: versionName $VERSION is not newer than $latest_tag ($latest_name). Re-bump and open a new pull request."
             exit 1
           fi
 
       - name: Check for existing tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          if git ls-remote --tags origin "refs/tags/v${{ steps.version.outputs.version }}" | grep -q .; then
-            echo "🔴 Release failed: Tag v${{ steps.version.outputs.version }} already exists on remote!"
+          # Fail closed: only an HTTP 404 means the tag is free.
+          if out=$(gh api "repos/${REPO}/git/ref/tags/v${VERSION}" 2>&1); then
+            echo "🔴 Release failed: Tag v${VERSION} already exists on remote!"
+            exit 1
+          fi
+          if ! grep -q 'HTTP 404' <<< "$out"; then
+            echo "🔴 Release failed: could not verify tag state: $out"
             exit 1
           fi
 
@@ -277,50 +297,14 @@ jobs:
               fh.write("deleted=%d\n" % total_del)
           PY
 
-      - name: Analyse the diff with Copilot
-        id: ai
-        env:
-          COPILOT_TOKEN: ${{ secrets.COPILOT_TOKEN }}
-          BASE: ${{ steps.context.outputs.base }}
-          TARGET: ${{ steps.context.outputs.target }}
-        run: |
-          set -uo pipefail
-          echo "ran=false" >> "$GITHUB_OUTPUT"
-          : > /tmp/ai-summary.md
-          if [ -z "${COPILOT_TOKEN:-}" ]; then
-            echo "No COPILOT_TOKEN configured; release notes will use the diff changelog only."
-            exit 0
-          fi
-          npm install -g @github/copilot >/dev/null 2>&1 || true
-          if ! command -v copilot >/dev/null 2>&1; then
-            echo "Copilot CLI unavailable on this runner; release notes will use the diff changelog only."
-            exit 0
-          fi
-
-          diff="$(git diff "$BASE" "$TARGET" | head -c 100000 || true)"
-          prompt="Analyse this release diff for the Android app 'notepad'. Describe what actually changed and its impact, based only on the diff: new features, behaviour changes, bug fixes, refactors, and build or dependency changes. Do not repeat the diff line by line. Be concise and factual. Diff:${diff}"
-
-          if out="$(GH_TOKEN="$COPILOT_TOKEN" copilot -p "$prompt" 2>&1)"; then
-            printf '%s\n' "$out" > /tmp/ai-summary.md
-            echo "ran=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Copilot analysis failed; release notes will use the diff changelog only."
-          fi
-
       - name: Compose release notes
         env:
-          AI_RAN: ${{ steps.ai.outputs.ran }}
           PREV_TAG: ${{ steps.context.outputs.prev_tag }}
           BASE: ${{ steps.context.outputs.base }}
           TARGET: ${{ steps.context.outputs.target }}
+          REPO: ${{ github.repository }}
         run: |
           {
-            if [ "$AI_RAN" = "true" ]; then
-              echo "## Summary"
-              echo ""
-              cat /tmp/ai-summary.md
-              echo ""
-            fi
             cat /tmp/changelog.md
             echo ""
             if [ -s /tmp/commits.txt ]; then
@@ -335,7 +319,7 @@ jobs:
               echo "First release. Released from commit \`$TARGET\`."
             fi
             echo ""
-            echo "[Full diff](https://github.com/${{ github.repository }}/compare/$BASE...$TARGET)"
+            echo "[Full diff](https://github.com/${REPO}/compare/$BASE...$TARGET)"
           } > /tmp/release-notes.md
 
       - name: Build signed release APK
@@ -345,16 +329,36 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          echo "$KEYSTORE_BASE64" | base64 -d > app/keystore.jks
+          umask 077
+          rm -f "$KEYSTORE_PATH"
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_PATH"
+          chmod 600 "$KEYSTORE_PATH"
+          if [ ! -s "$KEYSTORE_PATH" ]; then
+            echo "🔴 Release failed: decoded keystore is empty."
+            exit 1
+          fi
           ./gradlew assembleRelease --no-daemon
 
-      - name: Rename release APKs
+      - name: Delete the decoded keystore
+        if: always()
         run: |
-          app_name="${{ steps.version.outputs.app_name }}"
-          vn="${{ steps.version.outputs.version }}"
-          vc="${{ steps.version.outputs.version_code }}"
-          out="app/build/outputs/apk/release"
+          if [ -e "$KEYSTORE_PATH" ]; then
+            shred -u -f "$KEYSTORE_PATH" 2>/dev/null || rm -f "$KEYSTORE_PATH"
+          fi
+          if [ -e "$KEYSTORE_PATH" ]; then
+            echo "🔴 Decoded keystore is still present after cleanup."
+            exit 1
+          fi
+          echo "Decoded keystore removed."
 
+      - name: Rename release APKs
+        env:
+          APP_NAME: ${{ steps.version.outputs.app_name }}
+          VERSION: ${{ steps.version.outputs.version }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+          APK_NAME_PATTERN: ${{ vars.APK_NAME_PATTERN }}
+        run: |
+          out="app/build/outputs/apk/release"
           shopt -s nullglob
           apks=("$out"/*.apk)
           if [ "${#apks[@]}" -eq 0 ]; then
@@ -364,42 +368,87 @@ jobs:
 
           for apk in "${apks[@]}"; do
             name=$(basename "$apk")
-            abi="${name#app-}"
-            abi="${abi%-release.apk}"
-            if [ "$abi" = "$name" ] || [ -z "$abi" ] || [ "$abi" = "release" ]; then
-              abi="universal"
-            fi
-            mv "$apk" "$out/${app_name}-v${vn}-${vc}-${abi}.apk"
+            case "$name" in
+              app-release.apk)
+                abi="universal"
+                ;;
+              app-*-release.apk)
+                abi="${name#app-}"
+                abi="${abi%-release.apk}"
+                ;;
+              *)
+                abi="universal"
+                ;;
+            esac
+            mv "$apk" "$out/${APP_NAME}-v${VERSION}-${VERSION_CODE}-${abi}.apk"
           done
+
+          # Optional store contract: when APK_NAME_PATTERN is set, every final
+          # file name must match it, otherwise the release is stopped before publishing.
+          if [ -n "${APK_NAME_PATTERN:-}" ]; then
+            for apk in "$out"/*.apk; do
+              name=$(basename "$apk")
+              if ! [[ "$name" =~ $APK_NAME_PATTERN ]]; then
+                echo "🔴 Release failed: '$name' does not match APK_NAME_PATTERN; the store would not find it."
+                exit 1
+              fi
+            done
+          fi
 
           ls -l "$out"/*.apk
 
       - name: Verify APK signatures
+        env:
+          EXPECTED_CERT_SHA256: ${{ vars.EXPECTED_SIGNING_CERT_SHA256 }}
         run: |
-          apksigner=$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/build-tools" -mindepth 2 -maxdepth 2 -type f -name apksigner -print | sort -V | tail -n1)
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          apksigner=""
+          if [ -n "$sdk" ]; then
+            apksigner=$(find "$sdk/build-tools" -mindepth 2 -maxdepth 2 -type f -name apksigner -print 2>/dev/null | sort -V | tail -n1 || true)
+          fi
           if [ -z "$apksigner" ]; then
             echo "🔴 apksigner was not installed by the Android Gradle Plugin."
             exit 1
           fi
+
           shopt -s nullglob
           apks=(app/build/outputs/apk/release/*.apk)
           if [ "${#apks[@]}" -eq 0 ]; then
             echo "🔴 No APK found to verify."
             exit 1
           fi
+
+          expected=""
+          if [ -n "$EXPECTED_CERT_SHA256" ]; then
+            expected=$(printf '%s' "$EXPECTED_CERT_SHA256" | tr -d ' :' | tr 'A-F' 'a-f')
+          else
+            echo "⚠️ Repository variable EXPECTED_SIGNING_CERT_SHA256 is not set; skipping the signing-certificate pin check."
+          fi
+
           for apk in "${apks[@]}"; do
             echo "Verifying $apk"
             "$apksigner" verify --verbose "$apk"
+            if [ -n "$expected" ]; then
+              actual=$("$apksigner" verify --print-certs "$apk" \
+                | sed -nE 's/^Signer #1 certificate SHA-256 digest: //p' \
+                | tr -d ' :' | tr 'A-F' 'a-f')
+              if [ "$actual" != "$expected" ]; then
+                echo "🔴 Signing certificate for $apk does not match the pinned digest."
+                exit 1
+              fi
+              echo "Signing certificate matches the pinned digest."
+            fi
           done
 
       - name: Append SHA-256 checksums
         run: |
+          (cd app/build/outputs/apk/release && sha256sum ./*.apk) > /tmp/SHA256SUMS
           {
             echo ""
             echo "### SHA-256 checksums"
             echo ""
             echo '```'
-            (cd app/build/outputs/apk/release && sha256sum ./*.apk)
+            cat /tmp/SHA256SUMS
             echo '```'
           } >> /tmp/release-notes.md
 
@@ -410,8 +459,6 @@ jobs:
           BASE: ${{ steps.context.outputs.base }}
           TARGET: ${{ steps.context.outputs.target }}
         run: |
-          set -euo pipefail
-
           # Everyone who committed since the previous tag, bots left out.
           logins=$(gh api "repos/${REPO}/compare/${BASE}...${TARGET}" --paginate \
             --jq '.commits[].author.login' 2>/dev/null \
@@ -437,14 +484,18 @@ jobs:
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
+          TARGET_SHA: ${{ github.sha }}
         run: |
-          prerelease_flag=""
-          if [ "${{ steps.version.outputs.prerelease }}" = "true" ]; then
-            prerelease_flag="--prerelease"
+          flags=()
+          if [ "$PRERELEASE" = "true" ]; then
+            flags+=(--prerelease)
           fi
-          gh release create "v${{ steps.version.outputs.version }}" \
+          gh release create "v${VERSION}" \
             app/build/outputs/apk/release/*.apk \
-            --target "${{ github.sha }}" \
-            --title "v${{ steps.version.outputs.version }}" \
+            /tmp/SHA256SUMS \
+            --target "$TARGET_SHA" \
+            --title "v${VERSION}" \
             --notes-file /tmp/release-notes.md \
-            $prerelease_flag
+            "${flags[@]}"

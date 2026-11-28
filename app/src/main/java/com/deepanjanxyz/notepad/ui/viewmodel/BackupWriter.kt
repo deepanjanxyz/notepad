@@ -94,6 +94,17 @@ class BackupWriter(
     }
 
     private suspend fun writeLocked(name: String) {
+        val folderLost = withContext(Dispatchers.IO) {
+            !BackupFolder.hasAccess(context) && BackupFolder.isPermissionLost(context)
+        }
+        if (folderLost) {
+            _status.value = AutoBackupStatus(
+                location = DownloadsBackup.locationLabel(name),
+                lastModified = null,
+                error = "The backup folder could not be reached; allow access to it again"
+            )
+            return
+        }
         // A folder just handed over may already hold a backup written by an earlier
         // installation. Its notes come in before the file is replaced, and the write
         // is held back while they cannot be read.

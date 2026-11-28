@@ -19,6 +19,7 @@ import com.deepanjanxyz.notepad.domain.usecase.label.GetLabelsUseCase
 import com.deepanjanxyz.notepad.domain.usecase.label.LabelUseCases
 import com.deepanjanxyz.notepad.domain.usecase.label.RenameLabelUseCase
 import com.deepanjanxyz.notepad.domain.usecase.note.ArchiveNoteUseCase
+import com.deepanjanxyz.notepad.domain.usecase.note.BulkUpdateNotesUseCase
 import com.deepanjanxyz.notepad.domain.usecase.note.EmptyTrashUseCase
 import com.deepanjanxyz.notepad.domain.usecase.note.FilterNotesUseCase
 import com.deepanjanxyz.notepad.domain.usecase.note.GetArchiveNotesUseCase
@@ -133,7 +134,8 @@ class AppContainer(application: Application) {
         togglePin = TogglePinUseCase(repository),
         archiveNote = ArchiveNoteUseCase(repository),
         filterNotes = FilterNotesUseCase(),
-        setNoteReminder = SetNoteReminderUseCase(repository)
+        setNoteReminder = SetNoteReminderUseCase(repository),
+        bulkUpdate = BulkUpdateNotesUseCase(repository)
     )
 
     val labelUseCases: LabelUseCases = LabelUseCases(

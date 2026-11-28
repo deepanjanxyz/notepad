@@ -1,6 +1,9 @@
 package com.deepanjanxyz.notepad.backup
 
 import com.deepanjanxyz.notepad.domain.model.Note
+import com.deepanjanxyz.notepad.domain.model.RichLinkSpan
+import com.deepanjanxyz.notepad.domain.model.RichTextCodec
+import com.deepanjanxyz.notepad.domain.model.RichTextDocument
 
 /**
  * Name of the Markdown file the export writes and the import reads.
@@ -54,25 +57,48 @@ fun buildMarkdownNotes(notes: List<Note>): String {
 private fun markdownSection(note: Note): String {
     // A title has to fit on the heading line, so a break inside it becomes a space.
     val title = note.title.replace("\r\n", "\n").replace("\n", " ").trim()
+    val doc = RichTextCodec.decode(note.content)
+    val (normalizedText, normalizedLinks) = normalizeCrlfWithLinks(doc.text, doc.linkSpans)
     // Inside a fenced code block Markdown reads nothing as structure and honours
     // no escapes, so those lines are written exactly as the note holds them: a
     // `C:\Users` path must not come back as `C:\\Users` in another editor.
     var fence: Fence? = null
-    val lines = note.content
-        .replace("\r\n", "\n")
+    var lineStart = 0
+    val lines = normalizedText
         .split("\n")
         .map { line ->
+            val lineEnd = lineStart + line.length
             val open = fence
-            when {
+            val result = when {
                 open != null -> {
                     if (closesFence(line, open)) fence = null
                     line
                 }
                 else -> {
-                    openingFence(line)?.let { opened -> fence = opened }
-                    escaped(line)
+                    val opened = openingFence(line)
+                    if (opened != null) {
+                        fence = opened
+                        escapedFenceOpener(line)
+                    } else {
+                        val lineLinks = normalizedLinks.mapNotNull { span ->
+                            val s = maxOf(span.start, lineStart)
+                            val e = minOf(span.end, lineEnd)
+                            if (s < e) {
+                                RichLinkSpan(s - lineStart, e - lineStart, span.url)
+                            } else {
+                                null
+                            }
+                        }
+                        if (lineLinks.isEmpty()) {
+                            escaped(line)
+                        } else {
+                            escapedWithLinks(line, lineLinks)
+                        }
+                    }
                 }
             }
+            lineStart = lineEnd + 1
+            result
         }
         .toMutableList()
     // A note that ends inside a fence gets the fence closed here. Left open, the
@@ -122,23 +148,117 @@ private fun closesFence(line: String, fence: Fence): Boolean {
         trimmed.all { it == fence.marker }
 }
 
+private fun normalizeCrlfWithLinks(
+    text: String,
+    links: List<RichLinkSpan>
+): Pair<String, List<RichLinkSpan>> {
+    if (!text.contains("\r\n")) return text to links
+    val out = StringBuilder(text.length)
+    val offsetMap = IntArray(text.length + 1)
+    var i = 0
+    while (i < text.length) {
+        offsetMap[i] = out.length
+        if (text[i] == '\r' && i + 1 < text.length && text[i + 1] == '\n') {
+            offsetMap[i + 1] = out.length
+            out.append('\n')
+            i += 2
+            continue
+        }
+        out.append(text[i])
+        i++
+    }
+    offsetMap[text.length] = out.length
+    val remapped = links.mapNotNull { span ->
+        val s = offsetMap[span.start.coerceIn(0, text.length)]
+        val e = offsetMap[span.end.coerceIn(0, text.length)]
+        if (s < e) span.copy(start = s, end = e) else null
+    }
+    return out.toString() to remapped
+}
+
+/** Escapes only backslashes on a fence opener so its info string stays intact without link escaping. */
+private fun escapedFenceOpener(line: String): String = line.replace(ESCAPE, ESCAPE + ESCAPE)
+
 /**
- * Keeps a line of a note from being read back as structure.
+ * Keeps a line of a note from being read back as structure or rich-link markup.
  *
  * A line that looks like the separator between notes, or like a note heading,
  * would end the note early when the file is read again, so it gets a backslash in
  * front of it. The backslash is itself the escape character, so every backslash
- * the note already holds is doubled first: without that a note holding a literal
- * "\---" would come back as a plain separator line, and the text would quietly
- * change. Both escapes render as the plain characters in Markdown.
+ * the note already holds is doubled first, and any literal `[label](url)` syntax
+ * is backslash-escaped so reimport keeps it as plain text.
  */
 private fun escaped(line: String): String {
-    val doubled = line.replace(ESCAPE, ESCAPE + ESCAPE)
-    return if (isStructural(doubled)) ESCAPE + doubled else doubled
+    val safe = escapePlainSlice(line)
+    return if (isStructural(safe)) ESCAPE + safe else safe
 }
 
-/** Puts back the backslashes [escaped] doubled. */
-private fun unescaped(line: String): String = line.replace(ESCAPE + ESCAPE, ESCAPE)
+private fun escapedWithLinks(line: String, links: List<RichLinkSpan>): String {
+    val out = StringBuilder()
+    var cursor = 0
+    links.sortedBy { it.start }.forEach { link ->
+        if (link.start > cursor) {
+            out.append(escapePlainSlice(line.substring(cursor, link.start)))
+        }
+        val label = line.substring(link.start, link.end)
+            .replace(ESCAPE, ESCAPE + ESCAPE)
+            .replace("[", "\\[")
+            .replace("]", "\\]")
+        val safeUrl = link.url
+            .replace("(", "%28")
+            .replace(")", "%29")
+        out.append('[').append(label).append("](").append(safeUrl).append(')')
+        cursor = link.end
+    }
+    if (cursor < line.length) {
+        out.append(escapePlainSlice(line.substring(cursor)))
+    }
+    val built = out.toString()
+    return if (isStructural(built)) ESCAPE + built else built
+}
+
+/**
+ * Doubles literal backslashes in a plain-text slice and escapes any literal
+ * `[label](url)` constructs so they round-trip without turning into rich links.
+ */
+private fun escapePlainSlice(slice: String): String {
+    val doubled = slice.replace(ESCAPE, ESCAPE + ESCAPE)
+    if (!doubled.contains("](")) return doubled
+
+    val out = StringBuilder(doubled.length)
+    var plainStart = 0
+    var i = 0
+    while (i < doubled.length) {
+        if (doubled[i] == '[' && hasEvenPrecedingBackslashes(doubled, i)) {
+            val closeBracket = findClosingBracket(doubled, i + 1)
+            if (closeBracket > i + 1 &&
+                closeBracket + 1 < doubled.length &&
+                doubled[closeBracket + 1] == '('
+            ) {
+                val closeParen = findClosingParen(doubled, closeBracket + 2)
+                if (closeParen > closeBracket + 2) {
+                    out.append(doubled, plainStart, i)
+                    out.append("\\[")
+                    out.append(doubled, i + 1, closeBracket)
+                    out.append("\\]")
+                    out.append(doubled, closeBracket + 1, closeParen + 1)
+                    i = closeParen + 1
+                    plainStart = i
+                    continue
+                }
+            }
+        }
+        i++
+    }
+    if (plainStart == 0) return doubled
+    if (plainStart < doubled.length) {
+        out.append(doubled, plainStart, doubled.length)
+    }
+    return out.toString()
+}
+
+/** Puts back the backslashes [escapedFenceOpener] doubled. */
+private fun unescapedBackslashes(line: String): String = line.replace(ESCAPE + ESCAPE, ESCAPE)
 
 /** True when [line] is a standalone closing fence, regardless of marker. */
 private fun isFenceClosingLine(line: String): Boolean {
@@ -171,6 +291,10 @@ private fun isMarkedAsContent(line: String): Boolean =
  */
 fun parseMarkdownNotes(text: String): List<Note> = MarkdownNotesParser().parse(text)
 
+private enum class BodyLineKind { PLAIN, FENCE_OPENER, FENCE_BODY }
+
+private data class ParsedBodyLine(val text: String, val kind: BodyLineKind)
+
 /**
  * Stateful line parser kept separate from the public entry point so each
  * structural decision stays small and independently auditable.
@@ -178,7 +302,7 @@ fun parseMarkdownNotes(text: String): List<Note> = MarkdownNotesParser().parse(t
 private class MarkdownNotesParser {
     private val notes = mutableListOf<Note>()
     private var title: String? = null
-    private val body = mutableListOf<String>()
+    private val body = mutableListOf<ParsedBodyLine>()
     private var fence: Fence? = null
 
     fun parse(text: String): List<Note> {
@@ -192,7 +316,7 @@ private class MarkdownNotesParser {
         when {
             open != null -> {
                 if (closesFence(line, open)) fence = null
-                if (title != null) body += line
+                if (title != null) body += ParsedBodyLine(line, BodyLineKind.FENCE_BODY)
             }
             line == FENCE_CLOSURE_MARKER && title != null -> removeSyntheticFence()
             line.startsWith(NOTE_HEADING) -> {
@@ -201,26 +325,174 @@ private class MarkdownNotesParser {
             }
             title == null -> Unit
             line.trim() == NOTE_BREAK -> collect()
-            isMarkedAsContent(line) -> body += unescaped(line.removePrefix(ESCAPE))
+            isMarkedAsContent(line) -> body += ParsedBodyLine(
+                line.removePrefix(ESCAPE),
+                BodyLineKind.PLAIN
+            )
             else -> {
-                openingFence(line)?.let { fence = it }
-                body += unescaped(line)
+                val opened = openingFence(line)
+                if (opened != null) {
+                    fence = opened
+                    body += ParsedBodyLine(line, BodyLineKind.FENCE_OPENER)
+                } else {
+                    body += ParsedBodyLine(line, BodyLineKind.PLAIN)
+                }
             }
         }
     }
 
     private fun removeSyntheticFence() {
-        if (body.lastOrNull()?.let(::isFenceClosingLine) == true) {
+        if (body.lastOrNull()?.text?.let(::isFenceClosingLine) == true) {
             body.removeAt(body.lastIndex)
         }
     }
 
     private fun collect() {
         val heading = title ?: return
-        val content = body.dropWhile { it.isBlank() }.joinToString("\n").trimEnd()
-        val note = Note(title = heading, content = content)
+        val keptLines = body.dropWhile { it.text.isBlank() }
+        val plainBuilder = StringBuilder()
+        val linkSpans = mutableListOf<RichLinkSpan>()
+
+        keptLines.forEachIndexed { index, entry ->
+            val lineStart = plainBuilder.length
+            when (entry.kind) {
+                BodyLineKind.FENCE_BODY -> plainBuilder.append(entry.text)
+                BodyLineKind.FENCE_OPENER -> plainBuilder.append(unescapedBackslashes(entry.text))
+                BodyLineKind.PLAIN -> {
+                    val (parsedText, lineLinks) = parseMarkdownLinksInLine(entry.text)
+                    plainBuilder.append(parsedText)
+                    lineLinks.forEach { link ->
+                        linkSpans += link.copy(
+                            start = lineStart + link.start,
+                            end = lineStart + link.end
+                        )
+                    }
+                }
+            }
+            if (index < keptLines.lastIndex) {
+                plainBuilder.append('\n')
+            }
+        }
+
+        val content = plainBuilder.toString().trimEnd()
+        val encodedContent = if (linkSpans.isEmpty()) {
+            content
+        } else {
+            val trimmedLinks = linkSpans.mapNotNull { span ->
+                val e = minOf(span.end, content.length)
+                if (span.start < e) span.copy(end = e) else null
+            }
+            RichTextCodec.encode(
+                RichTextDocument(text = content, linkSpans = trimmedLinks)
+            )
+        }
+
+        val note = Note(title = heading, content = encodedContent)
         if (note.isBackupWorthy()) notes += note
         title = null
         body.clear()
     }
+}
+
+private fun parseMarkdownLinksInLine(line: String): Pair<String, List<RichLinkSpan>> {
+    if (!line.contains("](")) return unescapeMarkdownText(line) to emptyList()
+
+    val out = StringBuilder()
+    val links = mutableListOf<RichLinkSpan>()
+    var plainStart = 0
+    var i = 0
+    while (i < line.length) {
+        if (line[i] == '[' && hasEvenPrecedingBackslashes(line, i)) {
+            val closeBracket = findClosingBracket(line, i + 1)
+            if (closeBracket > i + 1 &&
+                closeBracket + 1 < line.length &&
+                line[closeBracket + 1] == '('
+            ) {
+                val closeParen = findClosingParen(line, closeBracket + 2)
+                if (closeParen > closeBracket + 2) {
+                    val rawLabel = line.substring(i + 1, closeBracket)
+                    val rawUrl = line.substring(closeBracket + 2, closeParen)
+                    val safeUrl = RichTextCodec.sanitizeLinkUrl(rawUrl)
+                    val cleanLabel = unescapeMarkdownText(rawLabel)
+                    if (safeUrl != null && cleanLabel.isNotEmpty()) {
+                        if (i > plainStart) {
+                            out.append(unescapeMarkdownText(line.substring(plainStart, i)))
+                        }
+                        val linkStart = out.length
+                        out.append(cleanLabel)
+                        links += RichLinkSpan(linkStart, out.length, safeUrl)
+                        i = closeParen + 1
+                        plainStart = i
+                        continue
+                    }
+                }
+            }
+        }
+        i++
+    }
+    if (plainStart < line.length) {
+        out.append(unescapeMarkdownText(line.substring(plainStart)))
+    }
+    return out.toString() to links
+}
+
+private fun findClosingBracket(line: String, startIndex: Int): Int {
+    var idx = startIndex
+    while (idx < line.length) {
+        if (hasEvenPrecedingBackslashes(line, idx)) {
+            when (line[idx]) {
+                ']' -> return idx
+                '[' -> return -1
+            }
+        }
+        idx++
+    }
+    return -1
+}
+
+private fun findClosingParen(line: String, startIndex: Int): Int {
+    var depth = 1
+    var idx = startIndex
+    while (idx < line.length) {
+        when (line[idx]) {
+            '(' -> depth++
+            ')' -> {
+                depth--
+                if (depth == 0) return idx
+            }
+            ' ', '\t', '\r', '\n' -> return -1
+        }
+        idx++
+    }
+    return -1
+}
+
+private fun hasEvenPrecedingBackslashes(s: String, idx: Int): Boolean {
+    var backslashes = 0
+    var p = idx - 1
+    while (p >= 0 && s[p] == '\\') {
+        backslashes++
+        p--
+    }
+    return backslashes % 2 == 0
+}
+
+private fun unescapeMarkdownText(rawText: String): String {
+    if (!rawText.contains('\\')) return rawText
+    val out = StringBuilder(rawText.length)
+    var i = 0
+    while (i < rawText.length) {
+        val c = rawText[i]
+        if (c == '\\' && i + 1 < rawText.length) {
+            val next = rawText[i + 1]
+            if (next == '\\' || next == '[' || next == ']') {
+                out.append(next)
+                i += 2
+                continue
+            }
+        }
+        out.append(c)
+        i++
+    }
+    return out.toString()
 }

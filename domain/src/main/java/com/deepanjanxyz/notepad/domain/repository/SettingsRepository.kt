@@ -21,4 +21,11 @@ interface SettingsRepository {
     suspend fun setLockEnabled(enabled: Boolean)
 
     suspend fun setAutoBackup(enabled: Boolean)
+
+    suspend fun setSortOption(sortOption: String)
+
+    suspend fun setCustomOrder(order: List<Long>)
+
+    /** Updates custom note order and sort mode in one atomic write. */
+    suspend fun setCustomOrderAndSort(order: List<Long>, sortOption: String)
 }

@@ -373,4 +373,46 @@ class NoteLogicTest {
         assertEquals(200f + 12f, bounds.right, 0.01f)
         assertEquals(200f + 12f, bounds.bottom, 0.01f)
     }
+
+    @Test
+    fun testPdfFormatBodyTextStripsRichStyleMetadata() {
+        val doc = com.deepanjanxyz.notepad.domain.model.RichTextDocument(
+            text = "[ ] Buy milk\nPlain text",
+            inlineSpans = listOf(
+                com.deepanjanxyz.notepad.domain.model.RichInlineSpan(
+                    4,
+                    8,
+                    com.deepanjanxyz.notepad.domain.model.RichInlineKind.BOLD
+                )
+            ),
+            blockSpans = listOf(
+                com.deepanjanxyz.notepad.domain.model.RichBlockSpan(
+                    1,
+                    com.deepanjanxyz.notepad.domain.model.RichBlockKind.H1
+                )
+            )
+        )
+        val encoded = com.deepanjanxyz.notepad.domain.model.RichTextCodec.encode(doc)
+        val formatted = com.deepanjanxyz.notepad.backup.NotePdfExport.formatBodyText(encoded)
+        assertFalse(formatted.contains("RICH_STYLES"))
+        assertEquals("[ ] Buy milk\nPlain text", formatted)
+    }
+
+    @Test
+    fun testPdfFormatBodyTextStripsEncodedLinks() {
+        val doc = com.deepanjanxyz.notepad.domain.model.RichTextDocument(
+            text = "Read Android docs here",
+            linkSpans = listOf(
+                com.deepanjanxyz.notepad.domain.model.RichLinkSpan(
+                    5,
+                    17,
+                    "https://developer.android.com"
+                )
+            )
+        )
+        val encoded = com.deepanjanxyz.notepad.domain.model.RichTextCodec.encode(doc)
+        val formatted = com.deepanjanxyz.notepad.backup.NotePdfExport.formatBodyText(encoded)
+        assertFalse(formatted.contains("RICH_STYLES"))
+        assertEquals("Read Android docs here", formatted)
+    }
 }

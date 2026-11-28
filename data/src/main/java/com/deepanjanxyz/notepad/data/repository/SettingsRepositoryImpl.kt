@@ -30,6 +30,8 @@ class SettingsRepositoryImpl(
         val GRID_LAYOUT = booleanPreferencesKey("pref_grid_layout")
         val LOCK_ENABLED = booleanPreferencesKey("pref_lock")
         val AUTO_BACKUP = booleanPreferencesKey("pref_auto_backup")
+        val SORT_OPTION = stringPreferencesKey("pref_sort_option")
+        val CUSTOM_ORDER = stringPreferencesKey("pref_custom_order")
     }
 
     override val settings: Flow<AppSettings> = dataStore.data
@@ -39,11 +41,19 @@ class SettingsRepositoryImpl(
             if (throwable is IOException) emit(emptyPreferences()) else throw throwable
         }
         .map { preferences ->
+            val rawOrder = preferences[Keys.CUSTOM_ORDER].orEmpty()
+            val parsedOrder = if (rawOrder.isBlank()) {
+                emptyList()
+            } else {
+                rawOrder.split(",").mapNotNull { it.trim().toLongOrNull() }.distinct()
+            }
             AppSettings(
                 themeMode = preferences[Keys.THEME_MODE] ?: ThemeMode.DARK,
                 isGridLayout = preferences[Keys.GRID_LAYOUT] ?: true,
                 lockEnabled = preferences[Keys.LOCK_ENABLED] ?: false,
-                autoBackup = preferences[Keys.AUTO_BACKUP] ?: false
+                autoBackup = preferences[Keys.AUTO_BACKUP] ?: false,
+                sortOption = preferences[Keys.SORT_OPTION] ?: "LAST_MODIFIED",
+                customOrder = parsedOrder
             )
         }
 
@@ -61,5 +71,22 @@ class SettingsRepositoryImpl(
 
     override suspend fun setAutoBackup(enabled: Boolean) {
         dataStore.edit { preferences -> preferences[Keys.AUTO_BACKUP] = enabled }
+    }
+
+    override suspend fun setSortOption(sortOption: String) {
+        dataStore.edit { preferences -> preferences[Keys.SORT_OPTION] = sortOption }
+    }
+
+    override suspend fun setCustomOrder(order: List<Long>) {
+        dataStore.edit { preferences ->
+            preferences[Keys.CUSTOM_ORDER] = order.distinct().joinToString(",")
+        }
+    }
+
+    override suspend fun setCustomOrderAndSort(order: List<Long>, sortOption: String) {
+        dataStore.edit { preferences ->
+            preferences[Keys.CUSTOM_ORDER] = order.distinct().joinToString(",")
+            preferences[Keys.SORT_OPTION] = sortOption
+        }
     }
 }

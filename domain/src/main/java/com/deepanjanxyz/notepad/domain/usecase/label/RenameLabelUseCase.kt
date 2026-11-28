@@ -4,7 +4,7 @@ import com.deepanjanxyz.notepad.domain.repository.NoteRepository
 
 class RenameLabelUseCase(private val repository: NoteRepository) {
     suspend operator fun invoke(oldName: String, newName: String) {
-        val trimmed = newName.trim().take(30)
+        val trimmed = newName.replace("#", "").trim().take(30).trim()
         if (trimmed.isNotBlank() && trimmed != oldName) {
             repository.renameLabel(oldName, trimmed)
         }

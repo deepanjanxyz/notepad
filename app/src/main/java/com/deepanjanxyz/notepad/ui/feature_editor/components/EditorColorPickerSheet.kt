@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Surface
@@ -28,14 +29,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deepanjanxyz.notepad.ui.theme.NoteColorOptions
-import com.deepanjanxyz.notepad.ui.theme.AppColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,7 +48,7 @@ fun EditorColorPickerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = AppColors.SheetSurface,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         dragHandle = {
             Box(
                 modifier = Modifier
@@ -58,7 +57,7 @@ fun EditorColorPickerSheet(
                 contentAlignment = Alignment.Center
             ) {
                 Surface(
-                    color = AppColors.TextDim,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                     shape = CircleShape,
                     modifier = Modifier.size(width = 36.dp, height = 4.dp)
                 ) {}
@@ -76,7 +75,7 @@ fun EditorColorPickerSheet(
                 style = TextStyle(
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     letterSpacing = 0.5.sp
                 ),
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
@@ -105,14 +104,19 @@ private fun ColorOptionRow(
     ) {
         NoteColorOptions.forEachIndexed { index, color ->
             val isSelected = selectedColorIndex == index
+            val swatchColor = if (index == 0) MaterialTheme.colorScheme.surface else color
             Box(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(color)
+                    .background(swatchColor)
                     .border(
                         width = if (isSelected) 3.dp else 1.dp,
-                        color = if (isSelected) AppColors.AccentAmber else AppColors.FieldOutline,
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.outline
+                        },
                         shape = CircleShape
                     )
                     .clickable { onColorSelected(index) }
@@ -123,7 +127,7 @@ private fun ColorOptionRow(
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = stringResource(R.string.editor_selected),
-                        tint = AppColors.AccentAmber,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(22.dp)
                     )
                 }

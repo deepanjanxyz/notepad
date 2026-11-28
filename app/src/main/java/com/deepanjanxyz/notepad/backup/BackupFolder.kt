@@ -34,6 +34,7 @@ object BackupFolder {
     private const val PREFERENCES = "backup_folder"
     private const val KEY_TREE_URI = "tree_uri"
     private const val KEY_ADOPT_PENDING = "adopt_pending"
+    private const val KEY_PERMISSION_LOST = "permission_lost"
     private const val AUTHORITY = "com.android.externalstorage.documents"
     private const val MIME_TYPE = "application/json"
     // The documented mode for replacing a document's contents: read-write, and
@@ -47,7 +48,16 @@ object BackupFolder {
     fun treeUri(context: Context): Uri? =
         preferences(context).getString(KEY_TREE_URI, null)?.let(Uri::parse)
 
-    fun hasAccess(context: Context): Boolean = treeUri(context) != null
+    fun hasAccess(context: Context): Boolean {
+        val tree = treeUri(context) ?: return false
+        val granted = runCatching {
+            context.contentResolver.persistedUriPermissions.any {
+                it.uri == tree && it.isReadPermission && it.isWritePermission
+            }
+        }.getOrDefault(false)
+        if (!granted) release(context)
+        return granted
+    }
 
     /**
      * The folder the picker should open at, so the user only has to confirm it.
@@ -86,10 +96,18 @@ object BackupFolder {
             preferences(context).edit()
                 .putString(KEY_TREE_URI, uri.toString())
                 .putBoolean(KEY_ADOPT_PENDING, true)
+                .putBoolean(KEY_PERMISSION_LOST, false)
                 .apply()
         }
         return taken
     }
+
+    /**
+     * True when the user previously granted a backup folder, but the persisted
+     * permission was lost or revoked and needs to be granted again.
+     */
+    fun isPermissionLost(context: Context): Boolean =
+        preferences(context).getBoolean(KEY_PERMISSION_LOST, false)
 
     /**
      * True while a folder has been granted whose backup has not been brought in
@@ -129,35 +147,39 @@ object BackupFolder {
     /** Every file in the granted folder. */
     fun children(context: Context): List<Child> {
         val tree = treeUri(context) ?: return emptyList()
-        val children = mutableListOf<Child>()
-        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(
-            tree,
-            DocumentsContract.getTreeDocumentId(tree)
-        )
-        context.contentResolver.query(
-            childrenUri,
-            arrayOf(
-                DocumentsContract.Document.COLUMN_DOCUMENT_ID,
-                DocumentsContract.Document.COLUMN_DISPLAY_NAME,
-                DocumentsContract.Document.COLUMN_LAST_MODIFIED
-            ),
-            null,
-            null,
-            null
-        )?.use { cursor ->
-            while (cursor.moveToNext()) {
-                val id = cursor.getString(0)
-                val name = cursor.getString(1)
-                if (id != null && name != null) {
-                    children += Child(
-                        uri = DocumentsContract.buildDocumentUriUsingTree(tree, id),
-                        name = name,
-                        lastModified = cursor.getLong(2)
-                    )
+        return runCatching {
+            val children = mutableListOf<Child>()
+            val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(
+                tree,
+                DocumentsContract.getTreeDocumentId(tree)
+            )
+            context.contentResolver.query(
+                childrenUri,
+                arrayOf(
+                    DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                    DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                    DocumentsContract.Document.COLUMN_LAST_MODIFIED
+                ),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    val id = cursor.getString(0)
+                    val name = cursor.getString(1)
+                    if (id != null && name != null) {
+                        children += Child(
+                            uri = DocumentsContract.buildDocumentUriUsingTree(tree, id),
+                            name = name,
+                            lastModified = cursor.getLong(2)
+                        )
+                    }
                 }
             }
-        }
-        return children
+            children
+        }.onFailure { error ->
+            if (error is SecurityException) release(context)
+        }.getOrDefault(emptyList())
     }
 
     /** True when the granted folder is still there and can be read. */
@@ -174,9 +196,13 @@ object BackupFolder {
         }.getOrDefault(false)
     }
 
-    /** Forgets the granted folder, so the user is asked for it again. */
+    /** Forgets the granted folder and marks that access needs to be granted again. */
     fun release(context: Context) {
-        preferences(context).edit().remove(KEY_TREE_URI).apply()
+        preferences(context).edit()
+            .remove(KEY_TREE_URI)
+            .remove(KEY_ADOPT_PENDING)
+            .putBoolean(KEY_PERMISSION_LOST, true)
+            .apply()
     }
 
     /** The file in the folder with this exact name, or null. */

@@ -24,6 +24,8 @@ import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.Delete
@@ -39,6 +41,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -51,6 +58,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.ui.viewmodel.Screen
+
+private const val MAX_VISIBLE_DRAWER_LABELS = 4
 
 @Composable
 fun AppDrawerContent(
@@ -204,10 +213,60 @@ private fun DrawerLabelsSection(
         }
     }
 
-    labels.forEach { label ->
+    val hasHiddenSelection = currentScreen is Screen.Home &&
+        selectedTagFilter != null &&
+        labels.drop(MAX_VISIBLE_DRAWER_LABELS).any {
+            it.equals(selectedTagFilter, ignoreCase = true)
+        }
+    var showAllLabels by remember { mutableStateOf(hasHiddenSelection) }
+    LaunchedEffect(hasHiddenSelection) {
+        if (hasHiddenSelection) showAllLabels = true
+    }
+
+    val hasExtraLabels = labels.size > MAX_VISIBLE_DRAWER_LABELS
+    val visibleLabels = if (showAllLabels || !hasExtraLabels) {
+        labels
+    } else {
+        labels.take(MAX_VISIBLE_DRAWER_LABELS)
+    }
+
+    visibleLabels.forEach { label ->
         val isSelected =
             currentScreen is Screen.Home && selectedTagFilter.equals(label, ignoreCase = true)
         DrawerLabelItem(label = label, isSelected = isSelected, onClick = { onSelectTag(label) })
+    }
+
+    if (hasExtraLabels) {
+        NavigationDrawerItem(
+            label = {
+                Text(
+                    text = stringResource(
+                        if (showAllLabels) R.string.labels_show_less else R.string.labels_see_all
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            },
+            icon = {
+                Icon(
+                    imageVector = if (showAllLabels) {
+                        Icons.Default.ExpandLess
+                    } else {
+                        Icons.Default.ExpandMore
+                    },
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            },
+            selected = false,
+            onClick = { showAllLabels = !showAllLabels },
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier
+                .padding(NavigationDrawerItemDefaults.ItemPadding)
+                .testTag("drawer_see_all_labels")
+        )
     }
 
     DrawerCreateLabelItem(onOpenEditLabels = onOpenEditLabels)

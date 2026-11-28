@@ -26,6 +26,7 @@ import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -39,7 +40,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -47,7 +47,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
-import com.deepanjanxyz.notepad.ui.theme.AppColors
 
 private const val MAX_LABEL_LENGTH = 30
 
@@ -60,9 +59,6 @@ fun EditorLabelsSheet(
     onCreateLabel: (String) -> Unit,
     onDismiss: () -> Unit,
     sheetState: SheetState,
-    textPrimary: Color = AppColors.TextPrimary,
-    textPlaceholder: Color = AppColors.TextPlaceholder,
-    amberAccent: Color = AppColors.AccentAmber,
     modifier: Modifier = Modifier
 ) {
     var newLabelInput by remember { mutableStateOf("") }
@@ -70,7 +66,7 @@ fun EditorLabelsSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = AppColors.SheetSurface,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         dragHandle = { SheetDragHandle() }
     ) {
         Column(
@@ -84,7 +80,7 @@ fun EditorLabelsSheet(
                 style = TextStyle(
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     letterSpacing = 0.5.sp
                 ),
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
@@ -93,8 +89,6 @@ fun EditorLabelsSheet(
             LabelCheckList(
                 allUniqueLabels = allUniqueLabels,
                 currentTags = currentTags,
-                textPrimary = textPrimary,
-                amberAccent = amberAccent,
                 onToggleLabel = onToggleLabel
             )
 
@@ -102,9 +96,6 @@ fun EditorLabelsSheet(
                 newLabelInput = newLabelInput,
                 onInputChange = { newLabelInput = it },
                 allUniqueLabels = allUniqueLabels,
-                textPrimary = textPrimary,
-                textPlaceholder = textPlaceholder,
-                amberAccent = amberAccent,
                 onCreateLabel = onCreateLabel
             )
         }
@@ -121,7 +112,7 @@ private fun SheetDragHandle() {
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            color = AppColors.TextDim,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
             shape = CircleShape,
             modifier = Modifier.size(width = 36.dp, height = 4.dp)
         ) {}
@@ -133,8 +124,6 @@ private fun SheetDragHandle() {
 private fun LabelCheckList(
     allUniqueLabels: List<String>,
     currentTags: List<String>,
-    textPrimary: Color,
-    amberAccent: Color,
     onToggleLabel: (String) -> Unit
 ) {
     LazyColumn(
@@ -156,9 +145,9 @@ private fun LabelCheckList(
                     checked = isChecked,
                     onCheckedChange = { onToggleLabel(label) },
                     colors = CheckboxDefaults.colors(
-                        checkedColor = amberAccent,
-                        uncheckedColor = AppColors.TextMuted,
-                        checkmarkColor = Color.Black
+                        checkedColor = MaterialTheme.colorScheme.primary,
+                        uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        checkmarkColor = MaterialTheme.colorScheme.onPrimary
                     )
                 )
                 Spacer(modifier = Modifier.width(12.dp))
@@ -166,7 +155,7 @@ private fun LabelCheckList(
                     text = label,
                     style = TextStyle(
                         fontSize = 16.sp,
-                        color = textPrimary,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Normal
                     )
                 )
@@ -181,12 +170,9 @@ private fun CreateLabelField(
     newLabelInput: String,
     onInputChange: (String) -> Unit,
     allUniqueLabels: List<String>,
-    textPrimary: Color,
-    textPlaceholder: Color,
-    amberAccent: Color,
     onCreateLabel: (String) -> Unit
 ) {
-    val cleanInput = newLabelInput.trim().replace("#", "")
+    val cleanInput = newLabelInput.replace("#", "").trim()
     val isDuplicate = cleanInput.isNotBlank() &&
         allUniqueLabels.any { it.equals(cleanInput, ignoreCase = true) }
     val createIfValid = {
@@ -205,19 +191,24 @@ private fun CreateLabelField(
         OutlinedTextField(
             value = newLabelInput,
             onValueChange = { onInputChange(it.take(MAX_LABEL_LENGTH)) },
-            placeholder = { Text(stringResource(R.string.labels_create_hint), color = textPlaceholder) },
+            placeholder = {
+                Text(
+                    stringResource(R.string.labels_create_hint),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
             isError = isDuplicate,
             supportingText = {
                 LabelSupportingText(newLabelInput = newLabelInput, isDuplicate = isDuplicate)
             },
             singleLine = true,
             colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = textPrimary,
-                unfocusedTextColor = textPrimary,
-                focusedBorderColor = amberAccent,
-                unfocusedBorderColor = AppColors.InputOutline,
-                errorBorderColor = AppColors.Danger,
-                errorTextColor = textPrimary
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                errorBorderColor = MaterialTheme.colorScheme.error,
+                errorTextColor = MaterialTheme.colorScheme.onSurface
             ),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { createIfValid() }),
@@ -232,7 +223,11 @@ private fun CreateLabelField(
                             Icon(
                                 imageVector = Icons.Default.Add,
                                 contentDescription = stringResource(R.string.editor_create_label),
-                                tint = if (!isDuplicate) amberAccent else AppColors.TextDim
+                                tint = if (!isDuplicate) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.outline
+                                }
                             )
                         }
                     }
@@ -255,7 +250,7 @@ private fun LabelSupportingText(newLabelInput: String, isDuplicate: Boolean) {
         if (isDuplicate) {
             Text(
                 text = stringResource(R.string.labels_duplicate),
-                color = AppColors.Danger,
+                color = MaterialTheme.colorScheme.error,
                 style = TextStyle(fontSize = 12.sp)
             )
         } else {
@@ -264,7 +259,11 @@ private fun LabelSupportingText(newLabelInput: String, isDuplicate: Boolean) {
         Text(
             text = "${newLabelInput.length}/30",
             style = TextStyle(fontSize = 12.sp),
-            color = if (isDuplicate) AppColors.Danger else AppColors.TextFaint
+            color = if (isDuplicate) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
         )
     }
 }

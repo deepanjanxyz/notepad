@@ -34,6 +34,9 @@ interface NoteRepository {
     /** Flips a single checklist line on a note, atomically. */
     suspend fun toggleChecklistLine(noteId: Long, lineIndex: Int)
 
+    suspend fun updateNotesColor(ids: List<Long>, colorIndex: Int)
+    suspend fun setTagForNotes(ids: List<Long>, tag: String, enabled: Boolean)
+
     // Room Label management
     fun getAllLabels(): Flow<List<String>>
     suspend fun insertLabel(name: String)

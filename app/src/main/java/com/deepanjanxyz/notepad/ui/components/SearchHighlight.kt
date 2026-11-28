@@ -11,12 +11,12 @@ import androidx.compose.ui.text.withStyle
 import java.util.Locale
 
 private val SearchHighlightColors = listOf(
-    Color(0xFFFFE082), // Amber
     Color(0xFF9AE6FF), // Sky
     Color(0xFFA5F0B4), // Mint
-    Color(0xFFFFB3C7), // Rose
     Color(0xFFD6B6FF), // Lilac
-    Color(0xFFFFC79A) // Apricot
+    Color(0xFFFFB3C7), // Rose
+    Color(0xFFFFC79A), // Apricot
+    Color(0xFFFFE082) // Amber
 )
 
 private val SearchHighlightTextColor = Color(0xFF1B1B1F)
@@ -30,14 +30,30 @@ fun buildHighlightedText(
     text: String,
     query: String,
     colors: List<Color> = SearchHighlightColors
+): AnnotatedString = buildHighlightedText(
+    text = AnnotatedString(text),
+    query = query,
+    colors = colors
+)
+
+/**
+ * The styled [text] with every occurrence of a word in [query] highlighted while
+ * preserving existing formatting spans, each keyword taking the next swatch from [colors].
+ */
+@Composable
+fun buildHighlightedText(
+    text: AnnotatedString,
+    query: String,
+    colors: List<Color> = SearchHighlightColors
 ): AnnotatedString {
-    if (query.isBlank()) {
-        return AnnotatedString(text)
+    if (query.isBlank() || text.isEmpty()) {
+        return text
     }
 
     // An empty palette would make the per-keyword colour lookup divide by zero,
     // so it falls back to the default swatches.
     val palette = colors.ifEmpty { SearchHighlightColors }
+    val raw = text.text
 
     return remember(text, query, palette) {
         val keywords = query.trim().lowercase(Locale.getDefault())
@@ -47,33 +63,26 @@ fun buildHighlightedText(
         val merged = if (keywords.isEmpty()) {
             emptyList()
         } else {
-            mergeOverlappingMatches(findKeywordMatches(text, keywords))
+            mergeOverlappingMatches(findKeywordMatches(raw, keywords))
         }
 
         if (merged.isEmpty()) {
-            return@remember AnnotatedString(text)
+            return@remember text
         }
 
         buildAnnotatedString {
-            var cursor = 0
+            append(text)
             for (match in merged) {
-                if (match.first > cursor) {
-                    append(text.substring(cursor, match.first))
-                }
                 val swatch = palette[match.third % palette.size]
-                withStyle(
-                    SpanStyle(
+                addStyle(
+                    style = SpanStyle(
                         background = swatch,
                         color = SearchHighlightTextColor,
                         fontWeight = FontWeight.Bold
-                    )
-                ) {
-                    append(text.substring(match.first, match.second))
-                }
-                cursor = match.second
-            }
-            if (cursor < text.length) {
-                append(text.substring(cursor))
+                    ),
+                    start = match.first,
+                    end = match.second
+                )
             }
         }
     }

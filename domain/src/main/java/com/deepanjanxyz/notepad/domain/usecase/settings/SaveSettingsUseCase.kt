@@ -13,4 +13,11 @@ class SaveSettingsUseCase(
     suspend fun setLockEnabled(enabled: Boolean) = settingsRepository.setLockEnabled(enabled)
 
     suspend fun setAutoBackup(enabled: Boolean) = settingsRepository.setAutoBackup(enabled)
+
+    suspend fun setSortOption(sortOption: String) = settingsRepository.setSortOption(sortOption)
+
+    suspend fun setCustomOrder(order: List<Long>) = settingsRepository.setCustomOrder(order)
+
+    suspend fun setCustomOrderAndSort(order: List<Long>, sortOption: String) =
+        settingsRepository.setCustomOrderAndSort(order, sortOption)
 }

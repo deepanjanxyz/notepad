@@ -1,6 +1,10 @@
 package com.deepanjanxyz.notepad.ui.navigation
 
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.domain.model.DrawingSerializer
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.ui.screens.ArchiveScreen
@@ -10,6 +14,7 @@ import com.deepanjanxyz.notepad.ui.screens.NoteEditorScreen
 import com.deepanjanxyz.notepad.ui.screens.SettingsScreen
 import com.deepanjanxyz.notepad.ui.screens.TrashScreen
 import com.deepanjanxyz.notepad.ui.viewmodel.Screen
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** Draws whichever screen the app is on. */
@@ -57,17 +62,33 @@ private fun HomeRoute(routes: ScreenRouteState) {
         onAddNewDrawingNote = { routes.viewModel.navigateTo(Screen.Drawing(0L)) },
         onClearSelection = { routes.viewModel.clearSelection() },
         onSelectAll = { routes.viewModel.selectAll(routes.filteredNotes) },
-        onMoveSelectedToTrash = { routes.viewModel.moveSelectedToTrash() },
+        onMoveSelectedToTrash = { selectedIds ->
+            routes.viewModel.moveSelectedToTrash(selectedIds)
+        },
         onMoveSelectedToArchive = { routes.viewModel.moveSelectedToArchive() },
-        onUndoMoveToTrash = { routes.viewModel.undoMoveToTrash() },
+        onArchiveNote = { noteId -> routes.viewModel.moveToArchive(noteId) },
+        onUndoMoveToTrash = { ids -> routes.viewModel.undoMoveToTrash(ids) },
+        onUndoMoveToArchive = { ids -> routes.viewModel.undoMoveToArchive(ids) },
         onSortOptionChange = { routes.viewModel.setSortOption(it) },
+        onCommitCustomOrder = { orderedIds -> routes.viewModel.commitCustomOrder(orderedIds) },
+        onSetSelectedColor = { ids, color -> routes.viewModel.setNotesColor(ids, color) },
+        onSetSelectedLabel = { ids, label, enabled ->
+            routes.viewModel.setTagForNotes(ids, label, enabled)
+        },
+        onCreateAndApplyLabel = { ids, label ->
+            routes.viewModel.createAndApplyTag(ids, label)
+        },
         homeSnackbarHostState = routes.homeSnackbarHostState,
         snackbarHeight = routes.snackbarHeight
     )
 }
 
+private const val EDITOR_TRASH_SNACKBAR_DELAY_MS = 140L
+
 @Composable
 private fun EditorRoute(routes: ScreenRouteState, screen: Screen.Editor) {
+    val trashedMessage = stringResource(R.string.archive_note_trashed)
+    val undoLabel = stringResource(R.string.undo)
     NoteEditorScreen(
         noteId = screen.noteId,
         startInChecklist = screen.startInChecklist,
@@ -83,6 +104,21 @@ private fun EditorRoute(routes: ScreenRouteState, screen: Screen.Editor) {
         },
         onAddLabel = { label -> routes.viewModel.addLabel(label) },
         onMoveToArchive = { id -> routes.viewModel.moveToArchive(id) },
+        onMoveToTrash = { id ->
+            routes.viewModel.moveToTrash(id)
+            routes.scope.launch {
+                delay(EDITOR_TRASH_SNACKBAR_DELAY_MS)
+                val result = routes.homeSnackbarHostState.showSnackbar(
+                    message = trashedMessage,
+                    actionLabel = undoLabel,
+                    withDismissAction = true,
+                    duration = SnackbarDuration.Indefinite
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    routes.viewModel.undoMoveToTrash(listOf(id))
+                }
+            }
+        },
         onClearReminder = { id -> routes.viewModel.setNoteReminder(id, null) },
         onOpenDrawing = { noteId ->
             routes.viewModel.navigateTo(
@@ -123,6 +159,7 @@ private fun ArchiveRoute(routes: ScreenRouteState) {
     ArchiveScreen(
         notes = routes.archiveNotes,
         isGridLayout = routes.uiState.isGridLayout,
+        allTags = routes.allTags,
         onOpenDrawer = { routes.scope.launch { routes.drawerState.open() } },
         isDrawerOpen = { routes.drawerState.isOpen },
         onNavigateBack = { routes.viewModel.navigateTo(Screen.Home) },
@@ -133,7 +170,14 @@ private fun ArchiveRoute(routes: ScreenRouteState) {
         onMoveSelectedToTrash = { selectedIds ->
             routes.viewModel.moveSelectedToTrash(selectedIds)
         },
-        onUndoMoveToTrash = { routes.viewModel.undoMoveToTrash() },
+        onUndoMoveToTrash = { ids -> routes.viewModel.undoMoveToTrash(ids) },
+        onSetSelectedColor = { ids, color -> routes.viewModel.setNotesColor(ids, color) },
+        onSetSelectedLabel = { ids, label, enabled ->
+            routes.viewModel.setTagForNotes(ids, label, enabled)
+        },
+        onCreateAndApplyLabel = { ids, label ->
+            routes.viewModel.createAndApplyTag(ids, label)
+        },
         onNoteClick = { note -> openNote(routes, note, Screen.Archive) }
     )
 }

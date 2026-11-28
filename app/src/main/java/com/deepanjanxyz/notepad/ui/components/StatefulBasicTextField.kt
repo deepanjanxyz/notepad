@@ -6,6 +6,8 @@ import androidx.compose.foundation.text.input.InputTransformation
 import androidx.compose.foundation.text.input.KeyboardActionHandler
 import androidx.compose.foundation.text.input.TextFieldDecorator
 import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.OutputTransformation
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -19,7 +21,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
-import kotlinx.coroutines.flow.collect
 
 /**
  * Keeps the existing String-based editor state contract while using Compose's
@@ -37,10 +38,12 @@ internal fun StatefulBasicTextField(
     lineLimits: TextFieldLineLimits = TextFieldLineLimits.Default,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     inputTransformation: InputTransformation? = null,
+    outputTransformation: OutputTransformation? = null,
     onKeyboardAction: KeyboardActionHandler? = null,
-    decorator: TextFieldDecorator? = null
+    decorator: TextFieldDecorator? = null,
+    externalState: TextFieldState? = null
 ) {
-    val state = rememberTextFieldState(initialText = value)
+    val state = externalState ?: rememberTextFieldState(initialText = value)
     val currentOnValueChange by rememberUpdatedState(onValueChange)
 
     LaunchedEffect(state) {
@@ -70,6 +73,7 @@ internal fun StatefulBasicTextField(
         lineLimits = lineLimits,
         keyboardOptions = keyboardOptions,
         inputTransformation = inputTransformation,
+        outputTransformation = outputTransformation,
         onKeyboardAction = keyboardAction,
         decorator = decorator
     )

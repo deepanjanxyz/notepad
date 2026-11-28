@@ -93,6 +93,20 @@
     <string name="editor_color_palette">रंग पैलेट</string><string name="editor_drawing">ड्रॉइंग</string>
     <string name="editor_share_note">नोट साझा करें</string><string name="editor_archive_note">नोट आर्काइव करें</string>
     <string name="editor_save_close">सहेजें और बंद करें</string><string name="editor_format">नोट का प्रारूप</string>
+    <string name="editor_more">और विकल्प</string><string name="editor_export_pdf">PDF के रूप में निर्यात करें</string>
+    <string name="editor_add">जोड़ें</string><string name="editor_text_formatting">टेक्स्ट फ़ॉर्मेटिंग</string>
+    <string name="editor_checkboxes">चेकबॉक्स</string><string name="editor_find_in_note">नोट में खोजें</string>
+    <string name="editor_find_hint">नोट में खोजें…</string><string name="editor_find_prev">पिछला मिलान</string>
+    <string name="editor_find_next">अगला मिलान</string><string name="editor_find_close">खोज बंद करें</string>
+    <string name="editor_find_count">%1$d/%2$d</string><string name="editor_make_copy">कॉपी बनाएँ</string>
+    <string name="editor_note_copied">नोट कॉपी किया गया</string><string name="editor_send">भेजें</string>
+    <string name="editor_labels">लेबल</string><string name="editor_delete">हटाएँ</string>
+    <string name="editor_edited_just_now">अभी संपादित</string><string name="editor_edited_time">संपादित %1$s</string>
+    <string name="editor_format_h1">शीर्षक 1</string><string name="editor_format_h2">शीर्षक 2</string>
+    <string name="editor_format_normal">सामान्य टेक्स्ट</string><string name="editor_format_bold">बोल्ड</string>
+    <string name="editor_format_italic">इटैलिक</string><string name="editor_format_underline">अंडरलाइन</string>
+    <string name="editor_format_strikethrough">स्ट्राइकथ्रू</string><string name="editor_format_clear">फ़ॉर्मेट साफ़ करें</string>
+    <string name="editor_close_formatting">फ़ॉर्मेटिंग बंद करें</string>
     <string name="editor_plain_text">सादा टेक्स्ट</string><string name="editor_bulleted_list">बुलेट सूची</string><string name="editor_numbered_list">क्रमांकित सूची</string>
     <string name="editor_add_label">लेबल जोड़ें</string><string name="editor_remove_reminder">रिमाइंडर हटाएँ</string>
     <string name="editor_add_line">पंक्ति जोड़ें</string><string name="editor_remove_line">पंक्ति हटाएँ</string>
@@ -152,4 +166,38 @@
     <string name="settings_markdown_import_desc">JSON बैकअप न होने पर .md फ़ाइल से नोट आयात करें। निर्यात के लिए होम स्क्रीन पर नोट चुनें और Export दबाएँ।</string>
     <string name="widget_untitled">बिना शीर्षक का नोट</string>
     <string name="editor_format_checklist">चेकलिस्ट</string><string name="drawing_pencil_pen">पेंसिल / पेन</string>
+    <string name="trash_drop_target">नोट ट्रैश में भेजा जा रहा है</string>
+    <string name="home_deselect_all">सभी का चयन हटाएँ</string>
+    <string name="home_export_markdown">Markdown के रूप में निर्यात</string>
+    <string name="markdown_export_subtitle">चुनें कि चयनित नोट्स कैसे सहेजना है</string>
+    <string name="markdown_export_count">%1$d नोट्स</string>
+    <string name="markdown_export_separate_title">अलग-अलग फ़ाइलें</string>
+    <string name="markdown_export_separate_desc">प्रत्येक नोट के लिए एक .md फ़ाइल वाला .zip आर्काइव</string>
+    <string name="markdown_export_single_title">एक संयुक्त फ़ाइल</string>
+    <string name="markdown_export_single_desc">सभी चयनित नोट्स एक .md दस्तावेज़ में</string>
+    <string name="badge_new">नया</string>
+    <string name="note_archived">नोट आर्काइव किया गया</string>
+    <string name="swipe_to_archive">आर्काइव</string>
+    <string name="release_to_archive">छोड़ें</string>
+    <string name="editor_format_link">लिंक जोड़ें</string>
+    <string name="link_dialog_add_title">लिंक जोड़ें</string>
+    <string name="link_dialog_edit_title">लिंक संपादित करें</string>
+    <string name="link_dialog_text_label">लिंक टेक्स्ट</string>
+    <string name="link_dialog_text_placeholder">वैकल्पिक टेक्स्ट</string>
+    <string name="link_dialog_url_label">URL</string>
+    <string name="link_dialog_url_placeholder">https://example.com</string>
+    <string name="link_dialog_url_error">मान्य वेब, mailto या tel लिंक दर्ज करें</string>
+    <string name="link_dialog_save">सहेजें</string>
+    <string name="link_dialog_remove">हटाएँ</string>
+    <string name="link_dialog_open">खोलें</string>
+    <string name="link_open_error">यह लिंक खोला नहीं जा सका</string>
+    <string name="active_link_open">लिंक खोलें</string>
+    <string name="active_link_edit">लिंक संपादित करें</string>
+    <string name="active_link_remove">लिंक हटाएँ</string>
+    <string name="bulk_color_action">रंग बदलें</string>
+    <string name="bulk_color_sheet_title">%1$d नोट्स का रंग</string>
+    <string name="bulk_labels_action">लेबल</string>
+    <string name="bulk_labels_sheet_title">%1$d नोट्स के लेबल</string>
+    <string name="settings_backup_access_lost">बैकअप फ़ोल्डर की अनुमति खो गई है। बैकअप जारी रखने के लिए Downloads में %1$s फ़ोल्डर की अनुमति दें।</string>
+    <string name="settings_backup_access_lost_dialog">बैकअप फ़ोल्डर की अनुमति खो गई है या हटा दी गई है। नोट्स बैकअप और पुनर्स्थापित करना जारी रखने के लिए Downloads में %1$s फ़ोल्डर की अनुमति दें।</string>
 </resources>

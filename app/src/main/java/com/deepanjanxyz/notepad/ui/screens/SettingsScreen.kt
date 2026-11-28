@@ -158,8 +158,11 @@ fun SettingsScreen(
     // Set when the folder is asked for from the Restore dialog, where the point is
     // to read the backup already in it rather than to write a new one over it.
     var grantForRestore by remember { mutableStateOf(false) }
+    var folderPermissionLost by remember { mutableStateOf(false) }
+    var showFolderPermissionPrompt by remember { mutableStateOf(false) }
+    var promptDismissedThisVisit by remember { mutableStateOf(false) }
 
-    LaunchedEffect(autoBackupStatus, showRestoreDialog) {
+    LaunchedEffect(autoBackupStatus, showRestoreDialog, uiState.autoBackup) {
         val (info, entries) = withContext(Dispatchers.IO) {
             DownloadsBackup.info(context) to DownloadsBackup.list(context)
         }
@@ -172,8 +175,15 @@ fun SettingsScreen(
         // as the app can see that this has happened.
         val granted = withContext(Dispatchers.IO) { DownloadsBackup.hasFolderAccess(context) }
         folderGranted = granted
+        val permissionLost = withContext(Dispatchers.IO) {
+            !granted && BackupFolder.isPermissionLost(context)
+        }
+        folderPermissionLost = permissionLost
         val stuckCopies = withContext(Dispatchers.IO) { DownloadsBackup.needsFolderAccess(context) }
-        offerFolder = !granted && (stuckCopies || autoBackupStatus?.error != null)
+        offerFolder = !granted && (stuckCopies || autoBackupStatus?.error != null || permissionLost)
+        if (permissionLost && uiState.autoBackup && !promptDismissedThisVisit && !showRestoreDialog) {
+            showFolderPermissionPrompt = true
+        }
     }
 
     // The export reports through its own outcome. An import is counted by the
@@ -202,7 +212,10 @@ fun SettingsScreen(
                     // installation is listed and can be restored without being
                     // written over first.
                     folderGranted = true
+                    folderPermissionLost = false
                     offerFolder = false
+                    showFolderPermissionPrompt = false
+                    promptDismissedThisVisit = false
                     // The Backup card reads the folder as well, so its state is
                     // brought up to date here rather than left stale until the
                     // effect above happens to run again.
@@ -253,6 +266,9 @@ fun SettingsScreen(
             storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
         } else {
             onAutoBackupChange(enabled)
+            if (enabled && folderPermissionLost && !folderGranted && !showRestoreDialog) {
+                showFolderPermissionPrompt = true
+            }
         }
     }
 
@@ -659,7 +675,14 @@ fun SettingsScreen(
                     if (offerFolder) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = stringResource(R.string.settings_earlier_backup),
+                            text = if (folderPermissionLost) {
+                                stringResource(
+                                    R.string.settings_backup_access_lost,
+                                    BackupFolder.FOLDER_NAME
+                                )
+                            } else {
+                                stringResource(R.string.settings_earlier_backup)
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -719,7 +742,11 @@ fun SettingsScreen(
                         OutlinedButton(
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onBackUpNow(DownloadsBackup.FILE_NAME)
+                                if (folderPermissionLost && !folderGranted) {
+                                    showFolderPermissionPrompt = true
+                                } else {
+                                    onBackUpNow(DownloadsBackup.FILE_NAME)
+                                }
                             },
                             modifier = Modifier
                                 .weight(1f)
@@ -743,6 +770,7 @@ fun SettingsScreen(
                                     availableBackups = withContext(Dispatchers.IO) {
                                         DownloadsBackup.list(context)
                                     }
+                                    showFolderPermissionPrompt = false
                                     showRestoreDialog = true
                                 }
                             },
@@ -939,6 +967,50 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showRestoreDialog = false }) {
+                    Text(stringResource(R.string.labels_cancel))
+                }
+            }
+        )
+    }
+
+    if (showFolderPermissionPrompt && !folderGranted && !showRestoreDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showFolderPermissionPrompt = false
+                promptDismissedThisVisit = true
+            },
+            title = { Text(stringResource(R.string.settings_allow_backup_folder)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.settings_backup_access_lost_dialog,
+                        BackupFolder.FOLDER_NAME
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showFolderPermissionPrompt = false
+                        promptDismissedThisVisit = true
+                        grantForRestore = false
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        folderLauncher.launch(
+                            BackupFolder.initialUri(BackupFolder.FOLDER_NAME)
+                        )
+                    },
+                    modifier = Modifier.testTag("regrant_backup_folder_button")
+                ) {
+                    Text(stringResource(R.string.settings_allow_backup_folder))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showFolderPermissionPrompt = false
+                        promptDismissedThisVisit = true
+                    }
+                ) {
                     Text(stringResource(R.string.labels_cancel))
                 }
             }

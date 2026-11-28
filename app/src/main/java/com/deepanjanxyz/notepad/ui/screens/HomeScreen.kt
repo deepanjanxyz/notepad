@@ -6,13 +6,17 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -48,19 +52,22 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Deselect
 import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.DropdownMenu
@@ -87,15 +94,24 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -104,20 +120,30 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.domain.model.Note
 import com.deepanjanxyz.notepad.ui.components.FloatingSearchBar
+import com.deepanjanxyz.notepad.ui.components.NewFeatureBadge
 import com.deepanjanxyz.notepad.ui.components.NoteCard
+import com.deepanjanxyz.notepad.ui.components.NoteTouchGestureBox
+import com.deepanjanxyz.notepad.ui.components.PendingTrashDrop
+import com.deepanjanxyz.notepad.ui.components.ReorderDragOverlay
+import com.deepanjanxyz.notepad.ui.components.ReorderDragSession
+import com.deepanjanxyz.notepad.ui.components.TrashDropOverlay
 import com.deepanjanxyz.notepad.ui.theme.NoteColorOptions
 import com.deepanjanxyz.notepad.ui.viewmodel.NoteSortOption
 import com.deepanjanxyz.notepad.ui.viewmodel.NotesUiState
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
-import com.deepanjanxyz.notepad.ui.theme.AppColors
 import com.deepanjanxyz.notepad.backup.DownloadsBackup
 import com.deepanjanxyz.notepad.backup.MarkdownExport
+import com.deepanjanxyz.notepad.ui.components.BulkColorPickerSheet
+import com.deepanjanxyz.notepad.ui.components.BulkLabelsSheet
 import com.deepanjanxyz.notepad.ui.components.MarkdownExportSheet
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -153,19 +179,126 @@ fun HomeScreen(
     onAddNewDrawingNote: () -> Unit = {},
     onClearSelection: () -> Unit,
     onSelectAll: () -> Unit,
-    onMoveSelectedToTrash: () -> Unit,
+    onMoveSelectedToTrash: (List<Long>) -> Unit,
     onMoveSelectedToArchive: () -> Unit,
-    onUndoMoveToTrash: () -> Unit,
+    onArchiveNote: (Long) -> Unit = {},
+    onUndoMoveToTrash: (List<Long>) -> Unit,
+    onUndoMoveToArchive: (List<Long>) -> Unit = {},
     onSortOptionChange: (NoteSortOption) -> Unit,
+    onCommitCustomOrder: (List<Long>) -> Unit = {},
+    onSetSelectedColor: (List<Long>, Int) -> Unit = { _, _ -> },
+    onSetSelectedLabel: (List<Long>, String, Boolean) -> Unit = { _, _, _ -> },
+    onCreateAndApplyLabel: (List<Long>, String) -> Unit = { _, _ -> },
     homeSnackbarHostState: SnackbarHostState,
     snackbarHeight: State<Dp>,
     modifier: Modifier = Modifier
 ) {
     var showCreateOptionsSheet by remember { mutableStateOf(false) }
     var showExportSheet by remember { mutableStateOf(false) }
+    var showBulkColorSheet by remember { mutableStateOf(false) }
+    var showBulkLabelsSheet by remember { mutableStateOf(false) }
     var pendingExport by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var pendingTrashDrop by remember { mutableStateOf<PendingTrashDrop?>(null) }
+    var rootOffsetInRoot by remember { mutableStateOf(Offset.Zero) }
+    var rootSize by remember { mutableStateOf(IntSize.Zero) }
+    val noteCardBounds = remember { mutableStateMapOf<Long, Rect>() }
+    val archivingNoteIds = remember { mutableStateMapOf<Long, Boolean>() }
+    var activeGestureNoteId by remember { mutableStateOf<Long?>(null) }
+    var reorderSession by remember { mutableStateOf<ReorderDragSession?>(null) }
+    var liveReorderPinned by remember { mutableStateOf<List<Note>?>(null) }
+    var liveReorderOther by remember { mutableStateOf<List<Note>?>(null) }
+    var pendingCommittedOrderIds by remember { mutableStateOf<List<Long>?>(null) }
+    var dragStartedFromPendingOrder by remember { mutableStateOf(false) }
+    var lastSwappedCandidateId by remember { mutableStateOf<Long?>(null) }
+    var lastReorderSwapTimeMs by remember { mutableStateOf(0L) }
+    var suppressSortResetScroll by remember { mutableStateOf(false) }
+    var gridBoundsInRoot by remember { mutableStateOf(Rect.Zero) }
+
+    val deletingNoteIds = remember(pendingTrashDrop) {
+        pendingTrashDrop?.notes?.map { it.id }?.toSet() ?: emptySet()
+    }
+    val undoLabel = stringResource(R.string.undo)
+    val singleTrashedMessage = stringResource(R.string.archive_note_trashed)
+    val noteArchivedMessage = stringResource(R.string.note_archived)
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    val gesturesEnabled = !uiState.isSelectionMode && pendingTrashDrop == null
+
+    LaunchedEffect(notes) {
+        val currentIds = notes.map { it.id }.toSet()
+        archivingNoteIds.keys.filter { it !in currentIds }.forEach { archivingNoteIds.remove(it) }
+        val pinnedSection = notes.filter { it.isPinned }
+        val otherSection = notes.filter { !it.isPinned }
+        if (reorderSession == null && (liveReorderPinned != null || liveReorderOther != null)) {
+            val cachedMatchesMembership =
+                liveReorderPinned?.map { it.id }?.toSet() == pinnedSection.map { it.id }.toSet() &&
+                    liveReorderOther?.map { it.id }?.toSet() == otherSection.map { it.id }.toSet()
+            if (!cachedMatchesMembership) {
+                pendingCommittedOrderIds = null
+                liveReorderPinned = null
+                liveReorderOther = null
+            }
+        }
+        val expected = pendingCommittedOrderIds
+        if (expected != null) {
+            val actualIds = (pinnedSection + otherSection).map { it.id }
+            if (actualIds == expected) {
+                pendingCommittedOrderIds = null
+                if (reorderSession == null) {
+                    liveReorderPinned = null
+                    liveReorderOther = null
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(pendingCommittedOrderIds) {
+        if (pendingCommittedOrderIds != null) {
+            delay(600L)
+            pendingCommittedOrderIds = null
+            if (reorderSession == null) {
+                liveReorderPinned = null
+                liveReorderOther = null
+            }
+        }
+    }
+
+    LaunchedEffect(gesturesEnabled) {
+        if (!gesturesEnabled) {
+            activeGestureNoteId = null
+            reorderSession = null
+            pendingCommittedOrderIds = null
+            liveReorderPinned = null
+            liveReorderOther = null
+        }
+    }
+
+    LaunchedEffect(uiState.searchQuery, uiState.selectedTagFilter, uiState.selectedColorFilter) {
+        activeGestureNoteId = null
+        reorderSession = null
+        pendingCommittedOrderIds = null
+        liveReorderPinned = null
+        liveReorderOther = null
+    }
+
+    LaunchedEffect(uiState.sortOption) {
+        if (uiState.sortOption != NoteSortOption.CUSTOM) {
+            activeGestureNoteId = null
+            reorderSession = null
+            pendingCommittedOrderIds = null
+            liveReorderPinned = null
+            liveReorderOther = null
+        }
+    }
+
+    LaunchedEffect(uiState.isSelectionMode) {
+        if (!uiState.isSelectionMode) {
+            showBulkColorSheet = false
+            showBulkLabelsSheet = false
+        }
+    }
+
     // Read inside the export coroutine, so it sees the selection as it is when the
     // files are done rather than the one from the frame the export started in.
     val currentSelection by rememberUpdatedState(uiState.selectedNoteIds)
@@ -238,9 +371,19 @@ fun HomeScreen(
         onClearSelection()
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .onGloballyPositioned { coords ->
+                if (coords.isAttached) {
+                    rootOffsetInRoot = coords.positionInRoot()
+                    rootSize = coords.size
+                }
+            }
+    ) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             AnimatedVisibility(
                 visible = uiState.isSelectionMode,
@@ -280,7 +423,12 @@ fun HomeScreen(
                     },
                     actions = {
                         // Select/Deselect All
-                        ActionTooltip(if (isAllSelected) "Deselect all" else "Select all") {
+                        val selectAllDesc = if (isAllSelected) {
+                            stringResource(R.string.home_deselect_all)
+                        } else {
+                            stringResource(R.string.trash_select_all)
+                        }
+                        ActionTooltip(selectAllDesc) {
                             IconButton(
                                 onClick = {
                                     if (isAllSelected) onClearSelection() else onSelectAll()
@@ -293,91 +441,154 @@ fun HomeScreen(
                                     } else {
                                         Icons.Default.SelectAll
                                     },
-                                    contentDescription = if (isAllSelected) "Deselect all" else "Select all"
+                                    contentDescription = selectAllDesc
                                 )
                             }
                         }
 
                         // Pin/Unpin Action Button
-                        ActionTooltip(if (anyUnpinned) "Pin selected notes" else "Unpin selected notes") {
+                        val pinDesc = if (anyUnpinned) {
+                            stringResource(R.string.editor_pin)
+                        } else {
+                            stringResource(R.string.editor_unpin)
+                        }
+                        ActionTooltip(pinDesc) {
                             IconButton(
                                 onClick = onTogglePinSelected,
                                 modifier = Modifier.testTag("pin_selected_button")
                             ) {
                                 Icon(
                                     imageVector = if (anyUnpinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
-                                    contentDescription = if (anyUnpinned) {
-                                        "Pin selected notes"
-                                    } else {
-                                        "Unpin selected notes"
-                                    },
+                                    contentDescription = pinDesc,
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
 
-                        // Archive Action Button
-                        ActionTooltip("Archive selected") {
-                            IconButton(
-                                onClick = onMoveSelectedToArchive,
-                                modifier = Modifier.testTag("archive_selected_button")
+                        var showSelectionMoreMenu by remember(uiState.isSelectionMode) {
+                            mutableStateOf(false)
+                        }
+                        Box {
+                            ActionTooltip(stringResource(R.string.editor_more)) {
+                                IconButton(
+                                    onClick = { showSelectionMoreMenu = true },
+                                    modifier = Modifier.testTag("selection_more_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.MoreVert,
+                                        contentDescription = stringResource(R.string.editor_more)
+                                    )
+                                }
+                            }
+
+                            DropdownMenu(
+                                expanded = showSelectionMoreMenu,
+                                onDismissRequest = { showSelectionMoreMenu = false },
+                                shape = RoundedCornerShape(16.dp),
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Archive,
-                                    contentDescription = "Archive selected",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-
-                        // Export Action Button: one note exports at once, several
-                        // ask whether they travel as a zip or as one file.
-                        ActionTooltip("Export selected") {
-                            IconButton(
-                                onClick = {
-                                    val chosen = notes.filter {
-                                        uiState.selectedNoteIds.contains(it.id)
-                                    }
-                                    if (chosen.size == 1) {
-                                        exportSelected(chosen, separateFiles = false)
-                                    } else {
-                                        showExportSheet = true
-                                    }
-                                },
-                                modifier = Modifier.testTag("export_selected_button")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.FileDownload,
-                                    contentDescription = "Export selected",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-
-                        // Delete (Trash) Action Button
-                        ActionTooltip("Move to Trash") {
-                            IconButton(
-                                onClick = {
-                                    onMoveSelectedToTrash()
-                                    scope.launch {
-                                        val result = homeSnackbarHostState.showSnackbar(
-                                            message = "Moved to Trash",
-                                            actionLabel = "Undo",
-                                            withDismissAction = true,
-                                            // The countdown in the snackbar is what closes it.
-                                            duration = SnackbarDuration.Indefinite
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.drawer_archive)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Archive,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurface
                                         )
-                                        if (result == SnackbarResult.ActionPerformed) {
-                                            onUndoMoveToTrash()
+                                    },
+                                    onClick = {
+                                        showSelectionMoreMenu = false
+                                        onMoveSelectedToArchive()
+                                    },
+                                    modifier = Modifier.testTag("archive_selected_button")
+                                )
+
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.bulk_color_action)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Palette,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    },
+                                    trailingIcon = { NewFeatureBadge() },
+                                    onClick = {
+                                        showSelectionMoreMenu = false
+                                        showBulkColorSheet = true
+                                    },
+                                    modifier = Modifier.testTag("color_selected_button")
+                                )
+
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.bulk_labels_action)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Outlined.Label,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    },
+                                    trailingIcon = { NewFeatureBadge() },
+                                    onClick = {
+                                        showSelectionMoreMenu = false
+                                        showBulkLabelsSheet = true
+                                    },
+                                    modifier = Modifier.testTag("label_selected_button")
+                                )
+
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.home_export_markdown)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.FileDownload,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    },
+                                    trailingIcon = { NewFeatureBadge() },
+                                    onClick = {
+                                        showSelectionMoreMenu = false
+                                        val chosen = notes.filter {
+                                            uiState.selectedNoteIds.contains(it.id)
                                         }
-                                    }
-                                },
-                                modifier = Modifier.testTag("delete_selected_button")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Move to Trash",
-                                    tint = MaterialTheme.colorScheme.error
+                                        if (chosen.size == 1) {
+                                            exportSelected(chosen, separateFiles = false)
+                                        } else {
+                                            showExportSheet = true
+                                        }
+                                    },
+                                    modifier = Modifier.testTag("export_selected_button")
+                                )
+
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = stringResource(R.string.editor_delete),
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Delete,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    },
+                                    onClick = {
+                                        showSelectionMoreMenu = false
+                                        if (pendingTrashDrop != null) return@DropdownMenuItem
+                                        val chosenNotes = notes.filter {
+                                            uiState.selectedNoteIds.contains(it.id)
+                                        }
+                                        if (chosenNotes.isEmpty()) return@DropdownMenuItem
+                                        pendingTrashDrop = PendingTrashDrop(
+                                            notes = chosenNotes,
+                                            boundsInRoot = noteCardBounds.toMap()
+                                        )
+                                        onClearSelection()
+                                    },
+                                    modifier = Modifier.testTag("delete_selected_button")
                                 )
                             }
                         }
@@ -390,7 +601,7 @@ fun HomeScreen(
         },
         floatingActionButton = {
             AnimatedVisibility(
-                visible = !uiState.isSelectionMode,
+                visible = !uiState.isSelectionMode && pendingTrashDrop == null,
                 enter = scaleIn() + fadeIn(),
                 exit = scaleOut() + fadeOut()
             ) {
@@ -674,10 +885,135 @@ fun HomeScreen(
             } else {
                 val pinnedNotes = notes.filter { it.isPinned }
                 val otherNotes = notes.filter { !it.isPinned }
+                val visiblePinnedNotes = liveReorderPinned ?: pinnedNotes
+                val visibleOtherNotes = liveReorderOther ?: otherNotes
 
-                // Grid mode: 2-column grid; List mode: 1-column flat full-width list
                 val gridColumns = if (uiState.isGridLayout) StaggeredGridCells.Fixed(2) else StaggeredGridCells.Fixed(1)
                 val gridState = rememberLazyStaggeredGridState()
+
+                fun hasLeftNeighbor(note: Note, sectionNotes: List<Note>): Boolean {
+                    if (!uiState.isGridLayout) return false
+                    val selfRect = noteCardBounds[note.id] ?: return false
+                    return sectionNotes.any { other ->
+                        if (other.id == note.id) return@any false
+                        val otherRect = noteCardBounds[other.id] ?: return@any false
+                        otherRect.center.x < selfRect.left &&
+                            otherRect.bottom > selfRect.top &&
+                            otherRect.top < selfRect.bottom
+                    }
+                }
+
+                fun handleStartReorder(
+                    note: Note,
+                    pointerRootPos: Offset,
+                    grabOffsetInCard: Offset,
+                    cardSizePx: IntSize
+                ) {
+                    dragStartedFromPendingOrder = pendingCommittedOrderIds != null
+                    pendingCommittedOrderIds = null
+                    liveReorderPinned = visiblePinnedNotes
+                    liveReorderOther = visibleOtherNotes
+                    lastSwappedCandidateId = null
+                    lastReorderSwapTimeMs = 0L
+                    reorderSession = ReorderDragSession(
+                        note = note,
+                        initialPointerRootPos = pointerRootPos,
+                        grabOffsetInCard = grabOffsetInCard,
+                        cardSizePx = cardSizePx
+                    )
+                }
+
+                fun handleMoveReorder(pointerRootPos: Offset) {
+                    val session = reorderSession ?: return
+                    if (session.isSettling) return
+                    session.pointerRootPos = pointerRootPos
+
+                    val now = System.currentTimeMillis()
+                    val center = session.overlayCenterInRoot
+                    val draggedIsPinned = session.note.isPinned
+                    val sectionList = if (draggedIsPinned) {
+                        liveReorderPinned ?: pinnedNotes
+                    } else {
+                        liveReorderOther ?: otherNotes
+                    }
+                    val fromIndex = sectionList.indexOfFirst { it.id == session.note.id }
+                    if (fromIndex < 0) return
+
+                    // Only visible cards are valid targets so offscreen recycled bounds cannot trigger swaps.
+                    val visibleIds = gridState.layoutInfo.visibleItemsInfo
+                        .mapNotNull { it.key as? Long }
+                        .toHashSet()
+
+                    fun innerRect(candidate: Note): Rect? {
+                        if (candidate.id == session.note.id || candidate.id !in visibleIds) return null
+                        val rect = noteCardBounds[candidate.id] ?: return null
+                        val marginX = rect.width * 0.12f
+                        val marginY = rect.height * 0.12f
+                        return Rect(
+                            left = rect.left + marginX,
+                            top = rect.top + marginY,
+                            right = rect.right - marginX,
+                            bottom = rect.bottom - marginY
+                        )
+                    }
+
+                    val targetNote = sectionList.firstOrNull { innerRect(it)?.contains(pointerRootPos) == true }
+                        ?: sectionList.firstOrNull { innerRect(it)?.contains(center) == true }
+                        ?: return
+
+                    val cooldownMs = if (targetNote.id == lastSwappedCandidateId) 260L else 60L
+                    if (now - lastReorderSwapTimeMs < cooldownMs) return
+
+                    val toIndex = sectionList.indexOfFirst { it.id == targetNote.id }
+                    if (toIndex < 0 || toIndex == fromIndex) return
+
+                    val mutable = sectionList.toMutableList()
+                    val moved = mutable.removeAt(fromIndex)
+                    mutable.add(toIndex, moved)
+                    if (draggedIsPinned) {
+                        liveReorderPinned = mutable
+                    } else {
+                        liveReorderOther = mutable
+                    }
+                    lastSwappedCandidateId = targetNote.id
+                    lastReorderSwapTimeMs = now
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                }
+
+                fun handleEndReorder() {
+                    val session = reorderSession ?: return
+                    if (session.isSettling) return
+                    val finalPinned = liveReorderPinned ?: visiblePinnedNotes
+                    val finalOther = liveReorderOther ?: visibleOtherNotes
+                    val newIds = (finalPinned + finalOther).map { it.id }
+                    val oldIds = (pinnedNotes + otherNotes).map { it.id }
+                    if (newIds != oldIds || dragStartedFromPendingOrder) {
+                        pendingCommittedOrderIds = if (newIds != oldIds) newIds else null
+                        if (uiState.sortOption != NoteSortOption.CUSTOM) {
+                            suppressSortResetScroll = true
+                        }
+                        onCommitCustomOrder(newIds)
+                    }
+                    dragStartedFromPendingOrder = false
+                    session.isSettling = true
+                }
+
+                fun handleArchiveCommitted(archivedId: Long) {
+                    archivingNoteIds[archivedId] = true
+                    onArchiveNote(archivedId)
+                    scope.launch {
+                        homeSnackbarHostState.currentSnackbarData?.dismiss()
+                        val result = homeSnackbarHostState.showSnackbar(
+                            message = noteArchivedMessage,
+                            actionLabel = undoLabel,
+                            withDismissAction = true,
+                            duration = SnackbarDuration.Indefinite
+                        )
+                        if (result == SnackbarResult.ActionPerformed) {
+                            onUndoMoveToArchive(listOf(archivedId))
+                        }
+                    }
+                }
 
                 // Changing the search, filter or sort should show the results from
                 // the top instead of keeping the previous scroll position.
@@ -687,7 +1023,53 @@ fun HomeScreen(
                     uiState.selectedColorFilter,
                     uiState.sortOption
                 ) {
-                    gridState.scrollToItem(0)
+                    if (suppressSortResetScroll) {
+                        suppressSortResetScroll = false
+                    } else {
+                        gridState.scrollToItem(0)
+                    }
+                }
+
+                val currentSessionForScroll by rememberUpdatedState(reorderSession)
+                val densityForScroll = LocalDensity.current
+                LaunchedEffect(reorderSession?.note?.id) {
+                    if (reorderSession == null) return@LaunchedEffect
+                    val edgePx = with(densityForScroll) { 64.dp.toPx() }
+                    val maxStepPx = with(densityForScroll) { 14.dp.toPx() }
+                    while (isActive) {
+                        val session = currentSessionForScroll ?: break
+                        if (!session.isSettling) {
+                            val gridRect = gridBoundsInRoot
+                            if (!gridRect.isEmpty) {
+                                val py = session.pointerRootPos.y
+                                val delta = when {
+                                    py < gridRect.top + edgePx -> {
+                                        val factor = ((gridRect.top + edgePx - py) / edgePx).coerceIn(0f, 1f)
+                                        -maxStepPx * factor
+                                    }
+                                    py > gridRect.bottom - edgePx -> {
+                                        val factor = ((py - (gridRect.bottom - edgePx)) / edgePx).coerceIn(0f, 1f)
+                                        maxStepPx * factor
+                                    }
+                                    else -> 0f
+                                }
+                                if (delta != 0f) {
+                                    val consumed = gridState.scrollBy(delta)
+                                    if (consumed != 0f) {
+                                        handleMoveReorder(session.pointerRootPos)
+                                    }
+                                }
+                            }
+                        }
+                        withFrameMillis { }
+                    }
+                }
+
+                val itemPlacementSpec = remember {
+                    spring<IntOffset>(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    )
                 }
 
                 LazyVerticalStaggeredGrid(
@@ -696,11 +1078,17 @@ fun HomeScreen(
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalItemSpacing = 12.dp,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .onGloballyPositioned { coords ->
+                            if (coords.isAttached) {
+                                gridBoundsInRoot = coords.boundsInRoot()
+                            }
+                        }
                 ) {
                     // Do NOT permanently display a dedicated "Pinned Section" header unless
                     // pinned notes actually exist!
-                    if (pinnedNotes.isNotEmpty()) {
+                    if (visiblePinnedNotes.isNotEmpty()) {
                         item(key = "pinned_header", span = StaggeredGridItemSpan.FullLine) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -722,12 +1110,20 @@ fun HomeScreen(
                             }
                         }
 
-                        items(pinnedNotes, key = { it.id }) { note ->
-                            NoteCard(
+                        items(visiblePinnedNotes, key = { it.id }) { note ->
+                            NoteTouchGestureBox(
                                 note = note,
                                 isSelected = uiState.selectedNoteIds.contains(note.id),
                                 isSelectionMode = uiState.isSelectionMode,
+                                gesturesEnabled = gesturesEnabled,
+                                isBeingDraggedForReorder = reorderSession?.note?.id == note.id,
+                                isHiddenForTrashOrArchive = note.id in deletingNoteIds || note.id in archivingNoteIds,
+                                hasLeftNeighborInSameSection = hasLeftNeighbor(note, visiblePinnedNotes),
                                 searchQuery = uiState.searchQuery,
+                                activeGestureNoteId = activeGestureNoteId,
+                                onActiveGestureNoteChange = { activeGestureNoteId = it },
+                                onCardPositioned = { rect -> noteCardBounds[note.id] = rect },
+                                onCardDisposed = { noteCardBounds.remove(note.id) },
                                 onClick = {
                                     if (uiState.isSelectionMode) {
                                         onNoteLongClick(note)
@@ -736,11 +1132,19 @@ fun HomeScreen(
                                     }
                                 },
                                 onLongClick = { onNoteLongClick(note) },
-                                modifier = Modifier.animateItem()
+                                onStartReorderDrag = ::handleStartReorder,
+                                onMoveReorderDrag = ::handleMoveReorder,
+                                onEndReorderDrag = ::handleEndReorder,
+                                onArchiveCommitted = ::handleArchiveCommitted,
+                                modifier = Modifier.animateItem(
+                                    fadeInSpec = tween(180),
+                                    fadeOutSpec = tween(180),
+                                    placementSpec = itemPlacementSpec
+                                )
                             )
                         }
 
-                        if (otherNotes.isNotEmpty()) {
+                        if (visibleOtherNotes.isNotEmpty()) {
                             item(key = "others_header", span = StaggeredGridItemSpan.FullLine) {
                                 Text(
                                     text = "OTHERS",
@@ -753,12 +1157,20 @@ fun HomeScreen(
                         }
                     }
 
-                    items(otherNotes, key = { it.id }) { note ->
-                        NoteCard(
+                    items(visibleOtherNotes, key = { it.id }) { note ->
+                        NoteTouchGestureBox(
                             note = note,
                             isSelected = uiState.selectedNoteIds.contains(note.id),
                             isSelectionMode = uiState.isSelectionMode,
+                            gesturesEnabled = gesturesEnabled,
+                            isBeingDraggedForReorder = reorderSession?.note?.id == note.id,
+                            isHiddenForTrashOrArchive = note.id in deletingNoteIds || note.id in archivingNoteIds,
+                            hasLeftNeighborInSameSection = hasLeftNeighbor(note, visibleOtherNotes),
                             searchQuery = uiState.searchQuery,
+                            activeGestureNoteId = activeGestureNoteId,
+                            onActiveGestureNoteChange = { activeGestureNoteId = it },
+                            onCardPositioned = { rect -> noteCardBounds[note.id] = rect },
+                            onCardDisposed = { noteCardBounds.remove(note.id) },
                             onClick = {
                                 if (uiState.isSelectionMode) {
                                     onNoteLongClick(note)
@@ -767,7 +1179,15 @@ fun HomeScreen(
                                 }
                             },
                             onLongClick = { onNoteLongClick(note) },
-                            modifier = Modifier.animateItem()
+                            onStartReorderDrag = ::handleStartReorder,
+                            onMoveReorderDrag = ::handleMoveReorder,
+                            onEndReorderDrag = ::handleEndReorder,
+                            onArchiveCommitted = ::handleArchiveCommitted,
+                            modifier = Modifier.animateItem(
+                                fadeInSpec = tween(180),
+                                fadeOutSpec = tween(180),
+                                placementSpec = itemPlacementSpec
+                            )
                         )
                     }
                 }
@@ -775,18 +1195,95 @@ fun HomeScreen(
         }
     }
 
+        reorderSession?.let { session ->
+            ReorderDragOverlay(
+                session = session,
+                targetBoundsProvider = { noteCardBounds[session.note.id] },
+                searchQuery = uiState.searchQuery,
+                rootOffsetInRoot = rootOffsetInRoot,
+                onSettleFinished = {
+                    reorderSession = null
+                    if (pendingCommittedOrderIds == null) {
+                        liveReorderPinned = null
+                        liveReorderOther = null
+                    }
+                }
+            )
+        }
+
+        pendingTrashDrop?.let { pending ->
+            TrashDropOverlay(
+                pending = pending,
+                rootOffsetInRoot = rootOffsetInRoot,
+                rootSize = rootSize,
+                onBinClosedCommit = { trashedIds ->
+                    onMoveSelectedToTrash(trashedIds)
+                    val message = if (trashedIds.size == 1) {
+                        singleTrashedMessage
+                    } else {
+                        context.getString(R.string.archive_note_trashed_count, trashedIds.size)
+                    }
+                    scope.launch {
+                        homeSnackbarHostState.currentSnackbarData?.dismiss()
+                        val result = homeSnackbarHostState.showSnackbar(
+                            message = message,
+                            actionLabel = undoLabel,
+                            withDismissAction = true,
+                            // The countdown in the snackbar is what closes it.
+                            duration = SnackbarDuration.Indefinite
+                        )
+                        if (result == SnackbarResult.ActionPerformed) {
+                            onUndoMoveToTrash(trashedIds)
+                        }
+                    }
+                },
+                onFinished = {
+                    pendingTrashDrop = null
+                }
+            )
+        }
+    }
+
     // Bottom Sheet: Select Note Type ("Text Note" vs "Drawing Note")
     if (showExportSheet) {
+        val selectedForExport = notes.filter { uiState.selectedNoteIds.contains(it.id) }
         MarkdownExportSheet(
+            selectedCount = selectedForExport.size,
             onDismiss = { showExportSheet = false },
             onSeparateFiles = {
                 showExportSheet = false
-                exportSelected(notes.filter { uiState.selectedNoteIds.contains(it.id) }, true)
+                exportSelected(selectedForExport, true)
             },
             onSingleFile = {
                 showExportSheet = false
-                exportSelected(notes.filter { uiState.selectedNoteIds.contains(it.id) }, false)
+                exportSelected(selectedForExport, false)
             }
+        )
+    }
+
+    if (showBulkColorSheet && uiState.selectedNoteIds.isNotEmpty()) {
+        val selectedNotes = notes.filter { it.id in uiState.selectedNoteIds }
+        BulkColorPickerSheet(
+            selectedNotes = selectedNotes,
+            onColorSelected = { colorIndex ->
+                onSetSelectedColor(uiState.selectedNoteIds.toList(), colorIndex)
+            },
+            onDismiss = { showBulkColorSheet = false }
+        )
+    }
+
+    if (showBulkLabelsSheet && uiState.selectedNoteIds.isNotEmpty()) {
+        val selectedNotes = notes.filter { it.id in uiState.selectedNoteIds }
+        BulkLabelsSheet(
+            selectedNotes = selectedNotes,
+            allUniqueLabels = allTags,
+            onSetLabelForSelected = { label, enabled ->
+                onSetSelectedLabel(uiState.selectedNoteIds.toList(), label, enabled)
+            },
+            onCreateAndApplyLabel = { newLabel ->
+                onCreateAndApplyLabel(uiState.selectedNoteIds.toList(), newLabel)
+            },
+            onDismiss = { showBulkLabelsSheet = false }
         )
     }
 
@@ -830,13 +1327,13 @@ fun HomeScreen(
                             modifier = Modifier
                                 .size(46.dp)
                                 .clip(CircleShape)
-                                .background(AppColors.AccentAmber),
+                                .background(MaterialTheme.colorScheme.primaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.EditNote,
                                 contentDescription = null,
-                                tint = AppColors.TextOnAmber,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.size(28.dp)
                             )
                         }
@@ -879,13 +1376,13 @@ fun HomeScreen(
                             modifier = Modifier
                                 .size(46.dp)
                                 .clip(CircleShape)
-                                .background(AppColors.AccentGreen),
+                                .background(MaterialTheme.colorScheme.secondaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Checklist,
                                 contentDescription = null,
-                                tint = Color.White,
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                 modifier = Modifier.size(26.dp)
                             )
                         }
@@ -928,13 +1425,13 @@ fun HomeScreen(
                             modifier = Modifier
                                 .size(46.dp)
                                 .clip(CircleShape)
-                                .background(AppColors.Accent),
+                                .background(MaterialTheme.colorScheme.tertiaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Brush,
                                 contentDescription = null,
-                                tint = Color.White,
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
                                 modifier = Modifier.size(24.dp)
                             )
                         }

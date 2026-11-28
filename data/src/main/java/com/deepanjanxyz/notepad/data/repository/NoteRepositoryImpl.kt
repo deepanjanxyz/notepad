@@ -65,7 +65,7 @@ class NoteRepositoryImpl(
             // The same 30-character limit the label editor and the label use cases
             // apply, so a restored backup cannot introduce a label the editor is
             // unable to recreate.
-            val name = tag.trim().replace("#", "").take(30)
+            val name = tag.replace("#", "").trim().take(30).trim()
             if (name.isNotEmpty() && labelDao.getLabelByName(name) == null) {
                 labelDao.insertLabel(LabelEntity(name = name))
             }
@@ -148,12 +148,28 @@ class NoteRepositoryImpl(
         Unit
     }
 
+    override suspend fun updateNotesColor(ids: List<Long>, colorIndex: Int) = withContext(ioDispatcher) {
+        if (ids.isEmpty()) return@withContext
+        noteDao.updateNotesColor(ids, colorIndex, System.currentTimeMillis())
+        Unit
+    }
+
+    override suspend fun setTagForNotes(ids: List<Long>, tag: String, enabled: Boolean) = withContext(ioDispatcher) {
+        val cleanTag = tag.replace("#", "").trim().take(30).trim()
+        if (ids.isEmpty() || cleanTag.isEmpty()) return@withContext
+        if (enabled) {
+            registerTags(listOf(cleanTag))
+        }
+        noteDao.setTagForNotes(ids, cleanTag, enabled, System.currentTimeMillis())
+        Unit
+    }
+
     override fun getAllLabels(): Flow<List<String>> = labelDao.getAllLabels().map { labels ->
         labels.map(LabelEntity::name)
     }
 
     override suspend fun insertLabel(name: String) = withContext(ioDispatcher) {
-        val trimmed = name.trim().replace("#", "").take(30)
+        val trimmed = name.replace("#", "").trim().take(30).trim()
         if (trimmed.isNotEmpty()) {
             val existing = labelDao.getLabelByName(trimmed)
             if (existing == null) {
@@ -164,7 +180,7 @@ class NoteRepositoryImpl(
     }
 
     override suspend fun renameLabel(oldName: String, newName: String) = withContext(ioDispatcher) {
-        val cleanNew = newName.trim().replace("#", "")
+        val cleanNew = newName.replace("#", "").trim().take(30).trim()
         if (cleanNew.isNotEmpty() && !cleanNew.equals(oldName, ignoreCase = true)) {
             labelDao.renameLabel(oldName, cleanNew)
             // Labels are denormalized into each note, so the note rows are kept

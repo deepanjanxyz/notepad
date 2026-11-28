@@ -271,32 +271,28 @@ private fun screenRank(screen: Screen): Int = when (screen) {
     is Screen.Drawing -> DestinationRank.DRAWING
 }.ordinal
 
-private const val SCREEN_SLIDE_DURATION_MS = 300
-private const val SCREEN_SLIDE_DIVISOR = 1
-private const val SCREEN_TOP_LEVEL_SLIDE_DIVISOR = 3
+private const val SCREEN_SLIDE_DURATION_MS = 260
+private const val SCREEN_SLIDE_DIVISOR = 3
 
 /**
  * Directional transition between destinations: every navigation slides and
- * fades, so moving around the app (including into Settings) always animates.
- * Drawer destinations use a subtle shared-axis slide; detail screens push in
- * with a full-width slide and slide back out on the way home.
+ * fades cleanly so moving around the app never leaves an exposed background strip.
  */
 internal fun screenTransitionSpec(): AnimatedContentTransitionScope<Screen>.() -> ContentTransform = {
     val from = screenRank(initialState)
     val to = screenRank(targetState)
-    val lastTopLevel = DestinationRank.SETTINGS.ordinal
-    val bothTopLevel = from <= lastTopLevel && to <= lastTopLevel
-    val divisor = if (bothTopLevel) SCREEN_TOP_LEVEL_SLIDE_DIVISOR else SCREEN_SLIDE_DIVISOR
     val slideSpec = tween<IntOffset>(SCREEN_SLIDE_DURATION_MS)
     val fadeSpec = tween<Float>(SCREEN_SLIDE_DURATION_MS)
     if (to > from) {
-        val enter = slideInHorizontally(animationSpec = slideSpec) { it / divisor } + fadeIn(fadeSpec)
-        val exit = slideOutHorizontally(animationSpec = slideSpec) { -it / (divisor * 2) } +
+        val enter = slideInHorizontally(animationSpec = slideSpec) { it / SCREEN_SLIDE_DIVISOR } +
+            fadeIn(fadeSpec)
+        val exit = slideOutHorizontally(animationSpec = slideSpec) { -it / (SCREEN_SLIDE_DIVISOR * 2) } +
             fadeOut(fadeSpec)
         enter togetherWith exit
     } else {
-        val enter = slideInHorizontally(animationSpec = slideSpec) { -it / divisor } + fadeIn(fadeSpec)
-        val exit = slideOutHorizontally(animationSpec = slideSpec) { it / (divisor * 2) } +
+        val enter = slideInHorizontally(animationSpec = slideSpec) { -it / SCREEN_SLIDE_DIVISOR } +
+            fadeIn(fadeSpec)
+        val exit = slideOutHorizontally(animationSpec = slideSpec) { it / (SCREEN_SLIDE_DIVISOR * 2) } +
             fadeOut(fadeSpec)
         enter togetherWith exit
     }

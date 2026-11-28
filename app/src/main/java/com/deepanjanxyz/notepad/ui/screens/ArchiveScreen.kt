@@ -24,13 +24,19 @@ import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Unarchive
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,6 +51,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,8 +64,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.domain.model.Note
-import com.deepanjanxyz.notepad.ui.components.NoteCard
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
+import com.deepanjanxyz.notepad.ui.components.BulkColorPickerSheet
+import com.deepanjanxyz.notepad.ui.components.BulkLabelsSheet
+import com.deepanjanxyz.notepad.ui.components.NewFeatureBadge
+import com.deepanjanxyz.notepad.ui.components.NoteCard
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -67,18 +77,24 @@ import kotlinx.coroutines.launch
 fun ArchiveScreen(
     notes: List<Note>,
     isGridLayout: Boolean,
+    allTags: List<String> = emptyList(),
     onOpenDrawer: () -> Unit,
     isDrawerOpen: () -> Boolean,
     onNavigateBack: () -> Unit,
     onRestoreNote: (Long) -> Unit,
     onRestoreSelected: (List<Long>) -> Unit,
     onMoveSelectedToTrash: (List<Long>) -> Unit,
-    onUndoMoveToTrash: () -> Unit,
+    onUndoMoveToTrash: (List<Long>) -> Unit,
+    onSetSelectedColor: (List<Long>, Int) -> Unit = { _, _ -> },
+    onSetSelectedLabel: (List<Long>, String, Boolean) -> Unit = { _, _, _ -> },
+    onCreateAndApplyLabel: (List<Long>, String) -> Unit = { _, _ -> },
     onNoteClick: (Note) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val undoLabel = stringResource(R.string.undo)
     var selectedNoteIds by remember { mutableStateOf(setOf<Long>()) }
+    var showBulkColorSheet by remember { mutableStateOf(false) }
+    var showBulkLabelsSheet by remember { mutableStateOf(false) }
     val isSelectionMode = selectedNoteIds.isNotEmpty()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -86,6 +102,13 @@ fun ArchiveScreen(
         stringResource(R.string.archive_note_trashed)
     } else {
         stringResource(R.string.archive_note_trashed_count, selectedNoteIds.size)
+    }
+
+    LaunchedEffect(isSelectionMode) {
+        if (!isSelectionMode) {
+            showBulkColorSheet = false
+            showBulkLabelsSheet = false
+        }
     }
 
     fun toggleSelection(id: Long) {
@@ -123,15 +146,43 @@ fun ArchiveScreen(
                 snackbarHostState,
                 trashMessage,
                 undoLabel,
-                onUndoMoveToTrash
+                onUndo = { onUndoMoveToTrash(idsToMoveToTrash) }
             )
         },
+        onOpenBulkColorSheet = { showBulkColorSheet = true },
+        onOpenBulkLabelsSheet = { showBulkLabelsSheet = true },
         onNoteClick = onNoteClick,
         onClearSelection = { selectedNoteIds = emptySet() },
         onSelectAll = { selectedNoteIds = notes.map { it.id }.toSet() },
         onToggleSelection = ::toggleSelection,
         modifier = modifier
     )
+
+    if (showBulkColorSheet && selectedNoteIds.isNotEmpty()) {
+        val selectedNotes = notes.filter { it.id in selectedNoteIds }
+        BulkColorPickerSheet(
+            selectedNotes = selectedNotes,
+            onColorSelected = { colorIndex ->
+                onSetSelectedColor(selectedNoteIds.toList(), colorIndex)
+            },
+            onDismiss = { showBulkColorSheet = false }
+        )
+    }
+
+    if (showBulkLabelsSheet && selectedNoteIds.isNotEmpty()) {
+        val selectedNotes = notes.filter { it.id in selectedNoteIds }
+        BulkLabelsSheet(
+            selectedNotes = selectedNotes,
+            allUniqueLabels = allTags,
+            onSetLabelForSelected = { label, enabled ->
+                onSetSelectedLabel(selectedNoteIds.toList(), label, enabled)
+            },
+            onCreateAndApplyLabel = { newLabel ->
+                onCreateAndApplyLabel(selectedNoteIds.toList(), newLabel)
+            },
+            onDismiss = { showBulkLabelsSheet = false }
+        )
+    }
 }
 
 /** The same Undo the home screen offers, so trashing a batch here is as reversible. */
@@ -166,6 +217,8 @@ private fun ArchiveContent(
     onRestoreNote: (Long) -> Unit,
     onUnarchiveSelected: () -> Unit,
     onMoveSelectedToTrash: () -> Unit,
+    onOpenBulkColorSheet: () -> Unit,
+    onOpenBulkLabelsSheet: () -> Unit,
     onNoteClick: (Note) -> Unit,
     onClearSelection: () -> Unit,
     onSelectAll: () -> Unit,
@@ -185,6 +238,8 @@ private fun ArchiveContent(
                 onSelectAll = onSelectAll,
                 onUnarchiveSelected = onUnarchiveSelected,
                 onMoveSelectedToTrash = onMoveSelectedToTrash,
+                onOpenBulkColorSheet = onOpenBulkColorSheet,
+                onOpenBulkLabelsSheet = onOpenBulkLabelsSheet,
                 onOpenDrawer = onOpenDrawer
             )
         }
@@ -223,6 +278,8 @@ private fun ArchiveTopBar(
     onSelectAll: () -> Unit,
     onUnarchiveSelected: () -> Unit,
     onMoveSelectedToTrash: () -> Unit,
+    onOpenBulkColorSheet: () -> Unit,
+    onOpenBulkLabelsSheet: () -> Unit,
     onOpenDrawer: () -> Unit
 ) {
     AnimatedContent(
@@ -236,7 +293,9 @@ private fun ArchiveTopBar(
                 onClearSelection = onClearSelection,
                 onSelectAll = onSelectAll,
                 onUnarchiveSelected = onUnarchiveSelected,
-                onMoveSelectedToTrash = onMoveSelectedToTrash
+                onMoveSelectedToTrash = onMoveSelectedToTrash,
+                onOpenBulkColorSheet = onOpenBulkColorSheet,
+                onOpenBulkLabelsSheet = onOpenBulkLabelsSheet
             )
         } else {
             ArchiveDefaultTopBar(archiveCount = archiveCount, onOpenDrawer = onOpenDrawer)
@@ -251,7 +310,9 @@ private fun ArchiveSelectionTopBar(
     onClearSelection: () -> Unit,
     onSelectAll: () -> Unit,
     onUnarchiveSelected: () -> Unit,
-    onMoveSelectedToTrash: () -> Unit
+    onMoveSelectedToTrash: () -> Unit,
+    onOpenBulkColorSheet: () -> Unit,
+    onOpenBulkLabelsSheet: () -> Unit
 ) {
     TopAppBar(
         title = {
@@ -291,6 +352,59 @@ private fun ArchiveSelectionTopBar(
                         Icons.Default.Delete,
                         contentDescription = stringResource(R.string.archive_move_trash),
                         tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+            var showMoreMenu by remember { mutableStateOf(false) }
+            Box {
+                ActionTooltip(stringResource(R.string.editor_more)) {
+                    IconButton(
+                        onClick = { showMoreMenu = true },
+                        modifier = Modifier.testTag("archive_selection_more_button")
+                    ) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = stringResource(R.string.editor_more)
+                        )
+                    }
+                }
+                DropdownMenu(
+                    expanded = showMoreMenu,
+                    onDismissRequest = { showMoreMenu = false },
+                    shape = RoundedCornerShape(16.dp),
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.bulk_color_action)) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Outlined.Palette,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        },
+                        trailingIcon = { NewFeatureBadge() },
+                        onClick = {
+                            showMoreMenu = false
+                            onOpenBulkColorSheet()
+                        },
+                        modifier = Modifier.testTag("archive_color_selected_button")
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.bulk_labels_action)) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.Label,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        },
+                        trailingIcon = { NewFeatureBadge() },
+                        onClick = {
+                            showMoreMenu = false
+                            onOpenBulkLabelsSheet()
+                        },
+                        modifier = Modifier.testTag("archive_label_selected_button")
                     )
                 }
             }

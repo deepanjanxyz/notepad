@@ -1,7 +1,5 @@
 package com.deepanjanxyz.notepad.ui.feature_editor.components
 
-import com.deepanjanxyz.notepad.R
-import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,29 +7,47 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.OutputTransformation
 import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.byValue
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import com.deepanjanxyz.notepad.R
 import com.deepanjanxyz.notepad.domain.model.FIRST_LIST_NUMBER
 import com.deepanjanxyz.notepad.domain.model.NoteSegment
+import com.deepanjanxyz.notepad.domain.model.RichInlineSpan
+import com.deepanjanxyz.notepad.domain.model.RichLinkSpan
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 import com.deepanjanxyz.notepad.ui.components.StatefulBasicTextField
 import com.deepanjanxyz.notepad.ui.feature_editor.model.EditorFormat
-import com.deepanjanxyz.notepad.ui.theme.AppColors
+import com.deepanjanxyz.notepad.ui.feature_editor.model.buildItemOutputTransformation
 
 // Room above and below the row that adds a new line.
 private val ADD_ROW_PADDING = 6.dp
@@ -45,36 +61,67 @@ private val ADD_ICON_SIZE = 22.dp
  *
  * Every line is rendered where it was written and as what it is: ordinary text
  * stays text, a task gets a checkbox, a bullet gets its dot and a numbered line
- * keeps its number. Because the model keeps those lines apart, editing one of
- * them never reformats - or converts - the rest of the note. Plain text lines are
- * editable too, so a note that mixes prose with a list stays writable without
- * leaving the mode.
+ * keeps its number. Each line also displays its inline rich-text formatting spans
+ * visually without showing raw markers.
  */
+@Suppress("LongParameterList")
 @Composable
 fun EditorLinesContent(
     segments: List<NoteSegment>,
+    segmentInlineSpans: List<List<RichInlineSpan>>,
+    segmentLinkSpans: List<List<RichLinkSpan>>,
     newItemText: String,
+    newItemSpans: List<RichInlineSpan>,
+    newItemLinkSpans: List<RichLinkSpan>,
     newItemFormat: EditorFormat,
-    onNewItemTextChange: (String) -> Unit,
+    findQuery: String = "",
+    findHighlightColor: Color = Color.Transparent,
+    findActiveColor: Color = Color.Transparent,
+    activeMatchSegmentIndex: Int? = null,
+    activeMatchRange: IntRange? = null,
+    activeMatchJumpToken: Int = 0,
+    newLineFocusIndex: Int = -1,
+    onNewItemTextChange: (String, Int) -> Unit,
+    onNewItemSelectionChange: (TextRange) -> Unit,
+    onNewItemFocusChange: (TextRange) -> Unit,
     onAddItem: () -> Unit,
     onToggleTask: (segmentIndex: Int) -> Unit,
-    onSegmentTextChange: (segmentIndex: Int, text: String) -> Unit,
+    onSegmentTextChange: (segmentIndex: Int, text: String, cursorOffset: Int) -> Unit,
+    onSegmentSelectionChange: (segmentIndex: Int, selection: TextRange) -> Unit,
+    onSegmentFocusChange: (segmentIndex: Int, selection: TextRange) -> Unit,
     onSplitSegment: (segmentIndex: Int) -> Unit,
     onDeleteSegment: (segmentIndex: Int) -> Unit,
-    textPrimary: Color = AppColors.TextPrimary,
-    textPlaceholder: Color = AppColors.TextPlaceholder,
-    amberAccent: Color = AppColors.AccentAmber,
+    textPrimary: Color = MaterialTheme.colorScheme.onBackground,
+    textPlaceholder: Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+    textMuted: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    accentColor: Color = MaterialTheme.colorScheme.primary,
+    onAccentColor: Color = MaterialTheme.colorScheme.onPrimary,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         segments.forEachIndexed { index, segment ->
+            val spans = segmentInlineSpans.getOrNull(index).orEmpty()
+            val links = segmentLinkSpans.getOrNull(index).orEmpty()
+            val rowActiveRange = if (activeMatchSegmentIndex == index) activeMatchRange else null
             EditorLine(
                 segment = segment,
                 segmentIndex = index,
+                itemSpans = spans,
+                itemLinks = links,
+                findQuery = findQuery,
+                findHighlightColor = findHighlightColor,
+                activeMatchRange = rowActiveRange,
+                findActiveColor = findActiveColor,
+                activeMatchJumpToken = activeMatchJumpToken,
                 textPrimary = textPrimary,
-                amberAccent = amberAccent,
+                textPlaceholder = textPlaceholder,
+                textMuted = textMuted,
+                accentColor = accentColor,
+                onAccentColor = onAccentColor,
                 onToggleTask = onToggleTask,
                 onSegmentTextChange = onSegmentTextChange,
+                onSegmentSelectionChange = onSegmentSelectionChange,
+                onSegmentFocusChange = onSegmentFocusChange,
                 onSplitSegment = onSplitSegment,
                 onDeleteSegment = onDeleteSegment
             )
@@ -82,38 +129,92 @@ fun EditorLinesContent(
 
         NewLineRow(
             newItemText = newItemText,
+            newItemSpans = newItemSpans,
+            newItemLinkSpans = newItemLinkSpans,
             newItemFormat = newItemFormat,
             newItemNumber = nextLineNumber(segments),
+            findQuery = findQuery,
+            findHighlightColor = findHighlightColor,
+            activeMatchRange = if (activeMatchSegmentIndex == newLineFocusIndex) activeMatchRange else null,
+            findActiveColor = findActiveColor,
+            activeMatchJumpToken = activeMatchJumpToken,
             onNewItemTextChange = onNewItemTextChange,
+            onNewItemSelectionChange = onNewItemSelectionChange,
+            onNewItemFocusChange = onNewItemFocusChange,
             onAddItem = onAddItem,
             textPrimary = textPrimary,
             textPlaceholder = textPlaceholder,
-            amberAccent = amberAccent
+            textMuted = textMuted,
+            accentColor = accentColor,
+            onAccentColor = onAccentColor
         )
     }
 }
 
 /** One line of the note, rendered as the kind of line it is. */
+@Suppress("LongParameterList")
 @Composable
 private fun EditorLine(
     segment: NoteSegment,
     segmentIndex: Int,
+    itemSpans: List<RichInlineSpan>,
+    itemLinks: List<RichLinkSpan>,
+    findQuery: String,
+    findHighlightColor: Color,
+    activeMatchRange: IntRange?,
+    findActiveColor: Color,
+    activeMatchJumpToken: Int,
     textPrimary: Color,
-    amberAccent: Color,
+    textPlaceholder: Color,
+    textMuted: Color,
+    accentColor: Color,
+    onAccentColor: Color,
     onToggleTask: (segmentIndex: Int) -> Unit,
-    onSegmentTextChange: (segmentIndex: Int, text: String) -> Unit,
+    onSegmentTextChange: (segmentIndex: Int, text: String, cursorOffset: Int) -> Unit,
+    onSegmentSelectionChange: (segmentIndex: Int, selection: TextRange) -> Unit,
+    onSegmentFocusChange: (segmentIndex: Int, selection: TextRange) -> Unit,
     onSplitSegment: (segmentIndex: Int) -> Unit,
     onDeleteSegment: (segmentIndex: Int) -> Unit
 ) {
+    val isDone = segment is NoteSegment.Task && segment.item.isChecked
+    val outputTransformation = remember(
+        itemSpans,
+        itemLinks,
+        accentColor,
+        isDone,
+        findQuery,
+        findHighlightColor,
+        activeMatchRange,
+        findActiveColor
+    ) {
+        buildItemOutputTransformation(
+            itemSpans = itemSpans,
+            itemLinks = itemLinks,
+            linkColor = accentColor,
+            forceStrikethrough = isDone,
+            findQuery = findQuery,
+            findHighlightColor = findHighlightColor,
+            activeMatchRange = activeMatchRange,
+            findActiveColor = findActiveColor
+        )
+    }
+
     when (segment) {
         is NoteSegment.Text -> EditorItemRow(
             leading = { LineLeadingSlot {} },
             text = segment.text,
             isDone = false,
             segmentIndex = segmentIndex,
+            outputTransformation = outputTransformation,
+            isActiveMatch = activeMatchRange != null,
+            activeMatchRange = activeMatchRange,
+            activeMatchJumpToken = activeMatchJumpToken,
             textPrimary = textPrimary,
-            amberAccent = amberAccent,
+            textPlaceholder = textPlaceholder,
+            accentColor = accentColor,
             onSegmentTextChange = onSegmentTextChange,
+            onSegmentSelectionChange = onSegmentSelectionChange,
+            onSegmentFocusChange = onSegmentFocusChange,
             onSplitSegment = onSplitSegment,
             onDeleteSegment = null
         )
@@ -122,7 +223,9 @@ private fun EditorLine(
             leading = {
                 TaskCheckbox(
                     isChecked = segment.item.isChecked,
-                    amberAccent = amberAccent,
+                    accentColor = accentColor,
+                    onAccentColor = onAccentColor,
+                    uncheckedColor = textMuted,
                     testTag = "task_checkbox_$segmentIndex",
                     onToggle = { onToggleTask(segmentIndex) }
                 )
@@ -130,74 +233,96 @@ private fun EditorLine(
             text = segment.item.text,
             isDone = segment.item.isChecked,
             segmentIndex = segmentIndex,
+            outputTransformation = outputTransformation,
+            isActiveMatch = activeMatchRange != null,
+            activeMatchRange = activeMatchRange,
+            activeMatchJumpToken = activeMatchJumpToken,
             textPrimary = textPrimary,
-            amberAccent = amberAccent,
+            textPlaceholder = textPlaceholder,
+            accentColor = accentColor,
             onSegmentTextChange = onSegmentTextChange,
+            onSegmentSelectionChange = onSegmentSelectionChange,
+            onSegmentFocusChange = onSegmentFocusChange,
             onSplitSegment = onSplitSegment,
             onDeleteSegment = onDeleteSegment
         )
 
         is NoteSegment.Bullet -> EditorItemRow(
-            leading = { BulletGlyph() },
+            leading = { BulletGlyph(color = textMuted) },
             text = segment.text,
             isDone = false,
             segmentIndex = segmentIndex,
+            outputTransformation = outputTransformation,
+            isActiveMatch = activeMatchRange != null,
+            activeMatchRange = activeMatchRange,
+            activeMatchJumpToken = activeMatchJumpToken,
             textPrimary = textPrimary,
-            amberAccent = amberAccent,
+            textPlaceholder = textPlaceholder,
+            accentColor = accentColor,
             onSegmentTextChange = onSegmentTextChange,
+            onSegmentSelectionChange = onSegmentSelectionChange,
+            onSegmentFocusChange = onSegmentFocusChange,
             onSplitSegment = onSplitSegment,
             onDeleteSegment = onDeleteSegment
         )
 
         is NoteSegment.Numbered -> EditorItemRow(
-            leading = { NumberGlyph(number = segment.number) },
+            leading = { NumberGlyph(number = segment.number, color = textMuted) },
             text = segment.text,
             isDone = false,
             segmentIndex = segmentIndex,
+            outputTransformation = outputTransformation,
+            isActiveMatch = activeMatchRange != null,
+            activeMatchRange = activeMatchRange,
+            activeMatchJumpToken = activeMatchJumpToken,
             textPrimary = textPrimary,
-            amberAccent = amberAccent,
+            textPlaceholder = textPlaceholder,
+            accentColor = accentColor,
             onSegmentTextChange = onSegmentTextChange,
+            onSegmentSelectionChange = onSegmentSelectionChange,
+            onSegmentFocusChange = onSegmentFocusChange,
             onSplitSegment = onSplitSegment,
             onDeleteSegment = onDeleteSegment
         )
     }
 }
 
-/**
- * The number a line added now would get.
- *
- * The add row appends at the end of the note, so a numbered run that ends the
- * note continues from its last item; anything else starts a run at the first
- * number.
- */
 private fun nextLineNumber(segments: List<NoteSegment>): Int {
     val last = segments.lastOrNull() as? NoteSegment.Numbered ?: return FIRST_LIST_NUMBER
-    // The counter stops at the largest Int, exactly as renumbering does, so the add
-    // row never promises a number that would wrap around to a negative one.
     return if (last.number == Int.MAX_VALUE) Int.MAX_VALUE else last.number + 1
 }
 
-/**
- * One editable line: its marker, its words and, for a list line, its remove button.
- *
- * A plain text line has no remove button: it is cleared by deleting its words,
- * which is what a reader expects of prose.
- */
+@Suppress("LongParameterList")
 @Composable
 private fun EditorItemRow(
     leading: @Composable () -> Unit,
     text: String,
     isDone: Boolean,
     segmentIndex: Int,
+    outputTransformation: OutputTransformation?,
+    isActiveMatch: Boolean,
+    activeMatchRange: IntRange?,
+    activeMatchJumpToken: Int,
     textPrimary: Color,
-    amberAccent: Color,
-    onSegmentTextChange: (segmentIndex: Int, text: String) -> Unit,
+    textPlaceholder: Color,
+    accentColor: Color,
+    onSegmentTextChange: (segmentIndex: Int, text: String, cursorOffset: Int) -> Unit,
+    onSegmentSelectionChange: (segmentIndex: Int, selection: TextRange) -> Unit,
+    onSegmentFocusChange: (segmentIndex: Int, selection: TextRange) -> Unit,
     onSplitSegment: (segmentIndex: Int) -> Unit,
     onDeleteSegment: ((segmentIndex: Int) -> Unit)?
 ) {
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    LaunchedEffect(isActiveMatch, activeMatchRange, activeMatchJumpToken) {
+        if (isActiveMatch) {
+            bringIntoViewRequester.bringIntoView()
+        }
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .bringIntoViewRequester(bringIntoViewRequester)
             .padding(vertical = LINE_ROW_PADDING),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -207,47 +332,84 @@ private fun EditorItemRow(
             isDone = isDone,
             segmentIndex = segmentIndex,
             textPrimary = textPrimary,
-            amberAccent = amberAccent,
+            textPlaceholder = textPlaceholder,
+            accentColor = accentColor,
+            outputTransformation = outputTransformation,
             onTextChange = onSegmentTextChange,
+            onSelectionChange = onSegmentSelectionChange,
+            onFocusChange = onSegmentFocusChange,
             onSplitSegment = onSplitSegment
         )
         if (onDeleteSegment != null) {
-            RemoveLineButton(segmentIndex = segmentIndex, onDeleteSegment = onDeleteSegment)
+            RemoveLineButton(
+                segmentIndex = segmentIndex,
+                tint = textPlaceholder,
+                onDeleteSegment = onDeleteSegment
+            )
         }
     }
 }
 
-/** The row that adds a new line: its marker, the field and its button. */
+@Suppress("LongParameterList")
 @Composable
 private fun NewLineRow(
     newItemText: String,
+    newItemSpans: List<RichInlineSpan>,
+    newItemLinkSpans: List<RichLinkSpan>,
     newItemFormat: EditorFormat,
     newItemNumber: Int,
-    onNewItemTextChange: (String) -> Unit,
+    findQuery: String,
+    findHighlightColor: Color,
+    activeMatchRange: IntRange?,
+    findActiveColor: Color,
+    activeMatchJumpToken: Int,
+    onNewItemTextChange: (String, Int) -> Unit,
+    onNewItemSelectionChange: (TextRange) -> Unit,
+    onNewItemFocusChange: (TextRange) -> Unit,
     onAddItem: () -> Unit,
     textPrimary: Color,
     textPlaceholder: Color,
-    amberAccent: Color
+    textMuted: Color,
+    accentColor: Color,
+    onAccentColor: Color
 ) {
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    LaunchedEffect(activeMatchRange, activeMatchJumpToken) {
+        if (activeMatchRange != null) {
+            bringIntoViewRequester.bringIntoView()
+        }
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .bringIntoViewRequester(bringIntoViewRequester)
             .padding(vertical = ADD_ROW_PADDING),
         verticalAlignment = Alignment.CenterVertically
     ) {
         NewLineMarker(
             newItemFormat = newItemFormat,
             newItemNumber = newItemNumber,
-            amberAccent = amberAccent
+            accentColor = accentColor,
+            onAccentColor = onAccentColor,
+            textMuted = textMuted
         )
         NewLineField(
             newItemText = newItemText,
+            newItemSpans = newItemSpans,
+            newItemLinkSpans = newItemLinkSpans,
             newItemFormat = newItemFormat,
+            findQuery = findQuery,
+            findHighlightColor = findHighlightColor,
+            activeMatchRange = activeMatchRange,
+            findActiveColor = findActiveColor,
             onNewItemTextChange = onNewItemTextChange,
+            onNewItemSelectionChange = onNewItemSelectionChange,
+            onNewItemFocusChange = onNewItemFocusChange,
             onAddItem = onAddItem,
             textPrimary = textPrimary,
             textPlaceholder = textPlaceholder,
-            amberAccent = amberAccent
+            accentColor = accentColor
         )
         ActionTooltip(stringResource(R.string.editor_add_line)) {
             IconButton(
@@ -259,7 +421,7 @@ private fun NewLineRow(
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = stringResource(R.string.editor_add_line),
-                    tint = amberAccent,
+                    tint = accentColor,
                     modifier = Modifier.size(ADD_ICON_SIZE)
                 )
             }
@@ -267,49 +429,97 @@ private fun NewLineRow(
     }
 }
 
-/**
- * The marker the new line will get, so the add row shows what it is about to add -
- * including the number a numbered list will continue on.
- */
 @Composable
-private fun NewLineMarker(newItemFormat: EditorFormat, newItemNumber: Int, amberAccent: Color) {
+private fun NewLineMarker(
+    newItemFormat: EditorFormat,
+    newItemNumber: Int,
+    accentColor: Color,
+    onAccentColor: Color,
+    textMuted: Color
+) {
     when (newItemFormat) {
         EditorFormat.Checklist -> LineLeadingSlot {
             TaskCheckbox(
                 isChecked = false,
-                amberAccent = amberAccent,
+                accentColor = accentColor,
+                onAccentColor = onAccentColor,
+                uncheckedColor = textMuted,
                 testTag = "new_line_marker",
                 onToggle = {}
             )
         }
 
-        EditorFormat.NumberedList -> NumberGlyph(number = newItemNumber)
-        else -> BulletGlyph()
+        EditorFormat.NumberedList -> NumberGlyph(number = newItemNumber, color = textMuted)
+        else -> BulletGlyph(color = textMuted)
     }
 }
 
-/** The field a new line is typed into; its action key adds the line. */
+@Suppress("LongParameterList")
 @Composable
 private fun RowScope.NewLineField(
     newItemText: String,
+    newItemSpans: List<RichInlineSpan>,
+    newItemLinkSpans: List<RichLinkSpan>,
     newItemFormat: EditorFormat,
-    onNewItemTextChange: (String) -> Unit,
+    findQuery: String,
+    findHighlightColor: Color,
+    activeMatchRange: IntRange?,
+    findActiveColor: Color,
+    onNewItemTextChange: (String, Int) -> Unit,
+    onNewItemSelectionChange: (TextRange) -> Unit,
+    onNewItemFocusChange: (TextRange) -> Unit,
     onAddItem: () -> Unit,
     textPrimary: Color,
     textPlaceholder: Color,
-    amberAccent: Color
+    accentColor: Color
 ) {
+    val newItemState = rememberTextFieldState(initialText = newItemText)
+    val currentOnSelectionChange by rememberUpdatedState(onNewItemSelectionChange)
+
+    LaunchedEffect(newItemState) {
+        snapshotFlow { newItemState.selection }.collect { sel ->
+            currentOnSelectionChange(sel)
+        }
+    }
+
+    val outputTransformation = remember(
+        newItemSpans,
+        newItemLinkSpans,
+        accentColor,
+        findQuery,
+        findHighlightColor,
+        activeMatchRange,
+        findActiveColor
+    ) {
+        buildItemOutputTransformation(
+            itemSpans = newItemSpans,
+            itemLinks = newItemLinkSpans,
+            linkColor = accentColor,
+            forceStrikethrough = false,
+            findQuery = findQuery,
+            findHighlightColor = findHighlightColor,
+            activeMatchRange = activeMatchRange,
+            findActiveColor = findActiveColor
+        )
+    }
+
     StatefulBasicTextField(
         value = newItemText,
-        onValueChange = onNewItemTextChange,
+        externalState = newItemState,
+        onValueChange = { text -> onNewItemTextChange(text, newItemState.selection.end) },
         lineLimits = TextFieldLineLimits.SingleLine,
+        // Keep pasted multi-line text on one item so lines and span indices stay aligned.
+        inputTransformation = InputTransformation.byValue { _, proposed ->
+            proposed.toString().replace('\n', ' ')
+        },
+        outputTransformation = outputTransformation,
         textStyle = TextStyle(
             fontSize = LINE_FONT_SIZE,
             fontWeight = FontWeight.Normal,
             color = textPrimary,
             lineHeight = LINE_HEIGHT
         ),
-        cursorBrush = SolidColor(amberAccent),
+        cursorBrush = SolidColor(accentColor),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
         onKeyboardAction = { onAddItem() },
         decorator = { innerTextField ->
@@ -330,10 +540,14 @@ private fun RowScope.NewLineField(
         modifier = Modifier
             .weight(1f)
             .padding(horizontal = LINE_TEXT_PADDING)
+            .onFocusChanged { focusState ->
+                if (focusState.isFocused) {
+                    onNewItemFocusChange(newItemState.selection)
+                }
+            }
             .testTag("new_list_item_input")
     )
 }
 
-/** What the add row's field says before anything is typed into it. */
 private val EditorFormat.placeholder: String
     get() = if (this == EditorFormat.Checklist) "Checklist item" else "List item"

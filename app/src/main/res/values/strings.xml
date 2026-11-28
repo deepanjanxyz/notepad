@@ -92,6 +92,20 @@
     <string name="editor_color_palette">Color palette</string><string name="editor_drawing">Drawing</string>
     <string name="editor_share_note">Share Note</string><string name="editor_archive_note">Archive Note</string>
     <string name="editor_save_close">Save and Close</string><string name="editor_format">Note format</string>
+    <string name="editor_more">More options</string><string name="editor_export_pdf">Export as PDF</string>
+    <string name="editor_add">Add</string><string name="editor_text_formatting">Text formatting</string>
+    <string name="editor_checkboxes">Checkboxes</string><string name="editor_find_in_note">Find in note</string>
+    <string name="editor_find_hint">Find in note…</string><string name="editor_find_prev">Previous match</string>
+    <string name="editor_find_next">Next match</string><string name="editor_find_close">Close search</string>
+    <string name="editor_find_count">%1$d/%2$d</string><string name="editor_make_copy">Make a copy</string>
+    <string name="editor_note_copied">Note copied</string><string name="editor_send">Send</string>
+    <string name="editor_labels">Labels</string><string name="editor_delete">Delete</string>
+    <string name="editor_edited_just_now">Edited just now</string><string name="editor_edited_time">Edited %1$s</string>
+    <string name="editor_format_h1">Heading 1</string><string name="editor_format_h2">Heading 2</string>
+    <string name="editor_format_normal">Normal text</string><string name="editor_format_bold">Bold</string>
+    <string name="editor_format_italic">Italic</string><string name="editor_format_underline">Underline</string>
+    <string name="editor_format_strikethrough">Strikethrough</string><string name="editor_format_clear">Clear formatting</string>
+    <string name="editor_close_formatting">Close formatting</string>
     <string name="editor_plain_text">Plain text</string><string name="editor_bulleted_list">Bulleted list</string><string name="editor_numbered_list">Numbered list</string>
     <string name="editor_add_label">Add label</string><string name="editor_remove_reminder">Remove reminder</string>
     <string name="editor_add_line">Add line</string><string name="editor_remove_line">Remove line</string>
@@ -105,6 +119,7 @@
     <string name="labels_done">Done</string><string name="labels_empty">No labels yet. Create one above!</string>
     <string name="labels_options">Label options</string><string name="labels_rename_action">Rename</string>
     <string name="labels_delete">Delete</string><string name="labels_select">SELECT LABELS</string>
+    <string name="labels_see_all">See all</string><string name="labels_show_less">Show less</string>
     <string name="drawing_title_hint">Title</string><string name="drawing_back">Back</string>
     <string name="drawing_undo">Undo</string><string name="drawing_redo">Redo</string>
     <string name="drawing_more">More options</string><string name="drawing_bg_grid">Canvas Background &amp; Grid</string>
@@ -151,4 +166,38 @@
     <string name="settings_markdown_import_desc">Import a .md file back into notes, in case the JSON backup is gone. To export, select notes on the home screen and tap Export.</string>
     <string name="widget_untitled">Untitled Note</string>
     <string name="editor_format_checklist">Checklist</string><string name="drawing_pencil_pen">Pencil / Pen</string>
+    <string name="trash_drop_target">Moving note to trash</string>
+    <string name="home_deselect_all">Deselect all</string>
+    <string name="home_export_markdown">Export as Markdown</string>
+    <string name="markdown_export_subtitle">Choose how to save your selected notes</string>
+    <string name="markdown_export_count">%1$d notes</string>
+    <string name="markdown_export_separate_title">Separate files</string>
+    <string name="markdown_export_separate_desc">A .zip archive with one .md file per note</string>
+    <string name="markdown_export_single_title">One combined file</string>
+    <string name="markdown_export_single_desc">Every selected note in a single .md document</string>
+    <string name="badge_new">New</string>
+    <string name="note_archived">Note archived</string>
+    <string name="swipe_to_archive">Archive</string>
+    <string name="release_to_archive">Release</string>
+    <string name="editor_format_link">Insert link</string>
+    <string name="link_dialog_add_title">Insert link</string>
+    <string name="link_dialog_edit_title">Edit link</string>
+    <string name="link_dialog_text_label">Link text</string>
+    <string name="link_dialog_text_placeholder">Optional display text</string>
+    <string name="link_dialog_url_label">URL</string>
+    <string name="link_dialog_url_placeholder">https://example.com</string>
+    <string name="link_dialog_url_error">Enter a valid web, mailto, or tel link</string>
+    <string name="link_dialog_save">Save</string>
+    <string name="link_dialog_remove">Remove</string>
+    <string name="link_dialog_open">Open</string>
+    <string name="link_open_error">Could not open this link</string>
+    <string name="active_link_open">Open link</string>
+    <string name="active_link_edit">Edit link</string>
+    <string name="active_link_remove">Remove link</string>
+    <string name="bulk_color_action">Change color</string>
+    <string name="bulk_color_sheet_title">COLOR FOR %1$d NOTES</string>
+    <string name="bulk_labels_action">Labels</string>
+    <string name="bulk_labels_sheet_title">LABELS FOR %1$d NOTES</string>
+    <string name="settings_backup_access_lost">Access to the backup folder was lost. Allow access to the %1$s folder in Downloads to continue backing up.</string>
+    <string name="settings_backup_access_lost_dialog">Access to the backup folder was lost or revoked. Allow access to the %1$s folder in Downloads to continue backing up and restoring notes.</string>
 </resources>

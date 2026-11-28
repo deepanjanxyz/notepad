@@ -146,6 +146,44 @@ interface NoteDao {
     @Query("UPDATE notes_table SET REMINDER_TIME = :reminderTime WHERE ID = :id")
     suspend fun updateReminderTime(id: Long, reminderTime: Long?): Int
 
+    @Query("SELECT * FROM notes_table WHERE ID IN (:ids)")
+    suspend fun getNotesByIdsBatch(ids: List<Long>): List<NoteEntity>
+
+    @Transaction
+    suspend fun updateNotesColor(ids: List<Long>, colorIndex: Int, updatedAt: Long) {
+        ids.toStatementBatches().forEach { batch ->
+            updateNotesColorBatch(batch, colorIndex, updatedAt)
+        }
+    }
+
+    @Query("UPDATE notes_table SET COLOR_INDEX = :colorIndex, UPDATED_AT = :updatedAt WHERE ID IN (:ids)")
+    suspend fun updateNotesColorBatch(ids: List<Long>, colorIndex: Int, updatedAt: Long): Int
+
+    @Transaction
+    suspend fun setTagForNotes(ids: List<Long>, tag: String, enabled: Boolean, updatedAt: Long) {
+        ids.toStatementBatches().forEach { batch ->
+            getNotesByIdsBatch(batch).forEach { entity ->
+                val currentTags = entity.tags.split(",")
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+                val hasTag = currentTags.any { it.equals(tag, ignoreCase = true) }
+                val nextTags = when {
+                    enabled && !hasTag -> currentTags + tag
+                    !enabled && hasTag -> currentTags.filterNot { it.equals(tag, ignoreCase = true) }
+                    else -> null
+                }
+                if (nextTags != null) {
+                    updateNote(
+                        entity.copy(
+                            tags = nextTags.joinToString(","),
+                            updatedAt = updatedAt
+                        )
+                    )
+                }
+            }
+        }
+    }
+
     /**
      * Flips one checklist line on a note.
      *

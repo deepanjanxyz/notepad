@@ -93,10 +93,10 @@ Download the signed APK from the [latest release](https://github.com/deepanjanxy
 Planned work, roughly in order. Priorities can shift, and issues or pull requests on any of these are welcome.
 
 - [x] **Bulleted and numbered lists** — shipped in 1.0.28: lists without checkboxes, a format menu, and a Checklist card in the create sheet.
-- [ ] **Rich-text formatting** *(high priority)* — bold, italic, underline, headings and links inside a note.
+- [x] **Rich-text formatting** *(high priority)* — bold, italic, underline, headings and links inside a note.
 - [ ] **Calendar view** — see which days have notes and open a day's notes from a calendar, keeping the created date and the reminder date separate.
 - [x] **Bulk archive, trash and pin** — select several notes and archive, delete or pin them together.
-- [ ] **Bulk note actions** — re-label, recolour or export several notes together.
+- [x] **Bulk note actions** — re-label, recolour or export several notes together.
 - [x] **Stroke thickness control** — a slider and preset sizes for the active tool, in the colour sheet.
 - [ ] **Drawing improvements** — custom colours, canvas zoom and pan, and stylus-pressure pen width where the device supports it.
 - [ ] **Encrypted backup** — a password-protected, encrypted backup file beside the JSON one, restorable on another device, with no cloud or server.

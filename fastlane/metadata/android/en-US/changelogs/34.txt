@@ -1,0 +1,8 @@
+Rich-text formatting, bulk actions & note gestures
+
+- Format text with bold, italic, underline, strikethrough, headings & links (including inside lists).
+- Bulk recolour & re-label selected notes; redesigned Markdown export sheet & cleaner selection menu.
+- Long-press & drag to reorder notes (Custom sort); long-press & swipe left to archive.
+- Smooth drop-into-bin delete animation with Undo.
+
+Full notes: https://github.com/deepanjanxyz/notepad/blob/main/changelog.md

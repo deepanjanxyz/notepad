@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.InputTransformation
-import androidx.compose.foundation.text.input.byValue
+import androidx.compose.foundation.text.input.OutputTransformation
 import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.byValue
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -22,12 +24,18 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -37,7 +45,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 import com.deepanjanxyz.notepad.ui.components.StatefulBasicTextField
-import com.deepanjanxyz.notepad.ui.theme.AppColors
 
 // Width of the leading slot every line shares, so their words all start together.
 internal val LINE_LEADING_WIDTH = 40.dp
@@ -78,25 +85,43 @@ internal fun RowScope.LineItemText(
     isDone: Boolean,
     segmentIndex: Int,
     textPrimary: Color,
-    amberAccent: Color,
-    onTextChange: (segmentIndex: Int, text: String) -> Unit,
+    textPlaceholder: Color,
+    accentColor: Color,
+    outputTransformation: OutputTransformation?,
+    onTextChange: (segmentIndex: Int, text: String, cursorOffset: Int) -> Unit,
+    onSelectionChange: (segmentIndex: Int, selection: TextRange) -> Unit,
+    onFocusChange: (segmentIndex: Int, selection: TextRange) -> Unit,
     onSplitSegment: (segmentIndex: Int) -> Unit
 ) {
+    val itemState = rememberTextFieldState(initialText = text)
+    val currentIndex by rememberUpdatedState(segmentIndex)
+    val currentOnSelectionChange by rememberUpdatedState(onSelectionChange)
+
+    LaunchedEffect(itemState) {
+        snapshotFlow { itemState.selection }.collect { sel ->
+            currentOnSelectionChange(currentIndex, sel)
+        }
+    }
+
     StatefulBasicTextField(
         value = text,
-        onValueChange = { newText -> onTextChange(segmentIndex, newText) },
+        externalState = itemState,
+        onValueChange = { newText ->
+            onTextChange(segmentIndex, newText, itemState.selection.end)
+        },
         lineLimits = TextFieldLineLimits.SingleLine,
         inputTransformation = InputTransformation.byValue { _, proposed ->
             proposed.toString().replace('\n', ' ')
         },
+        outputTransformation = outputTransformation,
         textStyle = TextStyle(
             fontSize = LINE_FONT_SIZE,
             fontWeight = FontWeight.Normal,
-            color = if (isDone) AppColors.TextPlaceholder else textPrimary,
+            color = if (isDone) textPlaceholder else textPrimary,
             textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None,
             lineHeight = LINE_HEIGHT
         ),
-        cursorBrush = SolidColor(amberAccent),
+        cursorBrush = SolidColor(accentColor),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
         onKeyboardAction = {
             onSplitSegment(segmentIndex)
@@ -104,6 +129,11 @@ internal fun RowScope.LineItemText(
         modifier = Modifier
             .weight(1f)
             .padding(horizontal = LINE_TEXT_PADDING)
+            .onFocusChanged { focusState ->
+                if (focusState.isFocused) {
+                    onFocusChange(segmentIndex, itemState.selection)
+                }
+            }
             .testTag("line_text_$segmentIndex")
     )
 }
@@ -117,7 +147,9 @@ internal fun RowScope.LineItemText(
 @Composable
 internal fun TaskCheckbox(
     isChecked: Boolean,
-    amberAccent: Color,
+    accentColor: Color,
+    onAccentColor: Color,
+    uncheckedColor: Color,
     testTag: String,
     onToggle: () -> Unit
 ) {
@@ -128,21 +160,31 @@ internal fun TaskCheckbox(
             .testTag(testTag),
         contentAlignment = Alignment.Center
     ) {
-        TaskCheckboxMark(isChecked = isChecked, amberAccent = amberAccent)
+        TaskCheckboxMark(
+            isChecked = isChecked,
+            accentColor = accentColor,
+            onAccentColor = onAccentColor,
+            uncheckedColor = uncheckedColor
+        )
     }
 }
 
 @Composable
-private fun TaskCheckboxMark(isChecked: Boolean, amberAccent: Color) {
+private fun TaskCheckboxMark(
+    isChecked: Boolean,
+    accentColor: Color,
+    onAccentColor: Color,
+    uncheckedColor: Color
+) {
     Box(
         modifier = Modifier
             .size(CHECKBOX_SIZE)
             .clip(RoundedCornerShape(CHECKBOX_CORNER))
             .then(
                 if (isChecked) {
-                    Modifier.background(amberAccent)
+                    Modifier.background(accentColor)
                 } else {
-                    Modifier.border(CHECKBOX_BORDER, AppColors.TextMuted, RoundedCornerShape(CHECKBOX_CORNER))
+                    Modifier.border(CHECKBOX_BORDER, uncheckedColor, RoundedCornerShape(CHECKBOX_CORNER))
                 }
             ),
         contentAlignment = Alignment.Center
@@ -151,7 +193,7 @@ private fun TaskCheckboxMark(isChecked: Boolean, amberAccent: Color) {
             Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = stringResource(R.string.editor_completed),
-                tint = AppColors.TextOnAmber,
+                tint = onAccentColor,
                 modifier = Modifier.size(CHECKBOX_TICK_SIZE)
             )
         }
@@ -160,14 +202,14 @@ private fun TaskCheckboxMark(isChecked: Boolean, amberAccent: Color) {
 
 /** The dot that marks an unordered list line. */
 @Composable
-internal fun BulletGlyph() {
+internal fun BulletGlyph(color: Color) {
     LineLeadingSlot {
         Text(
             text = "\u2022",
             style = TextStyle(
                 fontSize = LINE_FONT_SIZE,
                 fontWeight = FontWeight.Bold,
-                color = AppColors.TextMuted
+                color = color
             )
         )
     }
@@ -175,14 +217,14 @@ internal fun BulletGlyph() {
 
 /** The number that marks an ordered list line, right-aligned so the words stay flush. */
 @Composable
-internal fun NumberGlyph(number: Int) {
+internal fun NumberGlyph(number: Int, color: Color) {
     LineLeadingSlot {
         Text(
             text = "$number.",
             style = TextStyle(
                 fontSize = LINE_FONT_SIZE,
                 fontWeight = FontWeight.Normal,
-                color = AppColors.TextMuted,
+                color = color,
                 textAlign = TextAlign.End
             ),
             modifier = Modifier.width(LINE_NUMBER_WIDTH)
@@ -205,6 +247,7 @@ internal fun LineLeadingSlot(content: @Composable () -> Unit) {
 @Composable
 internal fun RemoveLineButton(
     segmentIndex: Int,
+    tint: Color,
     onDeleteSegment: (segmentIndex: Int) -> Unit
 ) {
     ActionTooltip(stringResource(R.string.editor_remove_line)) {
@@ -217,7 +260,7 @@ internal fun RemoveLineButton(
             Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = stringResource(R.string.editor_remove_line),
-                tint = AppColors.TextPlaceholder,
+                tint = tint,
                 modifier = Modifier.size(REMOVE_ICON_SIZE)
             )
         }

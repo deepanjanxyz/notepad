@@ -14,5 +14,6 @@ data class NoteUseCases(
     val togglePin: TogglePinUseCase,
     val archiveNote: ArchiveNoteUseCase,
     val filterNotes: FilterNotesUseCase,
-    val setNoteReminder: SetNoteReminderUseCase
+    val setNoteReminder: SetNoteReminderUseCase,
+    val bulkUpdate: BulkUpdateNotesUseCase
 )

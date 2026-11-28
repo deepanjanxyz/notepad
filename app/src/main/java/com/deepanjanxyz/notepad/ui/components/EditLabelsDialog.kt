@@ -79,7 +79,7 @@ fun EditLabelsDialog(
     var renamingLabel by remember { mutableStateOf<String?>(null) }
     var renameInputText by remember { mutableStateOf("") }
 
-    val pendingLabel = newLabelText.trim().replace("#", "")
+    val pendingLabel = newLabelText.replace("#", "").trim().take(MAX_LABEL_LENGTH).trim()
     val pendingIsDuplicate = pendingLabel.isNotBlank() &&
         labels.any { it.equals(pendingLabel, ignoreCase = true) }
 
@@ -196,7 +196,7 @@ private fun NewLabelField(
     onInputChange: (String) -> Unit,
     onAddLabel: (String) -> Unit
 ) {
-    val cleaned = newLabelText.trim().replace("#", "")
+    val cleaned = newLabelText.replace("#", "").trim().take(MAX_LABEL_LENGTH).trim()
     val isDuplicate = cleaned.isNotBlank() && labels.any { it.equals(cleaned, ignoreCase = true) }
     val canAdd = newLabelText.isNotBlank() && !isDuplicate
     var limitFlash by remember { mutableStateOf(false) }
@@ -326,7 +326,7 @@ private fun RenameLabelDialog(
     onDismiss: () -> Unit
 ) {
     val view = LocalView.current
-    val cleaned = renameInputText.trim().replace("#", "")
+    val cleaned = renameInputText.replace("#", "").trim().take(MAX_LABEL_LENGTH).trim()
     val isDuplicate = cleaned.isNotBlank() &&
         !cleaned.equals(targetLabel, ignoreCase = true) &&
         labels.any { it.equals(cleaned, ignoreCase = true) }

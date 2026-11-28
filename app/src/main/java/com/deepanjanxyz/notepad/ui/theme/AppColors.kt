@@ -20,12 +20,6 @@ object AppColors {
     /** A faint accent wash used behind a marquee selection. */
     val AccentWash = Color(0x222196F3)
 
-    /** Accent for the checklist and label highlights. */
-    val AccentAmber = Color(0xFFFFB300)
-
-    /** Accent for the checklist card on the create-note sheet. */
-    val AccentGreen = Color(0xFF4CAF50)
-
     /** Outline of a selected accent control. */
     val AccentEdge = Color(0xFF64B5F6)
 
@@ -60,9 +54,6 @@ object AppColors {
 
     /** Background of the drawing selection overlay. */
     val SelectionSurface = Color(0xFF26272E)
-
-    /** Background behind an amber-accented control. */
-    val AmberSurface = Color(0xFF282419)
 
     /** Background of the destructive "clear" control. */
     val DangerSurface = Color(0xFF352024)
@@ -125,20 +116,11 @@ object AppColors {
     /** Hint text inside a dialog. */
     val TextHint = Color(0xFFB0B3BD)
 
-    /** Text drawn on top of the amber accent. */
-    val TextOnAmber = Color(0xFF1B1B1F)
-
     /** The opaque white a note colour is compared against when it is the default. */
     const val OPAQUE_WHITE = 0xFFFFFFFFL
 
-    // --- Toolbar and editor extras -----------------------------------------------
+    // --- Toolbar extras ----------------------------------------------------------
 
     /** Cap of the eraser icon on the dark bottom toolbar. */
     val IconIdleOnTool = Color(0xFFC0C2CC)
-
-    /** Background of a label pill in the editor. */
-    val LabelPillContainer = Color(0xFF382952)
-
-    /** Text of a label pill in the editor. */
-    val LabelPillContent = Color(0xFFD0BCFF)
 }

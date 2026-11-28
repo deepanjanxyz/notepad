@@ -50,7 +50,8 @@ enum class NoteSortOption(val label: String) {
     DATE_CREATED("Date created"),
     TITLE_ASC("Title A\u2013Z"),
     TITLE_DESC("Title Z\u2013A"),
-    COLOR("Color")
+    COLOR("Color"),
+    CUSTOM("Custom")
 }
 
 /** Result of an import: how many notes were added and how many were skipped as duplicates. */
@@ -111,12 +112,18 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             var isFirstEmission = true
             settingsUseCases.getSettings().collect { settings ->
+                val persistedSort = NoteSortOption.entries
+                    .firstOrNull { it.name == settings.sortOption }
+                    ?: NoteSortOption.LAST_MODIFIED
+                _sortOption.value = persistedSort
+                _customOrder.value = settings.customOrder
                 _uiState.update { current ->
                     current.copy(
                         themeMode = settings.themeMode,
                         isGridLayout = settings.isGridLayout,
                         lockEnabled = settings.lockEnabled,
                         autoBackup = settings.autoBackup,
+                        sortOption = persistedSort,
                         isLocked = if (isFirstEmission) settings.lockEnabled else current.isLocked
                     )
                 }
@@ -136,10 +143,12 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     val selectedTagFilter: StateFlow<String?> = _selectedTagFilter.asStateFlow()
 
     private val _sortOption = MutableStateFlow(NoteSortOption.LAST_MODIFIED)
+    private val _customOrder = MutableStateFlow<List<Long>>(emptyList())
 
-    // Ids of the notes most recently moved to Trash, so the home screen's Undo
-    // action can restore exactly that batch.
+    // Ids of the notes most recently moved to Trash or Archive, so the home
+    // screen's Undo action can restore exactly that batch.
     private var lastTrashedIds: List<Long> = emptyList()
+    private var lastArchivedIds: List<Long> = emptyList()
 
     // One-shot result of the most recent import, surfaced to the Settings screen.
     private val _importOutcome = MutableStateFlow<ImportOutcome?>(null)
@@ -184,15 +193,15 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         _searchQuery,
         _selectedColorFilter,
         _selectedTagFilter,
-        _sortOption
-    ) { allNotes, query, colorFilter, tagFilter, sortOption ->
+        combine(_sortOption, _customOrder) { sort, order -> sort to order }
+    ) { allNotes, query, colorFilter, tagFilter, (sortOption, customOrder) ->
         val filtered = noteUseCases.filterNotes(
             notes = allNotes,
             query = query,
             colorFilter = colorFilter,
             tagFilter = tagFilter
         )
-        sortNotes(filtered, sortOption)
+        sortNotes(filtered, sortOption, customOrder)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -240,7 +249,43 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setSortOption(option: NoteSortOption) {
         _sortOption.value = option
-        _uiState.value = _uiState.value.copy(sortOption = option)
+        _uiState.update { it.copy(sortOption = option) }
+        persistSetting("sortOption") {
+            settingsUseCases.saveSettings.setSortOption(option.name)
+        }
+    }
+
+    /**
+     * Persists a drag-and-drop custom order and switches the active sort mode to
+     * [NoteSortOption.CUSTOM]. If filters are active, hidden notes keep their
+     * relative slots while [reorderedVisibleIds] updates the visible ones in place.
+     */
+    fun commitCustomOrder(reorderedVisibleIds: List<Long>) {
+        if (reorderedVisibleIds.isEmpty()) return
+        val baseline = sortNotes(rawActiveNotes.value, _sortOption.value, _customOrder.value)
+        val visibleSet = reorderedVisibleIds.toHashSet()
+        val replacementIter = reorderedVisibleIds.iterator()
+        val mergedActiveOrder = baseline.map { note ->
+            if (note.id in visibleSet && replacementIter.hasNext()) {
+                replacementIter.next()
+            } else {
+                note.id
+            }
+        }.toMutableList()
+        while (replacementIter.hasNext()) {
+            val id = replacementIter.next()
+            if (id !in mergedActiveOrder) mergedActiveOrder.add(id)
+        }
+        val activeSet = mergedActiveOrder.toHashSet()
+        val preservedInactive = _customOrder.value.filter { it !in activeSet }
+        val finalOrder = (mergedActiveOrder + preservedInactive).distinct()
+
+        _customOrder.value = finalOrder
+        _sortOption.value = NoteSortOption.CUSTOM
+        _uiState.update { it.copy(sortOption = NoteSortOption.CUSTOM) }
+        persistSetting("customOrder") {
+            settingsUseCases.saveSettings.setCustomOrderAndSort(finalOrder, NoteSortOption.CUSTOM.name)
+        }
     }
 
     fun toggleLayoutView() {
@@ -267,7 +312,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addLabel(labelName: String) {
-        val trimmed = labelName.trim().replace("#", "").take(30)
+        val trimmed = labelName.replace("#", "").trim().take(30).trim()
         if (trimmed.isNotBlank()) {
             val exists = allTags.value.any { it.equals(trimmed, ignoreCase = true) }
             if (!exists) {
@@ -279,7 +324,7 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun renameLabel(oldName: String, newName: String) {
-        val trimmed = newName.trim().replace("#", "").take(30)
+        val trimmed = newName.replace("#", "").trim().take(30).trim()
         if (trimmed.isNotBlank() && !trimmed.equals(oldName, ignoreCase = true)) {
             val exists = allTags.value.any { it.equals(trimmed, ignoreCase = true) }
             if (!exists) {
@@ -479,8 +524,42 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setNotesColor(noteIds: List<Long>, colorIndex: Int) {
+        val ids = noteIds.distinct()
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            noteUseCases.bulkUpdate.setColor(ids, colorIndex)
+        }
+    }
+
+    fun setTagForNotes(noteIds: List<Long>, tag: String, enabled: Boolean) {
+        val ids = noteIds.distinct()
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            noteUseCases.bulkUpdate.setTag(ids, tag, enabled)
+        }
+    }
+
+    /** Creates and applies [tag] sequentially in one coroutine so label registration cannot duplicate rows. */
+    fun createAndApplyTag(noteIds: List<Long>, tag: String) {
+        val clean = tag.replace("#", "").trim().take(30).trim()
+        if (clean.isEmpty()) return
+        val ids = noteIds.distinct()
+        viewModelScope.launch {
+            if (ids.isEmpty()) {
+                if (allTags.value.none { it.equals(clean, ignoreCase = true) }) {
+                    labelUseCases.addLabel(clean)
+                }
+            } else {
+                noteUseCases.bulkUpdate.setTag(ids, clean, enabled = true)
+            }
+        }
+    }
+
     // Move to Trash (Recycler)
     fun moveToTrash(noteId: Long) {
+        if (noteId <= 0L) return
+        lastTrashedIds = listOf(noteId)
         viewModelScope.launch {
             noteUseCases.trashNote(noteId)
             NoteReminderScheduler.cancelReminder(getApplication(), noteId)
@@ -504,11 +583,13 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** Restores the notes most recently moved to Trash, backing the Undo action. */
-    fun undoMoveToTrash() {
-        val ids = lastTrashedIds
+    /** Restores the specified [noteIds] from Trash, backing an Undo snackbar action. */
+    fun undoMoveToTrash(noteIds: List<Long> = lastTrashedIds) {
+        val ids = noteIds.distinct()
         if (ids.isEmpty()) return
-        lastTrashedIds = emptyList()
+        if (lastTrashedIds == ids) {
+            lastTrashedIds = emptyList()
+        }
         viewModelScope.launch {
             noteUseCases.restoreNote(ids)
         }
@@ -535,6 +616,8 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     // Archive / Unarchive
     fun moveToArchive(noteId: Long) {
+        if (noteId <= 0L) return
+        lastArchivedIds = listOf(noteId)
         viewModelScope.launch {
             noteUseCases.archiveNote.moveToArchive(noteId)
         }
@@ -542,9 +625,23 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
 
     fun moveSelectedToArchive() {
         val ids = _uiState.value.selectedNoteIds.toList()
+        if (ids.isEmpty()) return
+        lastArchivedIds = ids
         viewModelScope.launch {
             noteUseCases.archiveNote.moveNotesToArchive(ids)
             clearSelection()
+        }
+    }
+
+    /** Restores the specified [noteIds] from Archive, backing an Undo snackbar action. */
+    fun undoMoveToArchive(noteIds: List<Long> = lastArchivedIds) {
+        val ids = noteIds.distinct()
+        if (ids.isEmpty()) return
+        if (lastArchivedIds == ids) {
+            lastArchivedIds = emptyList()
+        }
+        viewModelScope.launch {
+            noteUseCases.archiveNote.restoreNotesFromArchive(ids)
         }
     }
 
@@ -732,7 +829,11 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
         note.tags.map { it.trim().lowercase() }.sorted().joinToString(",")
     ).joinToString("\u0000")
 
-    private fun sortNotes(notes: List<Note>, option: NoteSortOption): List<Note> {
+    private fun sortNotes(
+        notes: List<Note>,
+        option: NoteSortOption,
+        customOrder: List<Long> = emptyList()
+    ): List<Note> {
         val comparator = when (option) {
             // Order by the real timestamps, falling back to the id only for rows
             // that predate them, so editing an old note actually moves it up.
@@ -744,6 +845,14 @@ class NotesViewModel(application: Application) : AndroidViewModel(application) {
             NoteSortOption.TITLE_DESC ->
                 compareByDescending<Note> { it.isPinned }.thenByDescending { it.title.lowercase() }
             NoteSortOption.COLOR -> compareByDescending<Note> { it.isPinned }.thenBy { it.colorIndex }
+            NoteSortOption.CUSTOM -> {
+                val orderIndex = customOrder.withIndex().associate { it.value to it.index }
+                compareByDescending<Note> { it.isPinned }
+                    .thenBy { if (it.id in orderIndex) 1 else 0 }
+                    .thenBy { orderIndex[it.id] ?: Int.MAX_VALUE }
+                    .thenByDescending { it.updatedAt }
+                    .thenByDescending { it.id }
+            }
         }
         return notes.sortedWith(comparator)
     }

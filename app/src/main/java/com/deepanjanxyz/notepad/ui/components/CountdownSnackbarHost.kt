@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -19,6 +20,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarData
@@ -109,14 +112,20 @@ private fun countdownSeconds(duration: SnackbarDuration, indefinite: Int): Int =
     SnackbarDuration.Indefinite -> indefinite
 }
 
-/** A snackbar laid out like the Material one, with a countdown in the last slot. */
+/** A snackbar laid out cleanly in the active theme, with a countdown in the last slot. */
 @Composable
 private fun CountdownSnackbar(data: SnackbarData, seconds: Int) {
     val visuals = data.visuals
     Surface(
-        shape = SnackbarDefaults.shape,
-        color = SnackbarDefaults.color,
-        contentColor = SnackbarDefaults.contentColor,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        ),
+        shadowElevation = 6.dp,
+        tonalElevation = 4.dp,
         modifier = Modifier
             .padding(HOST_PADDING)
             .fillMaxWidth()
@@ -132,12 +141,21 @@ private fun CountdownSnackbar(data: SnackbarData, seconds: Int) {
             Text(
                 text = visuals.message,
                 style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f)
             )
             val actionLabel = visuals.actionLabel
             if (actionLabel != null) {
-                TextButton(onClick = { data.performAction() }) {
-                    Text(text = actionLabel, color = SnackbarDefaults.actionColor)
+                TextButton(
+                    onClick = { data.performAction() },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text(
+                        text = actionLabel,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
             Spacer(Modifier.width(COUNTDOWN_GAP))
@@ -190,8 +208,7 @@ private fun CountdownDismiss(snackbar: SnackbarData, seconds: Int, onDismiss: ()
             )
         }
     }
-    // Read here: SnackbarDefaults.actionColor is composable, and the draw lambda is not.
-    val ringColor = SnackbarDefaults.actionColor
+    val ringColor = MaterialTheme.colorScheme.primary
     Box(
         modifier = Modifier
             // A floor rather than a fixed size, so the digit is not clipped once the

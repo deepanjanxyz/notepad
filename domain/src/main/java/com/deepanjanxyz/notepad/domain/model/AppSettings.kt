@@ -21,5 +21,7 @@ data class AppSettings(
     val themeMode: String = ThemeMode.DARK,
     val isGridLayout: Boolean = true,
     val lockEnabled: Boolean = false,
-    val autoBackup: Boolean = false
+    val autoBackup: Boolean = false,
+    val sortOption: String = "LAST_MODIFIED",
+    val customOrder: List<Long> = emptyList()
 )

@@ -2,6 +2,7 @@ package com.deepanjanxyz.notepad.domain.util
 
 import com.deepanjanxyz.notepad.domain.model.DrawingSerializer
 import com.deepanjanxyz.notepad.domain.model.Note
+import com.deepanjanxyz.notepad.domain.model.RichTextCodec
 import java.util.Locale
 
 object NoteFilter {
@@ -32,25 +33,32 @@ object NoteFilter {
                 // A drawing keeps the caption the user typed inside its content,
                 // after the serialized strokes. That text is the user's own and is
                 // searched; the stroke data is not.
-                val contentLower = if (isDrawing) {
-                    DrawingSerializer.extractTextPart(note.content).lowercase(Locale.getDefault())
+                val rawBody = if (isDrawing) {
+                    DrawingSerializer.extractTextPart(note.content)
                 } else {
-                    note.content.lowercase(Locale.getDefault())
+                    note.content
                 }
+                val decoded = RichTextCodec.decode(rawBody)
+                val contentLower = decoded.text.lowercase(Locale.getDefault())
+                val linkUrlsLower = decoded.linkSpans
+                    .joinToString(" ") { it.url }
+                    .lowercase(Locale.getDefault())
                 val tagsLower = note.tags.map { it.lowercase(Locale.getDefault()) }
 
                 // Check direct substring match first for exact phrase
                 if (titleLower.contains(cleanQuery) ||
                     contentLower.contains(cleanQuery) ||
+                    linkUrlsLower.contains(cleanQuery) ||
                     tagsLower.any { it.contains(cleanQuery) }
                 ) {
                     true
                 } else {
-                    // Check that all individual keywords are present in either title, content, or tags
+                    // Check that all individual keywords are present in title, content, link URLs, or tags
                     keywords.all { kw ->
                         titleLower.contains(kw) ||
-                                contentLower.contains(kw) ||
-                                tagsLower.any { it.contains(kw) }
+                            contentLower.contains(kw) ||
+                            linkUrlsLower.contains(kw) ||
+                            tagsLower.any { it.contains(kw) }
                     }
                 }
             }

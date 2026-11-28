@@ -23,6 +23,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -38,7 +40,6 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import com.deepanjanxyz.notepad.ui.components.ActionTooltip
 import com.deepanjanxyz.notepad.ui.feature_editor.model.EditorFormat
-import com.deepanjanxyz.notepad.ui.theme.AppColors
 
 /** How long the format button takes to swap one format's icon for another. */
 private const val ICON_SWAP_MS = 140
@@ -74,6 +75,8 @@ private val EditorFormat.icon: ImageVector
 fun EditorFormatMenu(
     currentFormat: EditorFormat,
     onFormatSelected: (EditorFormat) -> Unit,
+    textPrimary: Color = MaterialTheme.colorScheme.onBackground,
+    accentColor: Color = MaterialTheme.colorScheme.primary,
     modifier: Modifier = Modifier
 ) {
     var isExpanded by remember { mutableStateOf(false) }
@@ -93,11 +96,7 @@ fun EditorFormatMenu(
                     Icon(
                         imageVector = format.icon,
                         contentDescription = stringResource(R.string.editor_format),
-                        tint = if (format.isLinesMode) {
-                            AppColors.AccentAmber
-                        } else {
-                            AppColors.TextPrimary
-                        }
+                        tint = if (format.isLinesMode) accentColor else textPrimary
                     )
                 }
             }
@@ -106,7 +105,7 @@ fun EditorFormatMenu(
             expanded = isExpanded,
             onDismissRequest = { isExpanded = false },
             shape = RoundedCornerShape(16.dp),
-            containerColor = AppColors.SheetSurface,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             offset = DpOffset(0.dp, 4.dp),
             modifier = Modifier
                 .width(232.dp)
@@ -127,7 +126,7 @@ fun EditorFormatMenu(
 }
 
 /**
- * One row of the format menu: the icon and name of [format], a green tick when it
+ * One row of the format menu: the icon and name of [format], a check mark when it
  * is the format in use, and nothing at all when it is not.
  */
 @Composable
@@ -137,12 +136,20 @@ private fun FormatMenuItem(
     onClick: () -> Unit
 ) {
     val labelColour by animateColorAsState(
-        targetValue = if (isSelected) AppColors.TextPrimary else AppColors.TextMuted,
+        targetValue = if (isSelected) {
+            MaterialTheme.colorScheme.onSurface
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
         animationSpec = tween(MARKER_MS),
         label = "format_label"
     )
     val iconTint by animateColorAsState(
-        targetValue = if (isSelected) AppColors.AccentAmber else AppColors.TextMuted,
+        targetValue = if (isSelected) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
         animationSpec = tween(MARKER_MS),
         label = "format_icon_tint"
     )
@@ -173,7 +180,7 @@ private fun FormatMenuItem(
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = stringResource(R.string.editor_selected_format),
-                    tint = AppColors.AccentGreen
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
         }

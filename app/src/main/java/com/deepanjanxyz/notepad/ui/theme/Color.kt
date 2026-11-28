@@ -50,6 +50,12 @@ val SurfaceVariantDark = Color(0xFF202533)
 val OnSurfaceVariantDark = Color(0xFFC4C7D4)
 val OutlineDark = Color(0xFF8D92A0)
 
+// Swipe-to-archive feedback palette
+val ArchiveGreenMuted = Color(0xFF1F4D2E)
+val ArchiveGreen = Color(0xFF2E7D32)
+val ArchiveGreenAccent = Color(0xFF81C784)
+val OnArchiveGreen = Color(0xFFFFFFFF)
+
 // Rich, High-Contrast Google Keep-style Dark Palette
 val NoteColorOptions = listOf(
     Color(0x00000000), // 0: Default / None

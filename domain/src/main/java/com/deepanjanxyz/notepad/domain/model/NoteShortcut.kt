@@ -56,7 +56,7 @@ object NoteShortcutBuilder {
     }
 
     private fun buildTextShortcut(note: Note, title: String): NoteShortcut {
-        val text = previewText(note.content)
+        val text = previewText(RichTextCodec.extractPlainText(note.content))
         return NoteShortcut(
             noteId = note.id,
             title = title,
@@ -70,7 +70,9 @@ object NoteShortcutBuilder {
         val drawing = DrawingSerializer.parse(note.content)
         // A drawing note can also carry a typed caption, which is all it has to
         // show while no stroke has been drawn yet.
-        val caption = previewText(DrawingSerializer.extractTextPart(note.content))
+        val caption = previewText(
+            RichTextCodec.extractPlainText(DrawingSerializer.extractTextPart(note.content))
+        )
         return when {
             drawing.strokes.isNotEmpty() -> NoteShortcut(
                 noteId = note.id,
